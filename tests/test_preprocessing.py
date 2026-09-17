@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-SOURCE = Path(__file__).resolve().parents[1] / "preprocessing/generate_cleaned_txt"
+SOURCE = Path(__file__).resolve().parents[1] / "corpus/clean"
 
 
 def load(name):
@@ -38,7 +38,7 @@ class PreprocessingTests(unittest.TestCase):
     def test_command_line_pipeline_uses_repository_data(self):
         with tempfile.TemporaryDirectory() as directory:
             checkout = Path(directory) / "checkout"
-            scripts = checkout / "preprocessing/generate_cleaned_txt"
+            scripts = checkout / "corpus/clean"
             shutil.copytree(SOURCE, scripts)
             data = checkout / "data"
             (data / "wiki_zh").mkdir(parents=True)
