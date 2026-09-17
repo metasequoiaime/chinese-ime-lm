@@ -22,6 +22,22 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
 
+  msrv:
+    name: 最低 Rust 版本
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reference
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # `rust-version` in the manifest is a promise to anyone adopting this crate. Without a job
+      # that keeps it, the promise only stays true by luck: any change can raise the floor and the
+      # stable-only build would never notice.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.75.0
+        with:
+          toolchain: "1.75.0"
+      - run: cargo check --all-targets
+
   training:
     name: 训练管线
     runs-on: ubuntu-latest
