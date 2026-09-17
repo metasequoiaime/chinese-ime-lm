@@ -38,7 +38,9 @@ def build_vocab(paths, size):
     ranked = [ch for ch, _ in counts.most_common(size - len(RESERVED))]
     kept = sum(counts[ch] for ch in ranked)
     total = sum(counts.values())
-    print(f"vocab: {len(ranked):,} of {len(counts):,} distinct characters, covering {100 * kept / total:.4f}% of the corpus")
+    print(
+        f"vocab: {len(ranked):,} of {len(counts):,} distinct characters, covering {100 * kept / total:.4f}% of the corpus"
+    )
     return RESERVED + ranked
 
 
@@ -104,10 +106,12 @@ def main():
 
     vocab_path = os.path.join(args.out, "vocab.json")
     if os.path.exists(vocab_path):
-        tokens_list = json.load(open(vocab_path, encoding="utf-8"))["tokens"]
+        with open(vocab_path, encoding="utf-8") as handle:
+            tokens_list = json.load(handle)["tokens"]
     else:
         tokens_list = build_vocab(args.corpus, cfg.vocab)
-        json.dump({"tokens": tokens_list}, open(vocab_path, "w", encoding="utf-8"), ensure_ascii=False)
+        with open(vocab_path, "w", encoding="utf-8") as handle:
+            json.dump({"tokens": tokens_list}, handle, ensure_ascii=False)
     cfg.vocab = len(tokens_list)
     index = {ch: i for i, ch in enumerate(tokens_list)}
 
@@ -142,7 +146,9 @@ def main():
                 val = sum(model(*next(val_stream))[1].item() for _ in range(20)) / 20
             model.train()
             elapsed = time.monotonic() - started
-            print(f"step {step + 1:>6}/{args.steps}  train {loss.item():.4f}  val {val:.4f}  ppl {math.exp(val):.2f}  {elapsed / 60:.1f} min")
+            print(
+                f"step {step + 1:>6}/{args.steps}  train {loss.item():.4f}  val {val:.4f}  ppl {math.exp(val):.2f}  {elapsed / 60:.1f} min"
+            )
             if val < best:
                 best = val
                 torch.save(

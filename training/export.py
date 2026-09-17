@@ -45,14 +45,17 @@ def quantize_int8(tensor):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run", required=True, help="training output directory containing checkpoint.pt and vocab.json")
+    parser.add_argument(
+        "--run", required=True, help="training output directory containing checkpoint.pt and vocab.json"
+    )
     parser.add_argument("--out", required=True)
     parser.add_argument("--precision", choices=["f16", "int8"], default="f16")
     parser.add_argument("--url", default="", help="published location, for the resource lock entry")
     args = parser.parse_args()
 
     checkpoint = torch.load(os.path.join(args.run, "checkpoint.pt"), map_location="cpu", weights_only=True)
-    vocab = json.load(open(os.path.join(args.run, "vocab.json"), encoding="utf-8"))["tokens"]
+    with open(os.path.join(args.run, "vocab.json"), encoding="utf-8") as handle:
+        vocab = json.load(handle)["tokens"]
     cfg = Config(**checkpoint["config"])
 
     model = CharLM(cfg)
@@ -89,7 +92,9 @@ def main():
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     save_file(tensors, args.out, metadata=metadata)
     size = os.path.getsize(args.out)
-    print(f"{args.out}: {size / 1e6:.1f} MB, {cfg.parameters():,} parameters, {args.precision}, validation loss {checkpoint['val']:.4f}")
+    print(
+        f"{args.out}: {size / 1e6:.1f} MB, {cfg.parameters():,} parameters, {args.precision}, validation loss {checkpoint['val']:.4f}"
+    )
 
     # The entry a resource lock needs. A model is installed and verified exactly like a dictionary,
     # by name, length and digest, so publishing one means adding this to a lock rather than copying

@@ -31,9 +31,14 @@ impl Weights {
             .ok_or(ModelError::Truncated)?
             .try_into()
             .map_err(|_| ModelError::Truncated)?;
-        let header_len = u64::from_le_bytes(length_bytes) as usize;
-        let header = bytes.get(8..8 + header_len).ok_or(ModelError::Truncated)?;
-        let data = bytes.get(8 + header_len..).ok_or(ModelError::Truncated)?;
+        // The length comes from the file, so it can be anything. Adding it to the eight byte prefix
+        // without checking overflows on a hostile value, and an overflow here is a panic in a debug
+        // build and a wrapped index in a release one.
+        let header_len =
+            usize::try_from(u64::from_le_bytes(length_bytes)).map_err(|_| ModelError::Truncated)?;
+        let header_end = header_len.checked_add(8).ok_or(ModelError::Truncated)?;
+        let header = bytes.get(8..header_end).ok_or(ModelError::Truncated)?;
+        let data = bytes.get(header_end..).ok_or(ModelError::Truncated)?;
 
         let mut raw: BTreeMap<String, serde_json::Value> = serde_json::from_slice(header)
             .map_err(|error| ModelError::Header(error.to_string()))?;
@@ -69,7 +74,13 @@ impl Weights {
                 }
                 other => return Err(ModelError::Header(format!("{name}: dtype {other}"))),
             };
-            let expected: usize = entry.shape.iter().product();
+            // The shape comes from the file; multiplying it out unchecked overflows on a hostile
+            // one, and the product is then compared against a real length and happens to match.
+            let expected = entry
+                .shape
+                .iter()
+                .try_fold(1usize, |total, dimension| total.checked_mul(*dimension))
+                .ok_or_else(|| ModelError::Header(format!("{name}: shape overflows")))?;
             if values.len() != expected {
                 return Err(ModelError::Header(format!(
                     "{name}: shape does not match data"

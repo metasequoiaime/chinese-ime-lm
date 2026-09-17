@@ -80,6 +80,32 @@ pub struct SentenceModel {
     attribution: String,
 }
 
+impl std::fmt::Debug for SentenceModel {
+    /// The shape and provenance, never the weights: they run to tens of millions of values and
+    /// nothing useful is learned from seeing them.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SentenceModel")
+            .field("vocab", &self.config.vocab)
+            .field("n_layer", &self.config.n_layer)
+            .field("n_head", &self.config.n_head)
+            .field("n_embd", &self.config.n_embd)
+            .field("context", &self.config.context)
+            .field("attribution", &self.attribution)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for Reranker {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Reranker")
+            .field("model", &self.model)
+            .field("prefix_cached", &self.cached.is_some())
+            .finish()
+    }
+}
+
 /// The per-layer keys and values for a prefix, so that scoring several candidates against the same
 /// committed text runs the prefix once instead of once per candidate.
 struct Prefix {
@@ -104,8 +130,21 @@ impl SentenceModel {
             .unwrap_or_default()
             .to_owned();
 
-        if config.n_head == 0 || config.n_embd == 0 || !config.n_embd.is_multiple_of(config.n_head)
+        // Every dimension below is multiplied out while checking the tensors, and all of them come
+        // from the file. Bounding them here means the later arithmetic cannot overflow, which is
+        // simpler to be sure of than checking each multiplication.
+        const LARGEST: usize = 1 << 20;
+        if config.vocab > LARGEST
+            || config.n_layer > LARGEST
+            || config.n_embd > LARGEST
+            || config.context > LARGEST
         {
+            return Err(ModelError::Geometry(
+                "a dimension is larger than any real model".into(),
+            ));
+        }
+        // `%` rather than `is_multiple_of`, which needs a far newer compiler than anything else here.
+        if config.n_head == 0 || config.n_embd == 0 || config.n_embd % config.n_head != 0 {
             return Err(ModelError::Geometry(format!(
                 "{} channels do not divide into {} heads",
                 config.n_embd, config.n_head

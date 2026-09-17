@@ -1,0 +1,4 @@
+* text=auto eol=lf
+
+# 评测集以制表符分隔，任何行尾或空白改写都会改变字段内容
+*.tsv text eol=lf

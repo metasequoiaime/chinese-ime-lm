@@ -33,6 +33,12 @@ jobs:
       # The pipeline is not exercised end to end here: it downloads gigabytes and trains on a GPU.
       # What CI can check is that every module parses and its command line is well formed, which is
       # what breaks when someone edits one of them without running it.
+      - name: ruff
+        run: |
+          pipx install ruff
+          ruff check training
+          ruff format --check training
+
       - name: 语法与入口
         run: |
           cd training

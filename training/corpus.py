@@ -146,7 +146,7 @@ def download(url, path):
             os.replace(tmp, path)
             return path
         print(f"  attempt {attempt} short by {(total - done) >> 20} MiB", file=sys.stderr)
-    raise IOError(f"{url}: incomplete after {ATTEMPTS} attempts")
+    raise OSError(f"{url}: incomplete after {ATTEMPTS} attempts")
 
 
 def segment(text):
@@ -340,8 +340,7 @@ def docs_lines(cache, max_chars):
 # Shards are streamed and decompressed in flight rather than downloaded, because the Chinese portion
 # runs to tens of gigabytes compressed and only the normalized output is worth keeping.
 C4_SHARD = (
-    "https://huggingface.co/datasets/allenai/c4/resolve/main/multilingual/"
-    "c4-zh.tfrecord-{index:05d}-of-01024.json.gz"
+    "https://huggingface.co/datasets/allenai/c4/resolve/main/multilingual/c4-zh.tfrecord-{index:05d}-of-01024.json.gz"
 )
 C4_SHARDS = 1024
 
@@ -381,7 +380,9 @@ def main():
     parser.add_argument("--cache", default="data/raw")
     parser.add_argument("--split", choices=["base", "large"], default="base")
     parser.add_argument("--first-shard", type=int, default=0, help="c4 only: shard to start from")
-    parser.add_argument("--max-chars", type=int, default=0, help="stop after this many kept characters; 0 means the whole source")
+    parser.add_argument(
+        "--max-chars", type=int, default=0, help="stop after this many kept characters; 0 means the whole source"
+    )
     args = parser.parse_args()
 
     if args.source == "wiki":

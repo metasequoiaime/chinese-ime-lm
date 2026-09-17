@@ -101,7 +101,5 @@ class CharLM(nn.Module):
         logits = self.head(self.ln_f(x))
         if targets is None:
             return logits, None
-        loss = F.cross_entropy(
-            logits.view(-1, logits.size(-1)), targets.reshape(-1), ignore_index=PAD
-        )
+        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.reshape(-1), ignore_index=PAD)
         return logits, loss

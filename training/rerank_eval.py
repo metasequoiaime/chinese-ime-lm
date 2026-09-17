@@ -57,8 +57,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
     parser.add_argument("--cases", required=True)
-    parser.add_argument("--margin", type=float, default=0.0, help="required advantage in nats per character before the engine's order is overridden")
-    parser.add_argument("--ungated", action="store_true", help="also rerank dictionary hits, to show what the gate is worth")
+    parser.add_argument(
+        "--margin",
+        type=float,
+        default=0.0,
+        help="required advantage in nats per character before the engine's order is overridden",
+    )
+    parser.add_argument(
+        "--ungated", action="store_true", help="also rerank dictionary hits, to show what the gate is worth"
+    )
     args = parser.parse_args()
 
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,7 +87,9 @@ def main():
         ]
 
     buckets = {}
-    for line in open(args.cases, encoding="utf-8"):
+    with open(args.cases, encoding="utf-8") as handle:
+        cases = handle.readlines()
+    for line in cases:
         case = json.loads(line)
         gold = case["gold"]
         covering = [c for c in case["candidates"] if len(c["text"]) == len(gold)][:9]
