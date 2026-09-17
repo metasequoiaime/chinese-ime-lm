@@ -15,3 +15,12 @@ thiserror = "2"
 
 [lints.rust]
 unsafe_code = "forbid"
+# Newer clippy suggests `as_chunks` over `chunks_exact` with a constant size. It does give
+# fixed-size arrays, but it needs a far more recent toolchain than `chunks_exact`, which has been
+# available since 1.31. This crate exists for other input methods to adopt, and raising the minimum
+# compiler for a style preference trades that away for nothing. Declared here rather than in the
+# source so it covers the examples too, which are separate compilation targets.
+unknown_lints = "allow"
+
+[lints.clippy]
+chunks_exact_to_as_chunks = "allow"
