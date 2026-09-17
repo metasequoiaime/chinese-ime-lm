@@ -1,10 +1,10 @@
-# Metasequoia n-gram
+# chinese-ime-lm
 
 <!-- badges:start -->
-[![CI](https://img.shields.io/github/actions/workflow/status/metasequoiaime/Metasequoia-n-gram/ci.yml?branch=main&label=CI)](https://github.com/metasequoiaime/Metasequoia-n-gram/actions/workflows/ci.yml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/metasequoiaime/Metasequoia-n-gram/codeql.yml?branch=main&label=CodeQL)](https://github.com/metasequoiaime/Metasequoia-n-gram/actions/workflows/codeql.yml)
-[![License](https://img.shields.io/github/license/metasequoiaime/Metasequoia-n-gram)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/metasequoiaime/Metasequoia-n-gram?style=flat)](https://github.com/metasequoiaime/Metasequoia-n-gram/stargazers)
+[![CI](https://img.shields.io/github/actions/workflow/status/metasequoiaime/chinese-ime-lm/ci.yml?branch=main&label=CI)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/ci.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/metasequoiaime/chinese-ime-lm/codeql.yml?branch=main&label=CodeQL)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/codeql.yml)
+[![License](https://img.shields.io/github/license/metasequoiaime/chinese-ime-lm)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/metasequoiaime/chinese-ime-lm?style=flat)](https://github.com/metasequoiaime/chinese-ime-lm/stargazers)
 <!-- badges:end -->
 
 面向中文输入法的语言模型工程：语料、统计模型、神经模型，以及判断它们好坏的评测集。
@@ -173,7 +173,7 @@ python .\test\viterbi_no_pruning.py
 <!-- star-history:start -->
 ## Star History
 
-<a href="https://star-history.com/#metasequoiaime/Metasequoia-n-gram&Date">
-  <img src="https://api.star-history.com/svg?repos=metasequoiaime/Metasequoia-n-gram&type=Date" alt="Star History Chart" width="600">
+<a href="https://star-history.com/#metasequoiaime/chinese-ime-lm&Date">
+  <img src="https://api.star-history.com/svg?repos=metasequoiaime/chinese-ime-lm&type=Date" alt="Star History Chart" width="600">
 </a>
 <!-- star-history:end -->
