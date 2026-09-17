@@ -1,42 +1,42 @@
 # chinese-ime-lm
 
-A character-level language model that reranks the candidates a Chinese input method produces, with the training pipeline that builds it and the measurements that say when it helps.
+用于中文输入法候选重排的字级语言模型，附带训练管线，以及说明它在什么情况下有用、什么情况下有害的实测数据。
 
-It is meant to be used by input methods other than the one it came from. The model file is plain safetensors, the reference implementation depends on nothing but serde, and the part that is specific to any one engine is a predicate the caller supplies.
+这个仓库是给**其他输入法**用的。模型是标准 safetensors，参考实现除 serde 外无依赖，而所有与特定引擎绑定的部分都由调用方以谓词形式提供。
 
-## What it does, and where it does not help
+## 它做什么，以及在哪里不该用
 
-Reranking is not uniformly good. Measured against the evaluation sets in `eval/`, driven through a real input runtime rather than offline:
+重排不是普遍有益的。以 `eval/` 中的评测集、通过真实输入运行时（而非离线打分）测得：
 
-| The engine's leading candidate | cases | engine top-1 | reranked top-1 |
+| 引擎给出的首选候选 | 用例数 | 引擎 top-1 | 重排后 top-1 |
 |---|---|---|---|
-| An exact dictionary hit on the whole key | 2052 | **0.719** | 0.690 at best |
-| Assembled by a lattice or fallback decoder | 37 | 0.000 | **0.189** |
+| 词典对整个键的精确命中 | 2052 | **0.719** | 最好 0.690 |
+| 词图或回退解码器拼装 | 37 | 0.000 | **0.189** |
 
-A dictionary that answered the whole key already carries corpus frequency. A character model does not have that, and overriding those candidates costs accuracy at every threshold tried — twenty-five weightings of a model score against rank and dictionary evidence, and not one of them beat simply leaving dictionary-led lists alone. Decoder-assembled candidates carry no frequency evidence, and that is where the model earns its place.
+词典既然答完了整个键，它就已经携带了语料词频。字级模型没有这个信息，覆盖这类候选在任何阈值下都会掉分——我们扫过 25 组"模型分数 vs 排名 vs 词典证据"的权重组合，**没有一组**比"词典首选就别动"更好。而解码器拼装出来的候选不带任何词频证据，模型的价值正在那里。
 
-So the model is gated, and `Reranker::best_where` takes the gate as a predicate:
+所以模型是带门控的，`Reranker::best_where` 把门控作为谓词交给调用方：
 
 ```rust
-let promoted = reranker.best_where(committed_text, &candidates, |index| {
-    // Your engine's answer to: did the dictionary answer the whole key with this one?
+let promoted = reranker.best_where(已上屏文本, &候选列表, |index| {
+    // 由你的引擎回答：词典是否用这一条答完了整个键？
     sources[index] == CandidateSource::Dictionary
 });
 ```
 
-## Two things that will silently ruin your measurements
+## 两个会悄悄毁掉你测量结果的陷阱
 
-**Only candidates covering the whole key are comparable.** Engines return prefixes alongside full answers. A summed log-probability is larger for fewer characters, so a mixed-length list ranks the shortest candidate first every single time, regardless of quality. Measured naively this reads as the model destroying accuracy; restricted to full-cover candidates, the same weights improve it. Scores here are per character for the same reason.
+**只有覆盖整个键的候选之间才可比。** 引擎会在完整答案旁边一并返回前缀。对数概率求和时字数越少值越大，所以混长度的列表里**最短的候选永远排第一**，与质量无关。用这种方式测出来，会显示模型在严重破坏准确率；换成只比较等长候选，同一份权重反而是提升的。这里的分数按字数归一，也是同一个原因。
 
-**The gate the evaluation can apply is not the gate the runtime can.** An evaluation knows the expected answer and can filter by its length; an input method cannot. Measure with the criterion you will actually ship — the leading candidate's source and length — or your numbers will be better than your product.
+**评测能用的门控，运行时用不了。** 评测知道正确答案，可以按它的长度过滤；输入法不知道。**要用你真正会发布的那个判据去测**——首选候选的来源和长度——否则你的数字会比你的产品好看。
 
-## Reranking has a ceiling, and it is low
+## 重排有天花板，而且不高
 
-Reranking can only choose among readings the engine already assembled. In the sentence set every case offered exactly two full-cover candidates, so the decision was always between two readings; any error they shared was unreachable.
+重排只能在引擎已经拼装出来的读法里挑。在整句评测集中，每一条用例的全覆盖候选**恰好都只有两个**，所以决策永远是二选一；两条都错的地方，重排够不着。
 
-`examples/decode.rs` removes that ceiling by searching the syllables directly — every character the pinyin table allows, scored by the model. On this model it performs worse than the engine it was meant to improve, because a character model without word-frequency evidence loses on proper nouns and rare collocations. That is a statement about this model's capacity and corpus, not about the approach.
+`examples/decode.rs` 用直接搜索音节的方式拆掉这个天花板——拼音表允许的每个字都是候选，由模型打分。在当前这个模型上，**它的表现比它本想改进的引擎还差**，因为不带词频证据的字级模型在专有名词和罕见搭配上会输。这是关于**这个模型的容量和语料**的结论，不是关于这条路线的结论。
 
-## Training
+## 训练
 
 ```sh
 pip install -r training/requirements.txt
@@ -48,36 +48,40 @@ python training/train.py --corpus data/c4.txt data/lccc.txt --out runs/desktop -
 python training/export.py --run runs/desktop --out dist/model.safetensors --precision int8
 ```
 
-| Preset | Layers | Width | Context | Vocabulary | Parameters | int8 |
+| 预设 | 层数 | 宽度 | 上下文 | 词表 | 参数量 | int8 体积 |
 |---|---|---|---|---|---|---|
 | `keyboard` | 6 | 256 | 64 | 8192 | 6.8M | 7.1 MB |
-| `desktop` | 8 | 448 | 128 | 12288 | 24M | ~24 MB |
+| `desktop` | 8 | 448 | 128 | 12288 | 24M | 约 24 MB |
 
-`keyboard` is sized to load inside a mobile keyboard extension, which shares a memory budget with the engine and its dictionaries. Capacity is the lever that mattered most: at 5,000 steps the `desktop` preset already reached a lower validation perplexity than `keyboard` did after 50,000.
+`keyboard` 的尺寸是按移动端键盘扩展定的——它要和引擎及词库共享内存预算。
 
-`corpus.py` also offers `wiki` and `docs` sources. They are not in the commands above on purpose — see the licensing note below.
+**容量是最有效的杠杆**：同一份语料下，`desktop` 预设训到 5000 步的困惑度就已经低于 `keyboard` 训满 50000 步的结果。
 
-## Inference
+`corpus.py` 另有 `wiki` 和 `docs` 两个源，上面的命令里**刻意没有用**，原因见下方许可说明。
 
-Plain safetensors. Configuration, vocabulary and corpus attribution travel in the `__metadata__` header, so the model is one self-describing file with no sidecars. Embeddings are tied and `head.weight` is absent; a loader reuses `tok.weight`. Under int8, two-dimensional weights are quantized symmetrically per output row with a `<name>.scale` companion in float32.
+## 推理
 
-int8 and float16 disagreed on no ranking decision across 2105 cases, so int8 is the one to ship.
+标准 safetensors。配置、词表和语料署名都在 `__metadata__` 头里，所以模型是一个自描述的单文件，没有需要同步的附属文件。完整格式见 [`docs/format.md`](docs/format.md)，用任何语言实现加载器都够用。
 
-The reference implementation is plain Rust with no unsafe and no numeric dependency. One detail is worth copying if you reimplement it: a dot product accumulating into a single running sum makes every multiply-add wait for the previous one, so the loop runs at the latency of the instruction rather than its throughput. Eight independent partial sums took a nine-candidate decision from 122 ms to 26 ms. Caching the prefix — committed text changes on commit, not on every keystroke — takes a realistic two-candidate decision to 7.5 ms.
+int8 与 float16 在全部 2105 条用例上**没有任何一条排序判定不同**，所以发布用 int8。
 
-## Licensing
+参考实现是纯 Rust，无 unsafe，无数值库依赖。如果你要重新实现，有一个细节值得照抄：**点积如果累加到单个变量上，每次乘加都要等上一次的结果**，循环就跑在指令延迟而不是吞吐上。改成 8 个独立累加器后，9 候选的一次决策从 122ms 降到 26ms。再加上前缀缓存（已上屏文本只在上屏时变化，不是每次按键都变），真实规模的两候选决策是 7.5ms。
 
-The code is Apache-2.0.
+## 许可
 
-Published model weights are trained only on corpora whose licenses carry no share-alike obligation, so that adopting the model does not impose one on you:
+**代码为 Apache-2.0。**
 
-- The Chinese portion of C4 — ODC-BY
-- LCCC — MIT
+发布的模型权重**只使用无传染性（share-alike）义务的语料**训练，这样采用这个模型不会给你带来传染性义务：
 
-Every one of them requires attribution to travel with a model trained on it, and `export.py` writes that into the weights file itself rather than into a document beside it.
+- C4 中文部分 —— ODC-BY
+- LCCC —— MIT
 
-`corpus.py` can also build from Chinese Wikipedia (CC BY-SA 4.0) and MDN (CC BY-SA 2.5). Whether model weights are a derivative work of their training text is unsettled, and most open models train on Wikipedia and release permissively — but a resource meant for other projects to adopt should not hand them that question, so published weights leave those sources out. They remain available for anyone who has already decided the question for themselves.
+两者都要求署名随模型传播，`export.py` 把署名写进权重文件本身，而不是放在旁边的文档里，所以它无法与权重分离。
 
-## Evaluation sets
+`corpus.py` 也能从中文维基百科（CC BY-SA 4.0）和 MDN（CC BY-SA 2.5）构建语料。"模型权重是否构成训练文本的衍生作品"在法律上尚无定论，多数开源模型照用维基并以宽松许可发布——但一个供他人采用的公共资源不该把这个问题丢给使用者，所以发布的权重不含这些来源。它们仍然保留在管线里，供已经自行判断过这个问题的人使用。
 
-`eval/quanpin-words-v1.tsv` is 25,119 word cases frozen from the MIT-licensed sample dictionary of the MSIME engine. `eval/sentences-v1.tsv` is 60 hand-authored whole-sentence cases. Both are worth more than the model: they are what turns an opinion about a reranking change into a number, and they carry the two traps above as fixtures rather than as advice.
+## 评测集
+
+`eval/quanpin-words-v1.tsv` 是从 MSIME 引擎 MIT 许可的示例词库中冻结出的 25,119 条词级用例。`eval/sentences-v1.tsv` 是 60 条手工编写的整句用例。
+
+**这两个文件比模型本身更有价值**：它们把"某个重排改动好不好"从意见变成数字，而且上面那两个陷阱是以固定用例的形式固化在里面的，不是靠文档提醒。

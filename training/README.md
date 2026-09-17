@@ -1,5 +1,34 @@
-# Training
+# 训练管线
 
-See the repository README for what the model is for, where it does not help, and the licensing of the corpora.
+模型的用途、不适用的场景以及语料许可，见仓库根目录的 README。
 
-`corpus.py` builds a normalized corpus of one Chinese sentence per line. `train.py` derives a vocabulary, packs tokens into a memory-mapped array and trains. `export.py` writes safetensors and prints the resource-lock entry an installer needs. `rerank_eval.py` scores a recorded candidate list and reports the two buckets separately.
+| 文件 | 作用 |
+|---|---|
+| `corpus.py` | 构建规范化语料，每行一句中文 |
+| `model.py` | 字级 Transformer，两档尺寸预设 |
+| `train.py` | 建词表、打包 token 到内存映射数组、训练 |
+| `export.py` | 写出 safetensors，并打印安装器需要的资源锁条目 |
+| `rerank_eval.py` | 对录制下来的候选列表打分，分桶报告结果 |
+
+## 语料源
+
+| 源 | 许可 | 产出 | 说明 |
+|---|---|---|---|
+| `c4` | ODC-BY | 按需，流式 | 网页文本，唯一能达到语言模型所需规模的来源 |
+| `lccc` | MIT | 3.18 亿字 | 开放域对话，补口语语域 |
+| `wiki` | CC BY-**SA** 4.0 | 2.01 亿字（整个转储的上限） | 百科体散文 |
+| `docs` | CC BY 4.0 / CC BY-SA 2.5 / Apache-2.0 | 520 万字 | 中文技术文档 |
+
+`wiki` 和 `docs` 带有传染性许可的成分，发布权重时不使用。
+
+## 规范化
+
+只保留汉字（CJK 基本区和扩展 A）。拉丁字母、数字、标点一律作为**切分边界**而非替换——推理时交给模型的候选来自拼音解码器，除汉字外不含别的东西，训练数据的形状必须与之一致。
+
+简繁做两级判别：文档级按**比例**判定（引用一两个繁体字的简体文章不算繁体），保留下来的文档内部，片段级"出现即丢"。只按"出现即丢"判文档会丢掉八成维基——简体条目大量引用繁体书名人名。
+
+## 已知的坑
+
+- 维基转储会被中途截断，而 urllib 把截断的响应报成正常的流结束。下载会比对 content-length、断点续传、失败到第五次才报错。
+- `pages-articles` 里除条目外还有模板和元页面，只取命名空间 0。
+- C4 分片 0 的首条文档在源文件里就是乱码（`�` 已经烘进文件），所以单个分片失败要跳过而不是当作语料结束。
