@@ -13,3 +13,9 @@ kenlm_bin/*
 model/*
 !model/.gitkeep
 tmp/*
+# 参考实现与模型产物
+reference/target/
+.ruff_cache/
+dist/
+runs/
+dumps/

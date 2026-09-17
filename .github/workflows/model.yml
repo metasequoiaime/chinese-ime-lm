@@ -1,0 +1,84 @@
+name: 模型
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  reference:
+    name: 参考实现
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reference
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  training:
+    name: 训练管线
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@ad3497abcd142e169a10aac37abd5175c44f33c4 # v5
+        with:
+          python-version: "3.12"
+      # The pipeline is not exercised end to end here: it downloads gigabytes and trains on a GPU.
+      # What CI can check is that every module parses and its command line is well formed, which is
+      # what breaks when someone edits one of them without running it.
+      - name: ruff
+        run: |
+          pipx install ruff
+          ruff check corpus neural
+          ruff format --check corpus neural
+
+      - name: 语法与入口
+        run: |
+          cd neural
+          python -m compileall -q .
+          python - <<'PY'
+          import ast, pathlib, sys
+          # Parsed rather than imported: importing train.py would need torch, and what breaks when
+          # someone edits one of these without running it is the shape of the module, not its deps.
+          # model.py is a library and is only checked for parsing, which compileall already did.
+          entry_points = ["../corpus/corpus.py", "export.py", "rerank_eval.py", "train.py"]
+          missing = []
+          for name in entry_points:
+              tree = ast.parse(pathlib.Path(name).read_text(encoding="utf-8"))
+              functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+              (print(f"{name}: ok") if "main" in functions else missing.append(name))
+          if missing:
+              sys.exit(f"no main(): {', '.join(missing)}")
+          PY
+
+  eval-sets:
+    name: 评测集
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The evaluation sets are the part of this repository other projects depend on most, so a
+      # malformed row is worth catching before it reaches anyone.
+      - name: 格式检查
+        run: |
+          python - <<'PY'
+          import csv, pathlib, sys
+          for path in sorted(pathlib.Path("eval").glob("*.tsv")):
+              rows = 0
+              with path.open(encoding="utf-8") as handle:
+                  reader = csv.reader((line for line in handle if not line.startswith("#")), delimiter="\t")
+                  header = next(reader)
+                  assert header[:3] == ["id", "input", "gold"], f"{path}: unexpected header {header}"
+                  for row in reader:
+                      assert len(row) == len(header), f"{path}: row {row[0]} has {len(row)} fields"
+                      assert row[1].isascii() and row[1].isalpha(), f"{path}: row {row[0]} input is not pinyin"
+                      assert row[2], f"{path}: row {row[0]} has no expected answer"
+                      rows += 1
+              print(f"{path}: {rows} cases")
+          PY
