@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # Actions 钉在 commit SHA 上，所以不会自己跟进上游修复——没有这一项它们只会烂掉。
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: cargo
+    directory: /reference
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore

@@ -1,6 +1,11 @@
 # chinese-ime-lm
 
+[![CI](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/ci.yml/badge.svg)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 用于中文输入法候选重排的字级语言模型，附带训练管线，以及说明它在什么情况下有用、什么情况下有害的实测数据。
+
+> **当前状态：尚未发布权重。** 训练仍在进行。在现有模型上，按音节直接解码的表现比它本想改进的引擎还差，把这样的权重发出去对一个公共资源是负资产。管线、参考实现、格式规范和评测集都已可用。
 
 这个仓库是给**其他输入法**用的。模型是标准 safetensors，参考实现除 serde 外无依赖，而所有与特定引擎绑定的部分都由调用方以谓词形式提供。
 
@@ -85,3 +90,15 @@ int8 与 float16 在全部 2105 条用例上**没有任何一条排序判定不�
 `eval/quanpin-words-v1.tsv` 是从 MSIME 引擎 MIT 许可的示例词库中冻结出的 25,119 条词级用例。`eval/sentences-v1.tsv` 是 60 条手工编写的整句用例。
 
 **这两个文件比模型本身更有价值**：它们把"某个重排改动好不好"从意见变成数字，而且上面那两个陷阱是以固定用例的形式固化在里面的，不是靠文档提醒。
+
+## 仓库导航
+
+| 路径 | 内容 |
+|---|---|
+| [`docs/format.md`](docs/format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
+| [`reference/`](reference/) | Rust 参考实现，无 unsafe，除 serde 外无依赖 |
+| [`training/`](training/) | 语料构建、训练、导出、评测 |
+| [`eval/`](eval/) | 25,119 条词级用例 + 60 条整句用例 |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | 怎么参与，以及这个项目最需要什么 |
+| [`SECURITY.md`](SECURITY.md) | 威胁模型：模型文件是会被输入法加载的不可信二进制 |
+| [`NOTICE`](NOTICE) | 语料署名义务，再分发权重时必须保留 |
