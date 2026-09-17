@@ -13,7 +13,7 @@ jobs:
       run:
         working-directory: reference
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: stable
@@ -26,7 +26,7 @@ jobs:
     name: 训练管线
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ad3497abcd142e169a10aac37abd5175c44f33c4 # v5
         with:
           python-version: "3.12"
@@ -56,7 +56,7 @@ jobs:
     name: 评测集
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The evaluation sets are the part of this repository other projects depend on most, so a
       # malformed row is worth catching before it reaches anyone.
       - name: 格式检查
