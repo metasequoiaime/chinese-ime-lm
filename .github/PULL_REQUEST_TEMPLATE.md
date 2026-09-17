@@ -22,5 +22,5 @@
 ## 检查项
 
 - [ ] `cd reference && cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check`
-- [ ] 新增语料源时已在 `training/README.md` 注明许可，并说明是否带 share-alike 义务
+- [ ] 新增语料源时已在 `docs/neural.md` 注明许可，并说明是否带 share-alike 义务
 - [ ] 改动模型文件格式时已同步更新 `docs/format.md`

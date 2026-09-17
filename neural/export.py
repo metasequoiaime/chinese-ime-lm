@@ -77,7 +77,7 @@ def main():
             tensors[name] = tensor.float().contiguous()
 
     metadata = {
-        "format": "msime-sentence-model",
+        "format": "chinese-ime-lm",
         "version": "1",
         "precision": args.precision,
         "config": json.dumps(checkpoint["config"], separators=(",", ":")),

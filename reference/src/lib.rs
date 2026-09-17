@@ -1,7 +1,7 @@
 //! Reranks candidates the pinyin decoder assembled, using a character-level language model.
 //!
-//! The model is produced by `tools/sentence-model`, and the measurements that shaped this crate are
-//! recorded there. Two of them are load-bearing and are enforced here rather than left to callers:
+//! The model is produced by `neural/`, and the measurements that shaped this crate are recorded in
+//! `docs/measurements.md`. Two of them are load-bearing and are enforced here rather than left to callers:
 //!
 //! Reranking applies only when the engine's leading candidate was assembled by the lattice or the
 //! fallback decoder. An exact dictionary hit on the whole key carries corpus frequency the model

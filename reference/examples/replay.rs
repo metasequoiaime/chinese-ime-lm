@@ -1,6 +1,6 @@
 //! Replays the candidate lists `convert_eval --dump` recorded and reports what reranking does.
 //!
-//! This exists to check the Rust forward pass against the Python one in `tools/sentence-model`. Both
+//! This exists to check the Rust forward pass against the Python one in `neural/`. Both
 //! read the same weights and the same cases, so the two tables have to agree; a port that merely
 //! looks plausible on one hand-picked example is not evidence of anything.
 //!

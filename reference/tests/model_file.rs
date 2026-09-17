@@ -44,7 +44,7 @@ impl Builder {
             .collect();
         let vocab = serde_json::to_string(&tokens).expect("vocabulary");
         let metadata = BTreeMap::from([
-            ("format".to_owned(), "msime-sentence-model".to_owned()),
+            ("format".to_owned(), "chinese-ime-lm".to_owned()),
             ("version".to_owned(), "1".to_owned()),
             ("precision".to_owned(), precision.to_owned()),
             ("config".to_owned(), config),
