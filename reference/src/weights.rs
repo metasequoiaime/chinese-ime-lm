@@ -1,4 +1,5 @@
-//! Reads the safetensors file `tools/sentence-model/export.py` writes.
+//! Reads the safetensors file `neural/export.py` writes. The format is specified in
+//! `docs/format.md`.
 //!
 //! The layout is a little-endian `u64` header length, that many bytes of JSON describing every
 //! tensor, then the tensor data. Offsets in the header are relative to the start of the data

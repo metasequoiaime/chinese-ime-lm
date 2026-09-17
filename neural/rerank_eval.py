@@ -9,7 +9,7 @@ Only candidates that cover the whole key are comparable. The engine also returns
 Only decoder-assembled leading candidates are reranked. When the engine's first candidate is an exact dictionary hit on the whole key it carries corpus frequency that this model does not have, and reranking those loses accuracy at every margin. When the first candidate was assembled by the lattice or the fallback decoder it carries no frequency evidence, and that is where the model pays.
 
 usage:
-  python rerank_eval.py --model dist/sentence-v1.safetensors --cases dumps/sentences.jsonl
+  python neural/rerank_eval.py --model dist/sentence-v1.safetensors --cases dumps/sentences.jsonl
 """
 
 import argparse

@@ -37,7 +37,9 @@ LCCC_LARGE = (
     "https://huggingface.co/datasets/silver/lccc/resolve/main/lccc_large.jsonl.gz"
 )
 
-USER_AGENT = "MSIME-Client sentence-model corpus builder (https://github.com/metasequoiaime/MSIME-Client)"
+USER_AGENT = (
+    "chinese-ime-lm corpus builder (https://github.com/metasequoiaime/chinese-ime-lm)"
+)
 
 # CJK unified ideographs plus extension A. Everything else — Latin, digits, punctuation — is a
 # boundary rather than a substitution, because at inference the candidates handed to the model

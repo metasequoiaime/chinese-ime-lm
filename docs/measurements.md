@@ -90,7 +90,7 @@ int8 与 float16 在全部 2105 条用例上**没有任何一条排序判定不�
 |---|---|
 | [`docs/format.md`](docs/format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
 | [`reference/`](reference/) | Rust 参考实现，无 unsafe，除 serde 外无依赖 |
-| [`neural/`](training/) | 语料构建、训练、导出、评测 |
+| [`neural/`](../neural/) | 语料构建、训练、导出、评测 |
 | [`eval/`](eval/) | 25,119 条词级用例 + 60 条整句用例 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 怎么参与，以及这个项目最需要什么 |
 | [`SECURITY.md`](SECURITY.md) | 威胁模型：模型文件是会被输入法加载的不可信二进制 |

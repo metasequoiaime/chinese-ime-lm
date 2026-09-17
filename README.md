@@ -1,10 +1,10 @@
-# Metasequoia n-gram
+# chinese-ime-lm
 
 <!-- badges:start -->
-[![CI](https://img.shields.io/github/actions/workflow/status/metasequoiaime/Metasequoia-n-gram/ci.yml?branch=main&label=CI)](https://github.com/metasequoiaime/Metasequoia-n-gram/actions/workflows/ci.yml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/metasequoiaime/Metasequoia-n-gram/codeql.yml?branch=main&label=CodeQL)](https://github.com/metasequoiaime/Metasequoia-n-gram/actions/workflows/codeql.yml)
-[![License](https://img.shields.io/github/license/metasequoiaime/Metasequoia-n-gram)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/metasequoiaime/Metasequoia-n-gram?style=flat)](https://github.com/metasequoiaime/Metasequoia-n-gram/stargazers)
+[![CI](https://img.shields.io/github/actions/workflow/status/metasequoiaime/chinese-ime-lm/ci.yml?branch=main&label=CI)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/ci.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/metasequoiaime/chinese-ime-lm/codeql.yml?branch=main&label=CodeQL)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/codeql.yml)
+[![License](https://img.shields.io/github/license/metasequoiaime/chinese-ime-lm)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/metasequoiaime/chinese-ime-lm?style=flat)](https://github.com/metasequoiaime/chinese-ime-lm/stargazers)
 <!-- badges:end -->
 
 面向中文输入法的语言模型工程：语料、统计模型、神经模型，以及判断它们好坏的评测集。
@@ -41,28 +41,39 @@
 
 格式规范、评测集和将来发布的权重都不受代码许可约束；权重的语料署名义务见 [`NOTICE`](NOTICE)。
 
-## Corpus provenance and licensing
+## 语料来源与许可
 
-This repository distributes **processing scripts only**. No corpus and no trained model is committed: `data/`, `model/` and `kenlm_bin/` are gitignored down to their `.gitkeep`, and nothing under them is tracked. You supply the corpus yourself.
+**本仓库只分发处理脚本。** 语料和训练好的模型都不入库：`data/`、`model/`、`kenlm_bin/` 下除 `.gitkeep` 外全部被 gitignore，没有任何内容被跟踪。语料由你自己准备。
 
-That matters because the corpus this project was built against is not freely relicensable, and the licence on the repository you download it from does not settle the question:
+这一点要紧，因为本项目最初依据的语料**不能自由再授权**，而你下载它的那个仓库上的许可并不能解决这个问题：
 
-- The upstream aggregator, [brightmart/nlp_chinese_corpus](https://github.com/brightmart/nlp_chinese_corpus), is published under MIT. That covers the aggregator's own work, not the third-party text it packages.
-- `wiki2019zh` is derived from Chinese Wikipedia, which is **CC BY-SA 3.0**. That licence carries an attribution requirement and is share-alike: anything substantially derived from it inherits those terms.
-- `news2016zh` is scraped news articles and `baike2018qa` is Baidu Baike content. Neither carries a licence that permits redistribution.
+- 上游聚合仓库 [brightmart/nlp_chinese_corpus](https://github.com/brightmart/nlp_chinese_corpus) 以 MIT 发布。那覆盖的是聚合者自己的工作，不是它打包的第三方文本。
+- `wiki2019zh` 派生自中文维基百科，即 **CC BY-SA 3.0**。该许可要求署名，且具传染性：任何实质派生于它的东西都继承这些条款。
+- `news2016zh` 是抓取的新闻，`baike2018qa` 是百度百科内容。两者都没有允许再分发的许可。
 
-Nobody downstream of Wikipedia can relicense Wikipedia's text under MIT, so treat the aggregator's MIT badge as covering its scripts and packaging only.
+维基百科下游的任何人都无法把维基的文本重新授权为 MIT，所以聚合仓库的 MIT 徽章只应理解为覆盖其脚本与打包工作。
 
-**What this means in practice.** Statistics computed from a corpus (n-gram counts, probabilities) are generally not the corpus, and the boundary between "statistics" and "a derivative work" is not sharp — a model that can reproduce source sentences is much closer to a derivative than a table of bigram frequencies. So:
+**这在实践中意味着什么。** 从语料算出来的统计量（n-gram 计数、概率）通常不等于语料本身，但"统计量"和"衍生作品"之间的界线并不清晰——一个能复现源句子的模型，比一张二元频率表更接近衍生作品。所以：
 
-- Nothing produced here has entered the shipped product. There is currently no n-gram or KenLM model in [MSIME-Engine](https://github.com/metasequoiaime/MSIME-Engine) and no code path that loads one.
-- **Before any model built from this pipeline ships inside the input method**, the licensing of the specific subsets used has to be settled first: either restrict training to subsets that are cleanly licensed for redistribution, or satisfy CC BY-SA attribution and share-alike for the Wikipedia-derived portion, and record the outcome in the Engine's `NOTICE.md` alongside the other dictionary sources.
+- 本仓库的产物**从未进入过已发布的产品**。[MSIME-Engine](https://github.com/metasequoiaime/MSIME-Engine) 中目前没有任何 n-gram 或 KenLM 模型，也没有加载它们的代码路径。
+- **在任何由本管线构建的模型进入输入法之前**，必须先解决所用子集的许可问题：要么把训练限制在可以干净再分发的子集上，要么满足维基派生部分的 CC BY-SA 署名与传染性要求，并把结论记进 Engine 的 `NOTICE.md`，与其他词库来源并列。
 
-The `LICENSE` in this repository (GPL-3.0) applies to the scripts here. It says nothing about, and cannot grant any rights to, the corpus you feed them.
+`corpus/fetch.py` 正是第一条路线的实现：它只获取许可清晰、可再分发的语料（C4 为 ODC-BY，LCCC 为 MIT），发布的神经模型权重只用这些训练。详见 [`NOTICE`](NOTICE)。
 
-## Corpus collection
+本仓库的 [`LICENSE`](LICENSE)（GPL-3.0）只适用于这里的脚本。它不涉及、也无法授予你喂给这些脚本的语料的任何权利。
 
-这里使用的语料来源是这个[仓库](https://github.com/brightmart/nlp_chinese_corpus)。将其解压后放到 data 目录下。
+## 获取语料
+
+两种方式，按你的用途选：
+
+**自己准备。** 语料来源见上节那个[聚合仓库](https://github.com/brightmart/nlp_chinese_corpus)，解压后放进 `data/` 目录，再用 `corpus/clean/` 清洗。
+
+**让 `corpus/fetch.py` 下载。** 它只取许可清晰的来源，流式下载并直接规范化，原始压缩包不落盘：
+
+```sh
+python corpus/fetch.py c4   --out data/c4.txt --max-chars 1_000_000_000
+python corpus/fetch.py lccc --out data/lccc.txt --split large
+```
 
 ## 语料清洗（自备语料）
 
@@ -77,11 +88,11 @@ python .\corpus\clean\split_wiki_txt_using_space.py
 
 注意，这里是比较耗时的，至少需要半个小时左右，在我的 11 代 intel 处理器上。
 
-## Segmentation
+## 分词
 
-对上面的预处理好的数据进行分词。由于使用的是字级的 n-gram，所以，分词只需要将一个一个字分开即可。
+对上面预处理好的数据进行分词。由于使用的是字级 n-gram，分词只需要把字一个一个分开即可。
 
-## N-gram info counting
+## 统计 n-gram
 
 分别计算一元数据和二元数据。
 
@@ -139,33 +150,53 @@ python neural/export.py --run runs/desktop --out dist/model.safetensors --precis
 
 推理见 `reference/`，格式见 [`docs/format.md`](docs/format.md)。
 
-## How to build and run tests
+## 构建与测试
 
-For windows, you can use PowerShell 7.0+ like this:
+### n-gram 路线
+
+Windows 上用 PowerShell 7.0+：
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install regex
+pip install -r requirements.txt
 pip install https://github.com/kpu/kenlm/archive/master.zip
-pip install opencc
 ```
 
-注意，这里要用 Python 3.12。
+需要 Python 3.12。
 
-跑测试代码之前，需要先生成一下拼音到单个汉字的候选项列表的字典文件，
+跑解码之前先生成拼音到单字的候选表：
 
 ```powershell
 python .\corpus\pinyin\make_single_pinyin_table.py
 ```
 
-然后，就可以运行测试了，
+然后就可以运行 Viterbi 解码：
 
 ```powershell
-python .\test\viterbi_no_pruning.py
+python .\ngram\viterbi.py
 ```
 
-## Reference
+语料清洗的回归测试：
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+### 神经路线
+
+```sh
+pip install -r neural/requirements.txt
+
+cd reference
+cargo test
+cargo clippy --all-targets -- -D warnings
+cargo fmt --check
+```
+
+参考实现除 serde 外无依赖，测试里手工构造模型文件并加载，因此它同时校验 [`docs/format.md`](docs/format.md) 与实现是否一致。
+
+## 参考资料
 
 - open-gram: <https://github.com/sunpinyin/open-gram>
 - nlp_chinese_corpus: <https://github.com/brightmart/nlp_chinese_corpus>
@@ -173,7 +204,7 @@ python .\test\viterbi_no_pruning.py
 <!-- star-history:start -->
 ## Star History
 
-<a href="https://star-history.com/#metasequoiaime/Metasequoia-n-gram&Date">
-  <img src="https://api.star-history.com/svg?repos=metasequoiaime/Metasequoia-n-gram&type=Date" alt="Star History Chart" width="600">
+<a href="https://star-history.com/#metasequoiaime/chinese-ime-lm&Date">
+  <img src="https://api.star-history.com/svg?repos=metasequoiaime/chinese-ime-lm&type=Date" alt="Star History Chart" width="600">
 </a>
 <!-- star-history:end -->

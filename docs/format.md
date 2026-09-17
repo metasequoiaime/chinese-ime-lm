@@ -20,7 +20,7 @@
 
 | 键 | 含义 |
 |---|---|
-| `format` | 恒为 `msime-sentence-model` |
+| `format` | 恒为 `chinese-ime-lm` |
 | `version` | 格式版本，当前为 `1` |
 | `precision` | `f16` 或 `int8` |
 | `config` | JSON 字符串，见下 |
