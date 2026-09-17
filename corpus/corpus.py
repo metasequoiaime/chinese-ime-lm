@@ -27,9 +27,15 @@ import sys
 import urllib.error
 import urllib.request
 
-WIKI_DUMP = "https://dumps.wikimedia.org/zhwiki/latest/zhwiki-latest-pages-articles.xml.bz2"
-LCCC_BASE = "https://huggingface.co/datasets/silver/lccc/resolve/main/lccc_base_train.jsonl.gz"
-LCCC_LARGE = "https://huggingface.co/datasets/silver/lccc/resolve/main/lccc_large.jsonl.gz"
+WIKI_DUMP = (
+    "https://dumps.wikimedia.org/zhwiki/latest/zhwiki-latest-pages-articles.xml.bz2"
+)
+LCCC_BASE = (
+    "https://huggingface.co/datasets/silver/lccc/resolve/main/lccc_base_train.jsonl.gz"
+)
+LCCC_LARGE = (
+    "https://huggingface.co/datasets/silver/lccc/resolve/main/lccc_large.jsonl.gz"
+)
 
 USER_AGENT = "MSIME-Client sentence-model corpus builder (https://github.com/metasequoiaime/MSIME-Client)"
 
@@ -120,7 +126,12 @@ def fetch_once(url, tmp):
                 done += len(chunk)
                 if done - reported >= 1 << 26:
                     reported = done
-                    print(f"  {100 * done / total:.0f}%" if total else f"  {done >> 20} MiB", file=sys.stderr)
+                    print(
+                        f"  {100 * done / total:.0f}%"
+                        if total
+                        else f"  {done >> 20} MiB",
+                        file=sys.stderr,
+                    )
     return done, total
 
 
@@ -145,7 +156,9 @@ def download(url, path):
         if not total or done >= total:
             os.replace(tmp, path)
             return path
-        print(f"  attempt {attempt} short by {(total - done) >> 20} MiB", file=sys.stderr)
+        print(
+            f"  attempt {attempt} short by {(total - done) >> 20} MiB", file=sys.stderr
+        )
     raise OSError(f"{url}: incomplete after {ATTEMPTS} attempts")
 
 
@@ -318,7 +331,9 @@ def docs_lines(cache, max_chars):
                 if not file.endswith((".md", ".html")):
                     continue
                 try:
-                    with open(os.path.join(directory, file), encoding="utf-8") as handle:
+                    with open(
+                        os.path.join(directory, file), encoding="utf-8"
+                    ) as handle:
                         raw = handle.read()
                 except (OSError, UnicodeDecodeError):
                     continue
@@ -339,9 +354,7 @@ def docs_lines(cache, max_chars):
 #
 # Shards are streamed and decompressed in flight rather than downloaded, because the Chinese portion
 # runs to tens of gigabytes compressed and only the normalized output is worth keeping.
-C4_SHARD = (
-    "https://huggingface.co/datasets/allenai/c4/resolve/main/multilingual/c4-zh.tfrecord-{index:05d}-of-01024.json.gz"
-)
+C4_SHARD = "https://huggingface.co/datasets/allenai/c4/resolve/main/multilingual/c4-zh.tfrecord-{index:05d}-of-01024.json.gz"
 C4_SHARDS = 1024
 
 
@@ -366,7 +379,13 @@ def c4_lines(max_chars, first_shard=0):
                         emitted += len(line)
                         if max_chars and emitted >= max_chars:
                             return
-        except (urllib.error.URLError, ConnectionError, TimeoutError, EOFError, OSError) as error:
+        except (
+            urllib.error.URLError,
+            ConnectionError,
+            TimeoutError,
+            EOFError,
+            OSError,
+        ) as error:
             # One bad shard out of a thousand is not a reason to abandon the corpus.
             print(f"  shard {index} failed: {error}", file=sys.stderr)
             continue
@@ -379,14 +398,21 @@ def main():
     parser.add_argument("--out", required=True)
     parser.add_argument("--cache", default="data/raw")
     parser.add_argument("--split", choices=["base", "large"], default="base")
-    parser.add_argument("--first-shard", type=int, default=0, help="c4 only: shard to start from")
     parser.add_argument(
-        "--max-chars", type=int, default=0, help="stop after this many kept characters; 0 means the whole source"
+        "--first-shard", type=int, default=0, help="c4 only: shard to start from"
+    )
+    parser.add_argument(
+        "--max-chars",
+        type=int,
+        default=0,
+        help="stop after this many kept characters; 0 means the whole source",
     )
     args = parser.parse_args()
 
     if args.source == "wiki":
-        archive = download(WIKI_DUMP, os.path.join(args.cache, "zhwiki-latest-pages-articles.xml.bz2"))
+        archive = download(
+            WIKI_DUMP, os.path.join(args.cache, "zhwiki-latest-pages-articles.xml.bz2")
+        )
         lines = wiki_lines(archive, args.max_chars)
     elif args.source == "docs":
         lines = docs_lines(args.cache, args.max_chars)
