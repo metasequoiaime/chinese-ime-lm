@@ -12,6 +12,13 @@
 //! shortest candidate first every time regardless of quality. Scores are per character for the same
 //! reason, and the caller restricts the set it passes in.
 
+// `as_chunks` produces fixed-size arrays and newer clippy prefers it here, but it requires a far
+// more recent toolchain than `chunks_exact`, which has been available since 1.31. This crate is
+// meant to be easy for other input methods to adopt, and raising the minimum compiler for a style
+// preference trades that away for nothing.
+#![allow(unknown_lints)]
+#![allow(clippy::chunks_exact_to_as_chunks)]
+
 mod weights;
 
 use std::collections::HashMap;
