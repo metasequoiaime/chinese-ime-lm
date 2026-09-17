@@ -13,8 +13,11 @@ jobs:
       run:
         working-directory: reference
     steps:
-      - uses: actions/checkout@v4
-      - run: rustup component add clippy rustfmt
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -23,8 +26,8 @@ jobs:
     name: 训练管线
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ad3497abcd142e169a10aac37abd5175c44f33c4 # v5
         with:
           python-version: "3.12"
       # The pipeline is not exercised end to end here: it downloads gigabytes and trains on a GPU.
@@ -53,7 +56,7 @@ jobs:
     name: 评测集
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # The evaluation sets are the part of this repository other projects depend on most, so a
       # malformed row is worth catching before it reaches anyone.
       - name: 格式检查
