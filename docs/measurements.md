@@ -59,7 +59,7 @@ python neural/export.py --run runs/desktop --out dist/model.safetensors --precis
 
 ## 推理
 
-标准 safetensors。配置、词表和语料署名都在 `__metadata__` 头里，所以模型是一个自描述的单文件，没有需要同步的附属文件。完整格式见 [`docs/format.md`](docs/format.md)，用任何语言实现加载器都够用。
+标准 safetensors。配置、词表和语料署名都在 `__metadata__` 头里，所以模型是一个自描述的单文件，没有需要同步的附属文件。完整格式见 [`docs/format.md`](format.md)，用任何语言实现加载器都够用。
 
 int8 与 float16 在全部 2105 条用例上**没有任何一条排序判定不同**，所以发布用 int8。
 
@@ -88,10 +88,10 @@ int8 与 float16 在全部 2105 条用例上**没有任何一条排序判定不�
 
 | 路径 | 内容 |
 |---|---|
-| [`docs/format.md`](docs/format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
-| [`reference/`](reference/) | Rust 参考实现，无 unsafe，除 serde 外无依赖 |
+| [`docs/format.md`](format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
+| [`reference/`](../reference/) | Rust 参考实现，无 unsafe，除 serde 外无依赖 |
 | [`neural/`](../neural/) | 语料构建、训练、导出、评测 |
-| [`eval/`](eval/) | 25,119 条词级用例 + 60 条整句用例 |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | 怎么参与，以及这个项目最需要什么 |
-| [`SECURITY.md`](SECURITY.md) | 威胁模型：模型文件是会被输入法加载的不可信二进制 |
-| [`NOTICE`](NOTICE) | 语料署名义务，再分发权重时必须保留 |
+| [`eval/`](../eval/) | 25,119 条词级用例 + 60 条整句用例 |
+| [`CONTRIBUTING.md`](../CONTRIBUTING.md) | 怎么参与，以及这个项目最需要什么 |
+| [`SECURITY.md`](../SECURITY.md) | 威胁模型：模型文件是会被输入法加载的不可信二进制 |
+| [`NOTICE`](../NOTICE) | 语料署名义务，再分发权重时必须保留 |

@@ -1,6 +1,11 @@
 """Measure what a trained model does to real candidate lists from the input runtime.
 
-The input is the JSONL that `convert_eval --dump` writes: for every evaluation case, the candidates the engine actually produced, in the order it produced them, each tagged with the source that produced it.
+The input is one JSON object per line: for every evaluation case, the candidates the engine actually produced, in the order it produced them, each tagged with the source that produced it.
+
+    {"input": "...", "gold": "...", "context": "...",
+     "candidates": [{"text": "...", "source": 0}, ...]}
+
+Recording that file is each input method's own job: it means driving a real engine against real dictionaries, and nothing here assumes what your engine looks like.
 
 Two rules make this measurement mean something, and both were established by measurement rather than assumed:
 
