@@ -25,6 +25,8 @@ cargo fmt --check
 pip install -r neural/requirements.txt
 ```
 
+参考实现声明的最低 Rust 版本是 1.75，CI 有一个 job 专门用该版本编译。改动如果用到更新的语言特性，那个 job 会失败——这时要么换写法，要么连同 `rust-version` 一起提高，不要只改其中一个。
+
 CI 不会端到端跑训练——那要下载几个 G 并占用 GPU。它检查的是：参考实现的 fmt、clippy 和测试；每个 Python 模块能解析、入口脚本还有 `main()`；评测集每一行的表头、字段数、输入是纯拼音、答案非空。
 
 ## 提交改动
