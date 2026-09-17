@@ -1,0 +1,19 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{rs,py}]
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,toml,json,md}]
+indent_style = space
+indent_size = 2
+
+[*.tsv]
+# 评测集以制表符分隔，去除行尾空白会改变字段内容
+trim_trailing_whitespace = false

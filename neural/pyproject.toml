@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+  # Long explanatory comments and docstrings carry the reasoning behind these choices, and wrapping
+  # them at a column would make every rewording reflow a paragraph and pollute the diff.
+  "E501",
+]
+
+[tool.ruff.format]
+quote-style = "double"
