@@ -1,4 +1,8 @@
-//! Replays the candidate lists `convert_eval --dump` recorded and reports what reranking does.
+//! Replays recorded candidate lists and reports what reranking does.
+//!
+//! One JSON object per line, holding the candidates an engine actually produced for a case, in the
+//! order it produced them. Recording that file is each input method's own job; `eval/README.md`
+//! gives the shape.
 //!
 //! This exists to check the Rust forward pass against the Python one in `neural/`. Both
 //! read the same weights and the same cases, so the two tables have to agree; a port that merely
