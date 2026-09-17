@@ -22,7 +22,7 @@ cargo fmt --check
 训练管线（Python 3.12+）：
 
 ```sh
-pip install -r training/requirements.txt
+pip install -r neural/requirements.txt
 ```
 
 CI 不会端到端跑训练——那要下载几个 G 并占用 GPU。它检查的是：参考实现的 fmt、clippy 和测试；每个 Python 模块能解析、入口脚本还有 `main()`；评测集每一行的表头、字段数、输入是纯拼音、答案非空。
@@ -45,7 +45,7 @@ CI 不会端到端跑训练——那要下载几个 G 并占用 GPU。它检查�
 
 ## 语料许可
 
-往 `corpus.py` 加语料源时，在 `training/README.md` 的表格里注明许可，并说明它是否带 share-alike 义务。
+往 `corpus.py` 加语料源时，在 `docs/neural.md` 的表格里注明许可，并说明它是否带 share-alike 义务。
 
 **发布的权重只使用无 share-alike 义务的语料。** 这不是洁癖：这个项目的价值在于别人拿来就能用，不必先做一轮法务评估。带传染性许可的源可以保留在管线里供自行选择，但不进发布。
 

@@ -44,13 +44,13 @@ let promoted = reranker.best_where(已上屏文本, &候选列表, |index| {
 ## 训练
 
 ```sh
-pip install -r training/requirements.txt
+pip install -r neural/requirements.txt
 
-python training/corpus.py c4   --out data/c4.txt --max-chars 1_000_000_000
-python training/corpus.py lccc --out data/lccc.txt --split large
+python corpus/corpus.py c4   --out data/c4.txt --max-chars 1_000_000_000
+python corpus/corpus.py lccc --out data/lccc.txt --split large
 
-python training/train.py --corpus data/c4.txt data/lccc.txt --out runs/desktop --preset desktop
-python training/export.py --run runs/desktop --out dist/model.safetensors --precision int8
+python neural/train.py --corpus data/c4.txt data/lccc.txt --out runs/desktop --preset desktop
+python neural/export.py --run runs/desktop --out dist/model.safetensors --precision int8
 ```
 
 | 预设 | 层数 | 宽度 | 上下文 | 词表 | 参数量 | int8 体积 |
@@ -97,7 +97,7 @@ int8 与 float16 在全部 2105 条用例上**没有任何一条排序判定不�
 |---|---|
 | [`docs/format.md`](docs/format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
 | [`reference/`](reference/) | Rust 参考实现，无 unsafe，除 serde 外无依赖 |
-| [`training/`](training/) | 语料构建、训练、导出、评测 |
+| [`neural/`](training/) | 语料构建、训练、导出、评测 |
 | [`eval/`](eval/) | 25,119 条词级用例 + 60 条整句用例 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 怎么参与，以及这个项目最需要什么 |
 | [`SECURITY.md`](SECURITY.md) | 威胁模型：模型文件是会被输入法加载的不可信二进制 |

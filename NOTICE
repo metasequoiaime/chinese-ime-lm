@@ -30,7 +30,7 @@ eval/sentences-v1.tsv 为本项目原创。
 
 可选语料
 
-training/corpus.py 另外支持从以下来源构建语料。它们带有 share-alike 义务，
+corpus/corpus.py 另外支持从以下来源构建语料。它们带有 share-alike 义务，
 本仓库发布的权重不使用这些来源；自行使用时请自行承担相应义务。
 
 - 中文维基百科（CC BY-SA 4.0）
