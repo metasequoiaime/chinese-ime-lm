@@ -146,9 +146,34 @@ def main():
                 val = sum(model(*next(val_stream))[1].item() for _ in range(20)) / 20
             model.train()
             elapsed = time.monotonic() - started
-            print(
-                f"step {step + 1:>6}/{args.steps}  train {loss.item():.4f}  val {val:.4f}  ppl {math.exp(val):.2f}  {elapsed / 60:.1f} min"
+            line = (
+                f"step {step + 1:>6}/{args.steps}  train {loss.item():.4f}  val {val:.4f}  "
+                f"ppl {math.exp(val):.2f}  {elapsed / 60:.1f} min"
             )
+            print(line)
+            # Also to a file, flushed. A run this long is normally started detached with its output
+            # piped somewhere, and a pipe buffers: the progress then exists only in a buffer nobody
+            # can read until the process exits, which is exactly when it stops being useful.
+            with open(os.path.join(args.out, "progress.log"), "a", encoding="utf-8") as log:
+                log.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  {line}\n")
+            # Written every evaluation, unlike the checkpoint, which is written only when the loss
+            # improves. Reading progress off the checkpoint gives a step that is a lower bound and a
+            # timestamp that stops advancing during any stretch that does not improve — which reads
+            # as a stalled run when nothing is wrong.
+            with open(os.path.join(args.out, "progress.json"), "w", encoding="utf-8") as status:
+                json.dump(
+                    {
+                        "step": step + 1,
+                        "steps": args.steps,
+                        "val": val,
+                        "perplexity": math.exp(val),
+                        "best": min(best, val),
+                        "elapsed_seconds": round(elapsed),
+                        "seconds_per_1000_steps": round(1000 * elapsed / (step + 1), 1),
+                        "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    },
+                    status,
+                )
             if val < best:
                 best = val
                 torch.save(

@@ -6,6 +6,8 @@
 
 ### 变更
 
+- 训练进度同时写入 `progress.log` 与 `progress.json` 并逐次刷盘。此前进度只走 stdout，而长训练通常输出重定向到管道，缓冲会让进度在进程结束前完全读不到；退而求其次去读 `checkpoint.pt` 又会被误导——它只在损失改善时才写，`step` 是下界、时间戳在没有改善时停滞。
+
 - 目录按职责重排：语料相关的三件事收进 `corpus/`（`fetch.py` 获取、`clean/` 清洗、`pinyin/` 拼音表），n-gram 的 Viterbi 解码器从 `test/` 移到 `ngram/`——它是解码器，不是测试，放在 `test/` 里与真正的 `tests/` 只差一个字母。
 
 ### 新增
