@@ -27,9 +27,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - name: Install preprocessing dependencies
+      - name: Install corpus and n-gram dependencies
         run: python -m pip install -r requirements-ci.txt
       - name: Compile Python sources
-        run: python -m compileall -q preprocessing test
-      - name: Test preprocessing with synthetic corpus
+        run: python -m compileall -q corpus ngram
+      - name: Test corpus cleaning with a synthetic corpus
         run: python -m unittest discover -s tests -v

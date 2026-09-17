@@ -1,13 +1,6 @@
-# chinese-ime-lm
+# 实测结论
 
-[![CI](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/ci.yml/badge.svg)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-
-用于中文输入法候选重排的字级语言模型，附带训练管线，以及说明它在什么情况下有用、什么情况下有害的实测数据。
-
-> **当前状态：尚未发布权重。** 训练仍在进行。在现有模型上，按音节直接解码的表现比它本想改进的引擎还差，把这样的权重发出去对一个公共资源是负资产。管线、参考实现、格式规范和评测集都已可用。
-
-这个仓库是给**其他输入法**用的。模型是标准 safetensors，参考实现除 serde 外无依赖，而所有与特定引擎绑定的部分都由调用方以谓词形式提供。
+字级语言模型在候选重排上的实测结论。仓库总览见[根目录 README](../README.md)，文件格式见 [format.md](format.md)。
 
 ## 它做什么，以及在哪里不该用
 
@@ -46,8 +39,8 @@ let promoted = reranker.best_where(已上屏文本, &候选列表, |index| {
 ```sh
 pip install -r neural/requirements.txt
 
-python corpus/corpus.py c4   --out data/c4.txt --max-chars 1_000_000_000
-python corpus/corpus.py lccc --out data/lccc.txt --split large
+python corpus/fetch.py c4   --out data/c4.txt --max-chars 1_000_000_000
+python corpus/fetch.py lccc --out data/lccc.txt --split large
 
 python neural/train.py --corpus data/c4.txt data/lccc.txt --out runs/desktop --preset desktop
 python neural/export.py --run runs/desktop --out dist/model.safetensors --precision int8

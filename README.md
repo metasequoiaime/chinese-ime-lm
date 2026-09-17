@@ -13,10 +13,10 @@
 
 | | 路线 | 位置 |
 |---|---|---|
-| **n-gram** | 语料清洗 → 分词 → KenLM 统计 | `preprocessing/`、`test/` |
-| **神经模型** | 语料获取 → 字级 Transformer → 导出 safetensors | `corpus/`、`neural/`、`reference/` |
+| **n-gram** | 语料清洗 → KenLM 统计 → Viterbi 解码 | `corpus/clean/`、`ngram/` |
+| **神经模型** | 语料获取 → 字级 Transformer → 候选重排 | `corpus/fetch.py`、`neural/`、`reference/` |
 
-两者用**同一套评测集**（`eval/`）衡量，所以可以直接比较。评测集本身比任何一个模型都更值得先看：它把"某个改动好不好"从意见变成数字，并且把两个会悄悄毁掉测量的陷阱固化成了用例（详见 [`docs/model-overview.md`](docs/model-overview.md)）。
+两者用**同一套评测集**（`eval/`）衡量，所以可以直接比较。评测集本身比任何一个模型都更值得先看：它把"某个改动好不好"从意见变成数字，并且把两个会悄悄毁掉测量的陷阱固化成了用例（详见 [`docs/measurements.md`](docs/measurements.md)）。
 
 **当前状态：尚未发布任何模型。** n-gram 一侧从未有产物进入过 shipped product；神经模型一侧仍在训练，且现有版本按音节直接解码的表现比它本想改进的引擎还差。发布之前先把话说在前面。
 
@@ -24,13 +24,14 @@
 
 | 路径 | 内容 |
 |---|---|
-| [`preprocessing/`](preprocessing/) | 语料清洗、单字拼音表生成 |
-| [`corpus/`](corpus/) | 获取可再分发语料（C4 ODC-BY、LCCC MIT，以及可选的维基与技术文档） |
-| [`neural/`](neural/) | 字级 Transformer 的训练、导出、评测 |
+| [`corpus/`](corpus/) | 语料：`fetch.py` 获取可再分发语料，`clean/` 清洗自备语料，`pinyin/` 生成单字拼音表 |
+| [`ngram/`](ngram/) | n-gram 路线：KenLM + Viterbi 解码 |
+| [`neural/`](neural/) | 神经路线：字级 Transformer 的训练、导出、评测 |
 | [`reference/`](reference/) | Rust 推理参考实现，无 unsafe，除 serde 外无依赖（**Apache-2.0**） |
 | [`eval/`](eval/) | 25,119 条词级用例 + 60 条整句用例 |
 | [`docs/format.md`](docs/format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
-| [`docs/model-overview.md`](docs/model-overview.md) | 神经模型的实测结论：它在哪里有用、在哪里有害 |
+| [`docs/measurements.md`](docs/measurements.md) | 实测结论：模型在哪里有用、在哪里有害，以及两个测量陷阱 |
+| [`tests/`](tests/) | 语料清洗的回归测试 |
 
 ### 许可按目录区分
 
@@ -63,15 +64,15 @@ The `LICENSE` in this repository (GPL-3.0) applies to the scripts here. It says 
 
 这里使用的语料来源是这个[仓库](https://github.com/brightmart/nlp_chinese_corpus)。将其解压后放到 data 目录下。
 
-## Data preprocessing
+## 语料清洗（自备语料）
 
 对于句子中的非中文字符，进行过滤，只要是非中文的字符，一律将其扩充成连通块，然后，将这个连通块当作是一个分隔符，将句子切分成小句子。最后，预处理好的数据就都是一个个由纯粹的中文组成的单独的连通块。
 
 ```powershell
-python .\preprocessing\generate_cleaned_txt\extract_connected_hanzi_components.py
-python .\preprocessing\generate_cleaned_txt\extract_wiki_connected_hanzi_components.py
-python .\preprocessing\generate_cleaned_txt\split_all_cleaned_txt_using_space.py
-python .\preprocessing\generate_cleaned_txt\split_wiki_txt_using_space.py
+python .\corpus\clean\extract_connected_hanzi_components.py
+python .\corpus\clean\extract_wiki_connected_hanzi_components.py
+python .\corpus\clean\split_all_cleaned_txt_using_space.py
+python .\corpus\clean\split_wiki_txt_using_space.py
 ```
 
 注意，这里是比较耗时的，至少需要半个小时左右，在我的 11 代 intel 处理器上。
@@ -121,21 +122,20 @@ mv model.binary model\all
 ## 神经模型
 
 字级 Transformer，在拼音解码拼装出的候选之间重排。它不是普遍有益的——实测见
-[`docs/model-overview.md`](docs/model-overview.md)，结论是：词典对整个键的精确命中已经携带语料词频，
+[`docs/measurements.md`](docs/measurements.md)，结论是：词典对整个键的精确命中已经携带语料词频，
 覆盖它们在任何权重下都掉分；而解码器拼装的候选不带词频证据，模型的价值只在那里。
 
 ```sh
 pip install -r neural/requirements.txt
 
-python corpus/corpus.py c4   --out data/c4.txt --max-chars 1_000_000_000
-python corpus/corpus.py lccc --out data/lccc.txt --split large
+python corpus/fetch.py c4   --out data/c4.txt --max-chars 1_000_000_000
+python corpus/fetch.py lccc --out data/lccc.txt --split large
 
 python neural/train.py --corpus data/c4.txt data/lccc.txt --out runs/desktop --preset desktop
 python neural/export.py --run runs/desktop --out dist/model.safetensors --precision int8
 ```
 
-`corpus/corpus.py` 与 `preprocessing/` 的关系：后者处理你自己准备好的语料，前者负责**获取**
-许可清晰、可再分发的语料。两者的中文规范化是同一个算法——保留汉字连通块，其余一律当分隔符。
+`corpus/fetch.py` 与 `corpus/clean/` 的关系：后者处理你自己准备好的语料，前者负责**获取**许可清晰、可再分发的语料。两者的中文规范化是同一个算法——保留汉字连通块，其余一律当分隔符。
 
 推理见 `reference/`，格式见 [`docs/format.md`](docs/format.md)。
 
@@ -156,7 +156,7 @@ pip install opencc
 跑测试代码之前，需要先生成一下拼音到单个汉字的候选项列表的字典文件，
 
 ```powershell
-python .\preprocessing\generate_single_hanzi_pinyin_tbl\make_single_pinyin_table.py
+python .\corpus\pinyin\make_single_pinyin_table.py
 ```
 
 然后，就可以运行测试了，

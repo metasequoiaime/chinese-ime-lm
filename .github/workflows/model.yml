@@ -36,8 +36,10 @@ jobs:
       - name: ruff
         run: |
           pipx install ruff
-          ruff check corpus neural
-          ruff format --check corpus neural
+          # 只覆盖神经路线自己的文件。corpus/clean 与 corpus/pinyin 属于 n-gram 路线，
+          # 由 ci.yml 与 quality.yml 检查；把别人的代码按这里的风格重排不是本工作流的事。
+          ruff check corpus/fetch.py neural
+          ruff format --check corpus/fetch.py neural
 
       - name: 语法与入口
         run: |
@@ -48,7 +50,7 @@ jobs:
           # Parsed rather than imported: importing train.py would need torch, and what breaks when
           # someone edits one of these without running it is the shape of the module, not its deps.
           # model.py is a library and is only checked for parsing, which compileall already did.
-          entry_points = ["../corpus/corpus.py", "export.py", "rerank_eval.py", "train.py"]
+          entry_points = ["../corpus/fetch.py", "export.py", "rerank_eval.py", "train.py"]
           missing = []
           for name in entry_points:
               tree = ast.parse(pathlib.Path(name).read_text(encoding="utf-8"))

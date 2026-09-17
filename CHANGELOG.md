@@ -4,6 +4,10 @@
 
 ## [未发布]
 
+### 变更
+
+- 目录按职责重排：语料相关的三件事收进 `corpus/`（`fetch.py` 获取、`clean/` 清洗、`pinyin/` 拼音表），n-gram 的 Viterbi 解码器从 `test/` 移到 `ngram/`——它是解码器，不是测试，放在 `test/` 里与真正的 `tests/` 只差一个字母。
+
 ### 新增
 
 - 训练管线：语料构建（C4 / LCCC / 维基 / 技术文档）、字级 Transformer、训练、导出为 safetensors。
