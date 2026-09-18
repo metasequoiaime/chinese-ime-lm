@@ -28,7 +28,7 @@
 | `tied_embeddings` | 恒为 `true` |
 | `validation_loss` | 训练时的验证损失 |
 | `training_steps` | 训练步数 |
-| `license` | 权重的许可 |
+| `license` | 权重的许可，SPDX 标识符。**是权重的许可，不是生成它的脚本的**——本仓库发布的权重为 `Apache-2.0`，而仓库整体是 GPL-3.0 |
 | `attribution` | 语料署名，**再分发时必须随权重保留** |
 
 `config` 的字段：
