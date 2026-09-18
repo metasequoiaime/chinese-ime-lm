@@ -67,6 +67,12 @@ def attribution(run):
     return text, records
 
 
+# The weights, not the scripts that made them. `reference/` is Apache-2.0 for the same reason this
+# is: a great many open-source input methods are MIT, Apache or BSD and cannot link GPL code, and a
+# public resource nobody can adopt is not one. Override with --license if you trained your own on
+# something that obliges otherwise.
+DEFAULT_LICENSE = "Apache-2.0"
+
 # Rounding these to int8 costs more accuracy than it saves bytes.
 KEEP_FLOAT = ("ln1.", "ln2.", "ln_f.", ".bias", "pos.weight")
 
@@ -90,6 +96,16 @@ def main():
     parser.add_argument("--out", required=True)
     parser.add_argument("--precision", choices=["f16", "int8"], default="f16")
     parser.add_argument("--url", default="", help="published location, for the resource lock entry")
+    # Was hardcoded to the repository's own GPL-3.0, which is wrong twice. README.md says outright
+    # that released weights are not governed by the code licence, and GPL-3.0 is share-alike — so
+    # every exported model carried an obligation that this project spends its corpus policy avoiding,
+    # for the sake of adopters who should not need a legal review to use it. What the weights are
+    # licensed under is the publisher's decision, so it is asked for rather than assumed.
+    parser.add_argument(
+        "--license",
+        default=DEFAULT_LICENSE,
+        help=f"SPDX identifier written into the model metadata (default {DEFAULT_LICENSE})",
+    )
     args = parser.parse_args()
 
     # Before the weights are read: an export that cannot say what it was trained on should fail
@@ -128,7 +144,7 @@ def main():
         "tied_embeddings": "true",
         "validation_loss": f"{checkpoint['val']:.6f}",
         "training_steps": str(checkpoint["step"]),
-        "license": "GPL-3.0-only",
+        "license": args.license,
         "attribution": attribution_text,
     }
 
