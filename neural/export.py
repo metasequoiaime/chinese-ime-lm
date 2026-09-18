@@ -12,21 +12,61 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 
 import torch
 from safetensors.torch import save_file
 
 from model import CharLM, Config
 
-# Both corpora permit redistribution of a model trained on them, and both require that the
-# attribution travel with it. It is written into the file rather than into a document beside
-# the file so that it cannot be separated from the weights.
-ATTRIBUTION = (
-    "Trained on Chinese Wikipedia (CC BY-SA 4.0, https://dumps.wikimedia.org/zhwiki/), "
-    "LCCC (MIT, https://github.com/thu-coai/CDial-GPT), "
-    "the Chinese portion of C4 (ODC-BY, https://huggingface.co/datasets/allenai/c4), and "
-    "Chinese documentation from Kubernetes (CC BY 4.0), MDN (CC BY-SA 2.5) and TensorFlow (Apache-2.0)."
-)
+def attribution(run):
+    """The corpora this run was actually trained on, named from their own records.
+
+    This used to be a constant listing every source the pipeline can fetch, which meant every
+    exported model claimed to contain Chinese Wikipedia and MDN whether or not it had ever seen
+    them. The field exists so that a redistributor can rely on it — `SECURITY.md` and `NOTICE` both
+    require it to travel with the weights — so a value that is right only by coincidence is worse
+    than no value at all: a model trained purely on permissive text was being stamped share-alike,
+    and a genuinely share-alike model would have been stamped identically.
+
+    Derived rather than declared, and it refuses to guess: a corpus file with no record beside it
+    stops the export. Guessing is what produced the bug.
+    """
+    config = os.path.join(run, "config.json")
+    if not os.path.exists(config):
+        raise SystemExit(
+            f"{config} is missing, so the corpus this run used is unrecorded and the attribution "
+            f"cannot be derived. Retrain with the current train.py."
+        )
+    with open(config, encoding="utf-8") as handle:
+        corpora = json.load(handle)["corpus"]
+
+    records = []
+    for path in corpora:
+        beside = f"{path}.source.json"
+        if not os.path.exists(beside):
+            raise SystemExit(
+                f"{beside} is missing, so what {path} contains is unknown. Re-fetch it with "
+                f"corpus/fetch.py, which writes that record."
+            )
+        with open(beside, encoding="utf-8") as handle:
+            records.append(json.load(handle))
+
+    named = [f"{r['name']} ({r['license']}, {r['url']})" for r in records]
+    if len(named) > 1:
+        listed = ", ".join(named[:-1]) + " and " + named[-1]
+    else:
+        listed = named[0]
+    text = f"Trained on {listed}."
+
+    # Stated in the file rather than left for a reader to work out from the licence names, because
+    # this is the one bit an adopter has to check before shipping.
+    if any(r["share_alike"] for r in records):
+        text += (
+            " At least one of these imposes a share-alike obligation, so these weights are not "
+            "eligible for release under this project's policy."
+        )
+    return text, records
 
 # Rounding these to int8 costs more accuracy than it saves bytes.
 KEEP_FLOAT = ("ln1.", "ln2.", "ln_f.", ".bias", "pos.weight")
@@ -52,6 +92,10 @@ def main():
     parser.add_argument("--precision", choices=["f16", "int8"], default="f16")
     parser.add_argument("--url", default="", help="published location, for the resource lock entry")
     args = parser.parse_args()
+
+    # Before the weights are read: an export that cannot say what it was trained on should fail
+    # while it has produced nothing, not after it has written a file someone might ship.
+    attribution_text, corpus_records = attribution(args.run)
 
     checkpoint = torch.load(os.path.join(args.run, "checkpoint.pt"), map_location="cpu", weights_only=True)
     with open(os.path.join(args.run, "vocab.json"), encoding="utf-8") as handle:
@@ -86,7 +130,7 @@ def main():
         "validation_loss": f"{checkpoint['val']:.6f}",
         "training_steps": str(checkpoint["step"]),
         "license": "GPL-3.0-only",
-        "attribution": ATTRIBUTION,
+        "attribution": attribution_text,
     }
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
@@ -95,6 +139,17 @@ def main():
     print(
         f"{args.out}: {size / 1e6:.1f} MB, {cfg.parameters():,} parameters, {args.precision}, validation loss {checkpoint['val']:.4f}"
     )
+    sources = ", ".join(f"{r['source']} ({r['license']})" for r in corpus_records)
+    blocked = [r["source"] for r in corpus_records if r["share_alike"]]
+    if blocked:
+        print(f"corpus: {sources}", file=sys.stderr)
+        print(
+            f"NOT RELEASABLE: {', '.join(blocked)} imposes share-alike. These weights are usable "
+            f"locally but may not be published under this project's policy.",
+            file=sys.stderr,
+        )
+    else:
+        print(f"corpus: {sources} — no share-alike obligation, releasable", file=sys.stderr)
 
     # The entry a resource lock needs. A model is installed and verified exactly like a dictionary,
     # by name, length and digest, so publishing one means adding this to a lock rather than copying
