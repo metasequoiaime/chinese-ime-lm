@@ -394,6 +394,50 @@ def c4_lines(max_chars, first_shard=0):
         print(f"  shard {index} done, {emitted:,} chars", file=sys.stderr)
 
 
+# What each source is, for the record written beside every corpus file. `share_alike` is the field
+# that decides whether a model trained on the file may be released: the project publishes weights
+# only from corpora that impose no share-alike obligation, so that adopting the model does not hand
+# the adopter one.
+SOURCE_LICENSES = {
+    "wiki": {
+        "name": "Chinese Wikipedia",
+        "license": "CC BY-SA 4.0",
+        "url": "https://dumps.wikimedia.org/zhwiki/",
+        "share_alike": True,
+    },
+    "lccc": {
+        "name": "LCCC",
+        "license": "MIT",
+        "url": "https://github.com/thu-coai/CDial-GPT",
+        "share_alike": False,
+    },
+    "c4": {
+        "name": "the Chinese portion of C4",
+        "license": "ODC-BY",
+        "url": "https://huggingface.co/datasets/allenai/c4",
+        "share_alike": False,
+    },
+    # One file, several repositories, and MDN's CC BY-SA 2.5 is share-alike — so the whole file is.
+    # A mixed file is only as permissive as its most restrictive part.
+    "docs": {
+        "name": "Chinese documentation from Kubernetes, MDN and TensorFlow",
+        "license": "CC BY 4.0, CC BY-SA 2.5 and Apache-2.0",
+        "url": "https://github.com/mdn/translated-content",
+        "share_alike": True,
+    },
+}
+
+
+def source_record(args, lines, chars):
+    record = dict(SOURCE_LICENSES[args.source])
+    record["source"] = args.source
+    record["lines"] = lines
+    record["chars"] = chars
+    if args.source == "lccc":
+        record["split"] = args.split
+    return record
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", choices=["wiki", "lccc", "docs", "c4"])
@@ -436,6 +480,18 @@ def main():
             if count % 500_000 == 0:
                 print(f"\r  {count:,} lines / {chars:,} chars", end="", file=sys.stderr)
     print(f"\r{args.out}: {count:,} lines / {chars:,} chars", file=sys.stderr)
+
+    # Record what this file is, beside the file itself. The attribution in a released model has to
+    # name the corpora that model was actually trained on, and the only place that is known for
+    # certain is here, at the moment the text is written. Reconstructing it later from a filename is
+    # a guess, and export.py used to carry a hardcoded list of every source the pipeline can fetch —
+    # which stamped models with corpora they had never seen, in a field whose entire purpose is to
+    # be relied upon.
+    with open(f"{args.out}.source.json", "w", encoding="utf-8") as handle:
+        json.dump(
+            source_record(args, count, chars), handle, ensure_ascii=False, indent=2
+        )
+        handle.write("\n")
 
 
 if __name__ == "__main__":
