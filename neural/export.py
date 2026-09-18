@@ -19,6 +19,7 @@ from safetensors.torch import save_file
 
 from model import CharLM, Config
 
+
 def attribution(run):
     """The corpora this run was actually trained on, named from their own records.
 
@@ -53,10 +54,7 @@ def attribution(run):
             records.append(json.load(handle))
 
     named = [f"{r['name']} ({r['license']}, {r['url']})" for r in records]
-    if len(named) > 1:
-        listed = ", ".join(named[:-1]) + " and " + named[-1]
-    else:
-        listed = named[0]
+    listed = ", ".join(named[:-1]) + " and " + named[-1] if len(named) > 1 else named[0]
     text = f"Trained on {listed}."
 
     # Stated in the file rather than left for a reader to work out from the licence names, because
@@ -67,6 +65,7 @@ def attribution(run):
             "eligible for release under this project's policy."
         )
     return text, records
+
 
 # Rounding these to int8 costs more accuracy than it saves bytes.
 KEEP_FLOAT = ("ln1.", "ln2.", "ln_f.", ".bias", "pos.weight")

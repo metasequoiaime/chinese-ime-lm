@@ -488,7 +488,9 @@ def main():
     # which stamped models with corpora they had never seen, in a field whose entire purpose is to
     # be relied upon.
     with open(f"{args.out}.source.json", "w", encoding="utf-8") as handle:
-        json.dump(source_record(args, count, chars), handle, ensure_ascii=False, indent=2)
+        json.dump(
+            source_record(args, count, chars), handle, ensure_ascii=False, indent=2
+        )
         handle.write("\n")
 
 
