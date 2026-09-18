@@ -7,7 +7,11 @@ Two sources, both redistributable:
 - Chinese technical documentation (CC BY 4.0, CC BY-SA 2.5, Apache-2.0) — the register someone writes in while working, which neither of the other two contains at all.
 - The Chinese portion of C4 (ODC-BY) — web text, the register people type in, and the only source here that reaches the scale a language model needs.
 
-Output is one normalized sentence per line, UTF-8. Everything outside the kept character set is a segmentation boundary rather than a substitution, because the model only ever scores runs of Chinese characters: at inference the candidates handed to it come from the pinyin decoder and contain nothing else.
+Output is one normalized sentence per line, UTF-8, with duplicate lines removed. Everything outside the kept character set is a segmentation boundary rather than a substitution, because the model only ever scores runs of Chinese characters: at inference the candidates handed to it come from the pinyin decoder and contain nothing else.
+
+`--max-chars` counts what the source yields, before deduplication, so the file written is smaller than the number asked for — on the Chinese portion of C4 it comes out at about 63% of it. Ask for more than you need.
+
+Requires numpy, which the training pipeline already requires; the deduplication pass keeps tens of millions of line digests, and a Python set of those costs more than a gigabyte.
 
 usage:
   python corpus.py wiki  --out data/wiki.txt  [--max-chars 2_000_000_000]
@@ -19,6 +23,7 @@ usage:
 import argparse
 import bz2
 import gzip
+import hashlib
 import json
 import os
 import re
@@ -428,6 +433,55 @@ SOURCE_LICENSES = {
 }
 
 
+def deduplicate(staged, out):
+    """Copy `staged` to `out`, keeping only the first occurrence of each line.
+
+    Why this matters more than it sounds: measured on 300 million characters of the Chinese portion
+    of C4, only 62.6% of characters survive this, and the share of lines carrying gambling or SEO
+    keyword-farm vocabulary falls from about 22% to 5.2%. The duplication and the spam are the same
+    problem — that vocabulary is frequent because a few phrases are repeated thousands of times, not
+    because many pages contain them, so removing the repetition removes most of the weight.
+    (Requiring longer lines on top of this was also measured: it costs half of what remains and
+    takes spam only from 5.2% to 4.0%, so it is not done.) LCCC keeps 91% and was already at 0.1%,
+    which is why this is not tuned per source.
+
+    Two passes over a staged file rather than a set held while downloading, because a set of tens of
+    millions of line hashes costs more than a gigabyte of Python objects, and the corpus sizes this
+    script is pointed at would make that the limiting resource. The hashes go into one numpy array
+    instead — numpy is already required by the training pipeline.
+    """
+    import numpy as np
+
+    digests = []
+    with open(staged, "rb") as handle:
+        for line in handle:
+            # Truncated BLAKE2b rather than hash(): the built-in is salted per process, so a corpus
+            # deduplicated twice would not be deduplicated the same way, and a bug here would not
+            # reproduce.
+            digests.append(
+                int.from_bytes(
+                    hashlib.blake2b(line, digest_size=8).digest(), "big", signed=False
+                )
+            )
+    seen = np.array(digests, dtype=np.uint64)
+    del digests
+    # return_index gives the position of the first occurrence of each distinct value, which is the
+    # one to keep: the corpus stays in source order, and re-running produces the same file.
+    _, first = np.unique(seen, return_index=True)
+    keep = np.zeros(seen.shape[0], dtype=bool)
+    keep[first] = True
+
+    kept = chars = 0
+    with open(staged, "rb") as source, open(out, "wb") as target:
+        for index, line in enumerate(source):
+            if not keep[index]:
+                continue
+            target.write(line)
+            kept += 1
+            chars += len(line.decode("utf-8")) - 1
+    return kept, chars
+
+
 def source_record(args, lines, chars):
     record = dict(SOURCE_LICENSES[args.source])
     record["source"] = args.source
@@ -470,8 +524,9 @@ def main():
         lines = lccc_lines(archive, args.max_chars)
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+    staged = args.out + ".staged"
     count = chars = 0
-    with open(args.out, "w", encoding="utf-8") as out:
+    with open(staged, "w", encoding="utf-8") as out:
         for line in lines:
             out.write(line)
             out.write("\n")
@@ -479,7 +534,18 @@ def main():
             chars += len(line)
             if count % 500_000 == 0:
                 print(f"\r  {count:,} lines / {chars:,} chars", end="", file=sys.stderr)
-    print(f"\r{args.out}: {count:,} lines / {chars:,} chars", file=sys.stderr)
+    print(
+        f"\r  {count:,} lines / {chars:,} chars before deduplication", file=sys.stderr
+    )
+
+    kept, kept_chars = deduplicate(staged, args.out)
+    os.remove(staged)
+    print(
+        f"{args.out}: {kept:,} lines / {kept_chars:,} chars"
+        f" ({100 * kept_chars / max(1, chars):.1f}% of what the source yielded)",
+        file=sys.stderr,
+    )
+    count, chars = kept, kept_chars
 
     # Record what this file is, beside the file itself. The attribution in a released model has to
     # name the corpora that model was actually trained on, and the only place that is known for
