@@ -2,8 +2,11 @@
 
 Takes one or more normalized corpora from `corpus.py`, derives a vocabulary from character frequency, packs the text into a memory-mapped token array, and trains. Both the vocabulary and the packed array are cached next to the output so that re-running with different hyperparameters does not repeat the preparation.
 
+A sweep needs shapes that no preset names, so the individual fields of the configuration can be set on top of whichever preset is in effect. The configuration a run actually used is written to `config.json` in its output directory, because a sweep is only readable afterwards if every directory says what it was.
+
 usage:
   python train.py --corpus data/wiki.txt data/lccc.txt --out runs/keyboard --preset keyboard --steps 40000
+  python train.py --corpus data/c4.txt --out runs/l6-e192 --n-layer 6 --n-embd 192 --n-head 4 --steps 20000
 """
 
 import argparse
@@ -92,6 +95,12 @@ def main():
     parser.add_argument("--corpus", nargs="+", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--preset", default="keyboard")
+    # Each of these overrides the field of the same name on the preset; left out, the preset decides.
+    parser.add_argument("--vocab", type=int)
+    parser.add_argument("--n-layer", type=int)
+    parser.add_argument("--n-head", type=int)
+    parser.add_argument("--n-embd", type=int)
+    parser.add_argument("--context", type=int)
     parser.add_argument("--steps", type=int, default=40000)
     parser.add_argument("--batch", type=int, default=64)
     parser.add_argument("--lr", type=float, default=3e-4)
@@ -100,8 +109,19 @@ def main():
     parser.add_argument("--seed", type=int, default=1234)
     args = parser.parse_args()
 
-    os.makedirs(args.out, exist_ok=True)
     cfg = Config.preset(args.preset)
+    # The flag names are the field names, so overriding is a lookup instead of a branch per field.
+    for field in ("vocab", "n_layer", "n_head", "n_embd", "context"):
+        value = getattr(args, field)
+        if value is not None:
+            setattr(cfg, field, value)
+    # Checked before anything expensive happens. The attention heads split the width between them,
+    # so a width that does not divide fails in the first forward pass — after the vocabulary has
+    # been built and the corpus packed, which on a real corpus is most of an hour.
+    if cfg.n_embd % cfg.n_head:
+        parser.error(f"n_embd {cfg.n_embd} is not divisible by n_head {cfg.n_head}")
+
+    os.makedirs(args.out, exist_ok=True)
     torch.manual_seed(args.seed)
 
     vocab_path = os.path.join(args.out, "vocab.json")
@@ -114,6 +134,25 @@ def main():
             json.dump({"tokens": tokens_list}, handle, ensure_ascii=False)
     cfg.vocab = len(tokens_list)
     index = {ch: i for i, ch in enumerate(tokens_list)}
+
+    # The checkpoint carries the configuration as well, but it is written only when the validation
+    # loss improves: a run that was killed early, or one whose loss never improved, would leave a
+    # directory that does not say what shape produced it. This is written before the first step, and
+    # after the vocabulary, so it holds the size the vocabulary actually came out at.
+    with open(os.path.join(args.out, "config.json"), "w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "config": dataclasses.asdict(cfg),
+                "preset": args.preset,
+                "corpus": args.corpus,
+                "steps": args.steps,
+                "batch": args.batch,
+                "lr": args.lr,
+                "warmup": args.warmup,
+                "seed": args.seed,
+            },
+            handle,
+        )
 
     data = pack(args.corpus, index, os.path.join(args.out, "tokens.u16"))
     split = int(len(data) * 0.999)
