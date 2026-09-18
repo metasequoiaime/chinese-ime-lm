@@ -144,7 +144,10 @@ def main():
             {
                 "config": dataclasses.asdict(cfg),
                 "preset": args.preset,
-                "corpus": args.corpus,
+                # Absolute, because export.py reads the licence record beside each of these files
+                # and it does not run from here. A relative path makes the record resolvable only
+                # from the directory the training happened to be launched in, which is not a record.
+                "corpus": [os.path.abspath(path) for path in args.corpus],
                 "steps": args.steps,
                 "batch": args.batch,
                 "lr": args.lr,
