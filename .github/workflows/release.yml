@@ -1,0 +1,97 @@
+name: 发布
+
+# 发布时检查，不是发布时构建。权重来自 GPU 上的训练，CI 造不出来；它能做的是在别人下载之前，
+# 把这个仓库真出过的几类错挡住：署名写死导致声称了没用过的语料、许可写成仓库自己的 GPL 让采用者
+# 背上传染性义务、以及说明里的摘要与附件对不上。
+#
+# edited 也触发：说明里的摘要是给人核对用的，改说明就可能把它改错，而那种错误正好发生在没人会
+# 再跑一次检查的时候。
+on:
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要检查的 release 标签
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  assets:
+    name: 权重校验
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+
+      - name: 构建校验器
+        working-directory: reference
+        run: cargo build --release --example verify
+
+      - name: 取回附件与说明
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json body --jq .body > notes.md
+          gh release view "$TAG" --json assets --jq '.assets[].name' > names.txt
+          test -s names.txt || { echo "release $TAG 没有附件"; exit 1; }
+          gh release download "$TAG" --dir assets --clobber
+
+      - name: 说明里的摘要与体积必须逐个给出
+        run: |
+          python3 - <<'PY' > expectations.txt
+          import re, sys
+
+          # 按行精确匹配附件名，不是在正文里搜子串：sentence-model.safetensors 是
+          # sentence-model-desktop.safetensors 的子串，用 split 会让后者读到前者的摘要。
+          # 这是写这段时真犯的错，本地对着真实说明跑一遍才看见。
+          names = [line.strip() for line in open("names.txt", encoding="utf-8") if line.strip()]
+          lines = open("notes.md", encoding="utf-8").read().splitlines()
+
+          missing = []
+          for name in names:
+              if not name.endswith(".safetensors"):
+                  continue
+              found = None
+              for index, line in enumerate(lines):
+                  if line.strip() != name:
+                      continue
+                  window = "\n".join(lines[index + 1 : index + 5])
+                  sha = re.search(r"sha256\s+([0-9a-f]{64})", window)
+                  size = re.search(r"size\s+(\d+)", window)
+                  if sha and size:
+                      found = (sha.group(1), size.group(1))
+                      break
+              if found:
+                  print(f"{name}\t{found[0]}\t{found[1]}")
+              else:
+                  missing.append(name)
+
+          if missing:
+              # 说明里没给摘要，读者就无从核对，SECURITY.md 那句「不要加载没经过摘要校验的
+              # 模型文件」也就落了空。
+              sys.exit("说明里缺少摘要或体积: " + ", ".join(missing))
+          PY
+          cat expectations.txt
+
+      - name: 逐个校验
+        run: |
+          set -euo pipefail
+          status=0
+          while IFS=$'\t' read -r name sha size; do
+            echo "::group::$name"
+            ./reference/target/release/examples/verify "assets/$name" \
+              --expect-sha256 "$sha" --expect-size "$size" || status=1
+            echo "::endgroup::"
+          done < expectations.txt
+          exit $status

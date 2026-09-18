@@ -13,6 +13,15 @@
 
 **但格式本身不提供真实性保证。** safetensors 没有签名。分发方必须按长度和摘要校验模型文件——本项目的 `export.py` 会打印这样一条资源锁条目，正是为此。**不要加载来源不可信、且没有经过摘要校验的模型文件。**
 
+校验工具就在仓库里，除本 crate 外不依赖任何东西：
+
+```sh
+cd reference
+cargo run --release --example verify -- <模型文件> --expect-sha256 <摘要> --expect-size <字节数>
+```
+
+它核对摘要与体积、按参考实现加载（几何一致性、张量偏移、词表长度都在这一步检查）、确认许可与语料署名，最后做一次排序检查——一个被改坏的前向计算仍然能加载成功、元数据仍然完好、耗时看着还很漂亮。本仓库每次发布都会对全部附件跑这个工具，见 `.github/workflows/release.yml`。
+
 ## 报告漏洞
 
 请使用 GitHub 的私密漏洞报告（仓库页面 → Security → Report a vulnerability），不要开公开 issue。

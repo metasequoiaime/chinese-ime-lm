@@ -78,6 +78,7 @@ pub struct SentenceModel {
     final_weight: Vec<f32>,
     final_bias: Vec<f32>,
     attribution: String,
+    license: String,
 }
 
 impl std::fmt::Debug for SentenceModel {
@@ -129,6 +130,7 @@ impl SentenceModel {
             .metadata("attribution")
             .unwrap_or_default()
             .to_owned();
+        let license = weights.metadata("license").unwrap_or_default().to_owned();
 
         // Every dimension below is multiplied out while checking the tensors, and all of them come
         // from the file. Bounding them here means the later arithmetic cannot overflow, which is
@@ -199,6 +201,7 @@ impl SentenceModel {
             final_weight: weights.take("ln_f.weight")?,
             final_bias: weights.take("ln_f.bias")?,
             attribution,
+            license,
         };
         model.check_geometry()?;
         Ok(model)
@@ -248,6 +251,13 @@ impl SentenceModel {
     /// model trained on them, which is why it lives in the file rather than beside it.
     pub fn attribution(&self) -> &str {
         &self.attribution
+    }
+
+    /// The licence of the **weights**, as an SPDX identifier, which is not the licence of the code
+    /// that produced them. Empty when the file does not say — older files do not, and a caller that
+    /// needs to know should treat silence as unknown rather than as permission.
+    pub fn license(&self) -> &str {
+        &self.license
     }
 
     pub fn context_length(&self) -> usize {
