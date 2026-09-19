@@ -31,6 +31,29 @@ from model import BOS, CharLM, Config
 DICTIONARY_SOURCES = (0, 1)
 
 
+def record(rows, case, gold, texts, gated, chosen):
+    """One row per comparable case, for comparing two models case by case rather than by total.
+
+    A total cannot tell "this model is genuinely better" from "this model won three coin flips".
+    On 56 comparable cases a three-case spread is well inside the noise, and the question that
+    actually decides a choice is whether the models agree on *which* cases they get right — a
+    strictly nested pair of answer sets means something a difference of totals does not.
+
+    `reachable` is why this file is worth writing rather than recomputing later: when the gold is
+    absent from the candidate list no reranker can reach it, so those cases bound what any model
+    can score and should not be counted against one.
+    """
+    rows.append(
+        {
+            "id": case.get("id") or case["input"],
+            "bucket": "dictionary" if gated else "decoded",
+            "reachable": gold in texts,
+            "engine": texts[0] == gold,
+            "reranked": chosen == gold,
+        }
+    )
+
+
 def load(path, device):
     tensors = load_file(path)
     with open(path, "rb") as handle:
@@ -71,6 +94,10 @@ def main():
     parser.add_argument(
         "--ungated", action="store_true", help="also rerank dictionary hits, to show what the gate is worth"
     )
+    parser.add_argument(
+        "--per-case",
+        help="write one JSON object per comparable case, for compare_models.py",
+    )
     args = parser.parse_args()
 
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -92,6 +119,7 @@ def main():
         ]
 
     buckets = {}
+    per_case = []
     with open(args.cases, encoding="utf-8") as handle:
         cases = handle.readlines()
     for line in cases:
@@ -109,11 +137,19 @@ def main():
 
         if gated and not args.ungated:
             bucket["after"] += texts[0] == gold
+            record(per_case, case, gold, texts, gated, texts[0])
             continue
         scores = score(case.get("context", ""), texts)
         best = max(range(len(texts)), key=lambda i: scores[i])
         chosen = texts[best] if scores[best] - scores[0] > args.margin else texts[0]
         bucket["after"] += chosen == gold
+        record(per_case, case, gold, texts, gated, chosen)
+
+    if args.per_case:
+        with open(args.per_case, "w", encoding="utf-8") as handle:
+            for row in per_case:
+                handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+        print(f"{len(per_case)} cases written to {args.per_case}")
 
     total = {"n": 0, "before": 0, "after": 0}
     for key in ("dictionary", "decoded"):
