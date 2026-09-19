@@ -19,9 +19,30 @@ struct Entry {
     data_offsets: [usize; 2],
 }
 
-/// Every tensor dequantized to `f32`, plus the metadata the header carried.
+/// One tensor as it will be held for the life of the model.
+///
+/// Quantized matrices keep their `i8` values and their per-row scales instead of being expanded to
+/// `f32` on load. The scale is a constant factor for a whole output row, so it comes out of the dot
+/// product and is applied once to the result — the arithmetic is the same, and the weights occupy a
+/// quarter of the memory. That matters because the model is loaded inside an iOS keyboard
+/// extension, where expanding a 4.5 MB file to 24.5 MB resident is most of the process budget.
+pub enum Tensor {
+    Float(Vec<f32>),
+    Quantized { values: Vec<i8>, scales: Vec<f32> },
+}
+
+impl Tensor {
+    pub fn len(&self) -> usize {
+        match self {
+            Tensor::Float(values) => values.len(),
+            Tensor::Quantized { values, .. } => values.len(),
+        }
+    }
+}
+
+/// Every tensor as stored, plus the metadata the header carried.
 pub struct Weights {
-    tensors: BTreeMap<String, (Vec<usize>, Vec<f32>)>,
+    tensors: BTreeMap<String, (Vec<usize>, Tensor)>,
     metadata: BTreeMap<String, String>,
 }
 
@@ -64,14 +85,14 @@ impl Weights {
                 continue;
             }
             let values = match entry.dtype.as_str() {
-                "F32" => read_f32(data, entry)?,
-                "F16" => read_f16(data, entry)?,
+                "F32" => Tensor::Float(read_f32(data, entry)?),
+                "F16" => Tensor::Float(read_f16(data, entry)?),
                 "I8" => {
                     let scale_entry = entries
                         .get(&format!("{name}.scale"))
                         .ok_or_else(|| ModelError::Header(format!("{name}: missing scale")))?;
                     let scales = read_f32(data, scale_entry)?;
-                    read_i8(data, entry, &scales)?
+                    read_i8(data, entry, scales)?
                 }
                 other => return Err(ModelError::Header(format!("{name}: dtype {other}"))),
             };
@@ -93,7 +114,19 @@ impl Weights {
         Ok(Self { tensors, metadata })
     }
 
+    /// Takes a tensor that must be plain `f32`: layer-norm parameters, biases and the position
+    /// table, which `export.py` never quantizes because they are a negligible share of the file and
+    /// the most sensitive to rounding.
     pub fn take(&mut self, name: &str) -> Result<Vec<f32>, ModelError> {
+        match self.take_tensor(name)? {
+            Tensor::Float(values) => Ok(values),
+            Tensor::Quantized { .. } => Err(ModelError::Header(format!(
+                "{name} is quantized, but this tensor is never quantized by export.py"
+            ))),
+        }
+    }
+
+    pub fn take_tensor(&mut self, name: &str) -> Result<Tensor, ModelError> {
         self.tensors
             .remove(name)
             .map(|(_, values)| values)
@@ -128,7 +161,7 @@ fn read_f16(data: &[u8], entry: &Entry) -> Result<Vec<f32>, ModelError> {
 }
 
 /// Quantization is symmetric and per output row, so the scale index is the row index.
-fn read_i8(data: &[u8], entry: &Entry, scales: &[f32]) -> Result<Vec<f32>, ModelError> {
+fn read_i8(data: &[u8], entry: &Entry, scales: Vec<f32>) -> Result<Tensor, ModelError> {
     let bytes = slice(data, entry)?;
     let rows = *entry.shape.first().unwrap_or(&1);
     if rows == 0 || scales.len() != rows {
@@ -136,12 +169,10 @@ fn read_i8(data: &[u8], entry: &Entry, scales: &[f32]) -> Result<Vec<f32>, Model
             "scale length does not match rows".into(),
         ));
     }
-    let columns = bytes.len() / rows;
-    Ok(bytes
-        .iter()
-        .enumerate()
-        .map(|(index, &byte)| f32::from(byte as i8) * scales[index / columns])
-        .collect())
+    Ok(Tensor::Quantized {
+        values: bytes.iter().map(|&byte| byte as i8).collect(),
+        scales,
+    })
 }
 
 /// IEEE 754 binary16 to binary32. Subnormals are rare in trained weights but are handled rather
