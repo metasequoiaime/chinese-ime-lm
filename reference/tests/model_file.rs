@@ -8,7 +8,7 @@
 
 use std::collections::BTreeMap;
 
-use chinese_ime_lm::{ModelError, SentenceModel};
+use chinese_ime_lm::{ModelError, Reranker, SentenceModel};
 
 const VOCAB: usize = 8;
 const LAYERS: usize = 1;
@@ -416,4 +416,38 @@ fn a_quantized_layer_norm_is_refused() {
     }
     let error = SentenceModel::load(&builder.finish()).expect_err("accepted a quantized LayerNorm");
     assert!(matches!(error, ModelError::Header(_)), "{error}");
+}
+
+/// A reranker reuses what it ran for the previous keystroke, and the shape it has to handle is
+/// partial agreement: the decoder revises the last character or two as a syllable completes, so a
+/// new candidate usually shares a leading stretch with an old one rather than all of it. Scoring
+/// through a reranker that has that history must land where scoring from nothing lands.
+///
+/// The tolerance is not zero because resuming regroups the sum: the terms are the same and stay in
+/// the same order, but `(a + b) + c` and `a + (b + c)` are not the same `f32`.
+#[test]
+fn resumed_scores_match_scoring_from_nothing() {
+    for precision in ["f32", "f16", "int8"] {
+        let bytes = complete(precision).finish();
+        let model = std::sync::Arc::new(SentenceModel::load(&bytes).expect("load"));
+
+        // One keystroke, then a longer one that extends the first candidate, revises the tail of
+        // the second, and introduces a third that shares nothing.
+        let earlier = ["你好", "你吗"];
+        let later = ["你好吗", "你吗我", "我很好"];
+
+        let mut carried = Reranker::new(model.clone());
+        carried.log_probabilities("", &earlier);
+        let resumed = carried.log_probabilities("", &later);
+
+        let fresh = Reranker::new(model).log_probabilities("", &later);
+
+        assert_eq!(resumed.len(), fresh.len());
+        for (index, (left, right)) in resumed.iter().zip(&fresh).enumerate() {
+            assert!(
+                (left - right).abs() < 1e-4,
+                "{precision} candidate {index}: resumed {left}, fresh {right}"
+            );
+        }
+    }
 }
