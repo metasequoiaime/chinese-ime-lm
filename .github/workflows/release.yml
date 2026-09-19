@@ -6,20 +6,24 @@ name: 发布
 #
 # edited 也触发：说明里的摘要是给人核对用的，改说明就可能把它改错，而那种错误正好发生在没人会
 # 再跑一次检查的时候。
+# reference/ 变了也触发：这个 workflow 原本只防「产物变了」，防不住「读产物的代码变了」。
+# 已发布的权重是靠这份加载器读的，改了它却不重新校验线上文件，等于把最可能出问题的方向留空。
 on:
   release:
     types: [published, edited]
+  push:
+    branches: [main]
+    paths: ['reference/**']
   workflow_dispatch:
     inputs:
       tag:
-        description: 要检查的 release 标签
-        required: true
+        description: 要检查的 release 标签（留空则取最新）
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  group: release-${{ github.event.release.tag_name || inputs.tag || 'latest' }}
   cancel-in-progress: false
 
 jobs:
@@ -42,12 +46,24 @@ jobs:
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           set -euo pipefail
+          # push 触发时没有标签，取最新的 release。仓库还没发布过任何东西时这不是失败，
+          # 直接结束：没有产物可校验和校验不通过是两回事。
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')
+            if [ -z "$TAG" ]; then
+              echo "还没有任何 release，无可校验"
+              echo "SKIP=1" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "取最新的 release: $TAG"
+          fi
           gh release view "$TAG" --json body --jq .body > notes.md
           gh release view "$TAG" --json assets --jq '.assets[].name' > names.txt
           test -s names.txt || { echo "release $TAG 没有附件"; exit 1; }
           gh release download "$TAG" --dir assets --clobber
 
       - name: 说明里的摘要与体积必须逐个给出
+        if: env.SKIP != '1'
         run: |
           python3 - <<'PY' > expectations.txt
           import re, sys
@@ -85,6 +101,7 @@ jobs:
           cat expectations.txt
 
       - name: 逐个校验
+        if: env.SKIP != '1'
         run: |
           set -euo pipefail
           status=0
