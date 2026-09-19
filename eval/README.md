@@ -41,6 +41,24 @@ python neural/rerank_eval.py --model dist/model.safetensors --cases dumps/senten
 
 参考实现里还有两个：`reference/examples/replay.rs` 回放同样的 JSONL（用来交叉验证两种实现是否一致），`reference/examples/hybrid.rs` 扫描组合权重。
 
+### 比两个模型，要逐例比，不能只比总分
+
+n=60 的分辨率下，总分差几例说明不了问题。真正能分辨的是两个模型**在哪些案例上**对：
+
+```sh
+python neural/rerank_eval.py --model a.safetensors --cases dumps/sentences.jsonl --per-case a.jsonl
+python neural/rerank_eval.py --model b.safetensors --cases dumps/sentences.jsonl --per-case b.jsonl
+python neural/compare_models.py a.jsonl b.jsonl
+```
+
+它报三件总分看不到的事：
+
+**谁是谁的严格超集。** 如果 A 对的案例集合完全包含 B 的，那 B 能解的 A 都能解，没有任何一例在为 B 说话——这比「A 多对两例」强得多。形状扫描就是这么定下来的：五个形状总分只差一例，逐例看却没有任何一个能解开最便宜那个解不开的案例。
+
+**救回多少、弄坏多少要分开。** 两个模型可以从引擎手里救回同样多的案例，总分却不同，差别在于其中一个**弄坏了引擎本来就对的案例**。弄坏一例和少救一例，用户的感受完全不同。
+
+**哪些案例根本够不着。** 金标准不在候选列表里的案例，任何重排器都解不了，它们划出了上限，不该算在模型头上。
+
 **把候选录出来，是每个输入法自己的事。** 那一步要驱动真实引擎和真实词库，本仓库不假设你的引擎长什么样。
 
 ## 分来源报告，不要只报一个数
