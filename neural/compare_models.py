@@ -28,7 +28,28 @@ usage:
 
 import argparse
 import json
+import math
 import os
+
+
+def mcnemar_exact(wins, losses):
+    """Two-sided exact McNemar p-value for a paired comparison.
+
+    Only the cases the two models disagree on carry information; the ones they both get right or
+    both get wrong say nothing about which is better. Under the null the disagreements split like a
+    fair coin, so this is the exact binomial tail rather than the chi-square approximation — at
+    these counts the approximation is not usable.
+
+    It is printed next to every pairwise line because "strict superset" reads as stronger evidence
+    than it is. Three wins and no losses is a perfectly consistent direction and p = 0.25; it means
+    nothing argues the other way, not that the difference is established.
+    """
+    discordant = wins + losses
+    if discordant == 0:
+        return 1.0
+    smaller = min(wins, losses)
+    tail = sum(math.comb(discordant, k) for k in range(smaller + 1)) / 2**discordant
+    return min(1.0, 2 * tail)
 
 
 def load(path, bucket):
@@ -109,15 +130,23 @@ def main():
         for index, a in enumerate(names):
             for b in names[index + 1 :]:
                 ra, rb = right[a], right[b]
+                wins, losses = len(ra - rb), len(rb - ra)
                 verdict = ""
                 if ra > rb:
-                    verdict = f"   <- {a} is a strict superset"
+                    verdict = f", {a} is a strict superset"
                 elif rb > ra:
-                    verdict = f"   <- {b} is a strict superset"
+                    verdict = f", {b} is a strict superset"
+                p = mcnemar_exact(wins, losses)
                 print(
                     f"  {a:<26} vs {b:<26} "
-                    f"{len(ra - rb)} / {len(rb - ra)} / {len(ra & rb)} / {len(ids - ra - rb)}{verdict}"
+                    f"{wins} / {losses} / {len(ra & rb)} / {len(ids - ra - rb)}"
+                    f"   p={p:.3f}{verdict}"
                 )
+        print(
+            "\np is the two-sided exact McNemar test over the cases the pair disagrees on."
+            "\nAt these sample sizes a consistent direction is common without being established:"
+            "\nthree wins and no losses is p = 0.25."
+        )
 
 
 if __name__ == "__main__":

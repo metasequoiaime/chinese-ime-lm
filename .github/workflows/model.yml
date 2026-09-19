@@ -66,7 +66,7 @@ jobs:
           # Parsed rather than imported: importing train.py would need torch, and what breaks when
           # someone edits one of these without running it is the shape of the module, not its deps.
           # model.py is a library and is only checked for parsing, which compileall already did.
-          entry_points = ["../corpus/fetch.py", "export.py", "rerank_eval.py", "train.py"]
+          entry_points = ["../corpus/fetch.py", "compare_models.py", "export.py", "rerank_eval.py", "train.py"]
           missing = []
           for name in entry_points:
               tree = ast.parse(pathlib.Path(name).read_text(encoding="utf-8"))
