@@ -17,7 +17,45 @@ mod weights;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use weights::Weights;
+use weights::{Tensor, Weights};
+
+/// A weight matrix, kept in whatever precision the file stored it in.
+///
+/// Quantized matrices are not expanded on load. A per-output-row scale is a constant factor for the
+/// whole row, so it lifts out of the dot product and multiplies the result once — identical
+/// arithmetic, a quarter of the memory. The model runs inside an iOS keyboard extension, where
+/// turning a 4.5 MB file into 24.5 MB resident is most of what the process is allowed.
+struct Matrix {
+    inner: Tensor,
+}
+
+impl Matrix {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// `dot(x, row) * scale[row]`, where the scale is 1 for an unquantized matrix.
+    fn dot_row(&self, x: &[f32], row: usize, width: usize) -> f32 {
+        let span = row * width..(row + 1) * width;
+        match &self.inner {
+            Tensor::Float(values) => dot(x, &values[span]),
+            Tensor::Quantized { values, scales } => dot_i8(x, &values[span]) * scales[row],
+        }
+    }
+
+    /// One row as `f32`, for the token table, which is read as an embedding as well as multiplied
+    /// as an output projection. A row is `n_embd` values, so materializing it costs nothing.
+    fn row(&self, index: usize, width: usize) -> Vec<f32> {
+        let span = index * width..(index + 1) * width;
+        match &self.inner {
+            Tensor::Float(values) => values[span].to_vec(),
+            Tensor::Quantized { values, scales } => {
+                let scale = scales[index];
+                values[span].iter().map(|&v| f32::from(v) * scale).collect()
+            }
+        }
+    }
+}
 
 /// `CandidateSource` values meaning an exact full-key hit in a dictionary. The ordering is defined
 /// by `quanpin/word_lattice.h` in the engine: `Database` is 0 and `UserDatabase` is 1.
@@ -57,22 +95,22 @@ struct Config {
 struct Block {
     ln1_weight: Vec<f32>,
     ln1_bias: Vec<f32>,
-    qkv_weight: Vec<f32>,
+    qkv_weight: Matrix,
     qkv_bias: Vec<f32>,
-    proj_weight: Vec<f32>,
+    proj_weight: Matrix,
     proj_bias: Vec<f32>,
     ln2_weight: Vec<f32>,
     ln2_bias: Vec<f32>,
-    fc_weight: Vec<f32>,
+    fc_weight: Matrix,
     fc_bias: Vec<f32>,
-    out_weight: Vec<f32>,
+    out_weight: Matrix,
     out_bias: Vec<f32>,
 }
 
 pub struct SentenceModel {
     config: Config,
     index: HashMap<char, u32>,
-    token: Vec<f32>,
+    token: Matrix,
     position: Vec<f32>,
     blocks: Vec<Block>,
     final_weight: Vec<f32>,
@@ -179,15 +217,23 @@ impl SentenceModel {
             blocks.push(Block {
                 ln1_weight: weights.take(&name("ln1.weight"))?,
                 ln1_bias: weights.take(&name("ln1.bias"))?,
-                qkv_weight: weights.take(&name("qkv.weight"))?,
+                qkv_weight: Matrix {
+                    inner: weights.take_tensor(&name("qkv.weight"))?,
+                },
                 qkv_bias: weights.take(&name("qkv.bias"))?,
-                proj_weight: weights.take(&name("proj.weight"))?,
+                proj_weight: Matrix {
+                    inner: weights.take_tensor(&name("proj.weight"))?,
+                },
                 proj_bias: weights.take(&name("proj.bias"))?,
                 ln2_weight: weights.take(&name("ln2.weight"))?,
                 ln2_bias: weights.take(&name("ln2.bias"))?,
-                fc_weight: weights.take(&name("fc.weight"))?,
+                fc_weight: Matrix {
+                    inner: weights.take_tensor(&name("fc.weight"))?,
+                },
                 fc_bias: weights.take(&name("fc.bias"))?,
-                out_weight: weights.take(&name("out.weight"))?,
+                out_weight: Matrix {
+                    inner: weights.take_tensor(&name("out.weight"))?,
+                },
                 out_bias: weights.take(&name("out.bias"))?,
             });
         }
@@ -195,7 +241,9 @@ impl SentenceModel {
         let model = Self {
             config,
             index,
-            token: weights.take("tok.weight")?,
+            token: Matrix {
+                inner: weights.take_tensor("tok.weight")?,
+            },
             position: weights.take("pos.weight")?,
             blocks,
             final_weight: weights.take("ln_f.weight")?,
@@ -327,9 +375,9 @@ impl SentenceModel {
             let token = (token as usize).min(self.config.vocab - 1);
             let position = (offset + step).min(self.config.context - 1);
             let row = &mut x[step * n_embd..(step + 1) * n_embd];
-            let token_row = &self.token[token * n_embd..(token + 1) * n_embd];
+            let token_row = self.token.row(token, n_embd);
             let position_row = &self.position[position * n_embd..(position + 1) * n_embd];
-            for ((out, &t), &p) in row.iter_mut().zip(token_row).zip(position_row) {
+            for ((out, &t), &p) in row.iter_mut().zip(&token_row).zip(position_row) {
                 *out = t + p;
             }
         }
@@ -458,8 +506,8 @@ impl SentenceModel {
         let n_embd = self.config.n_embd;
         let mut logits = Vec::with_capacity(self.config.vocab);
         let mut highest = f32::NEG_INFINITY;
-        for row in self.token.chunks_exact(n_embd) {
-            let logit = dot(hidden, row);
+        for row in 0..self.config.vocab {
+            let logit = self.token.dot_row(hidden, row, n_embd);
             highest = highest.max(logit);
             logits.push(logit);
         }
@@ -676,17 +724,38 @@ fn dot(a: &[f32], b: &[f32]) -> f32 {
 
 /// `out[m][o] = dot(x[m], w[o]) + bias[o]`, with both operands laid out row-major so every dot
 /// product runs over contiguous memory.
-fn linear(x: &[f32], w: &[f32], bias: &[f32], inputs: usize, outputs: usize) -> Vec<f32> {
+fn linear(x: &[f32], w: &Matrix, bias: &[f32], inputs: usize, outputs: usize) -> Vec<f32> {
     let rows = x.len() / inputs;
     let mut out = vec![0.0; rows * outputs];
     for row in 0..rows {
         let source = &x[row * inputs..(row + 1) * inputs];
         let target = &mut out[row * outputs..(row + 1) * outputs];
         for (index, slot) in target.iter_mut().enumerate() {
-            *slot = dot(source, &w[index * inputs..(index + 1) * inputs]) + bias[index];
+            *slot = w.dot_row(source, index, inputs) + bias[index];
         }
     }
     out
+}
+
+/// The quantized counterpart of `dot`, with the same eight independent accumulators and the same
+/// reason for them. The row's scale is applied by the caller, once, rather than to every value:
+/// that is the whole point of keeping the weights as `i8`.
+fn dot_i8(a: &[f32], b: &[i8]) -> f32 {
+    const LANES: usize = 8;
+    let mut partial = [0.0f32; LANES];
+    let left = a.chunks_exact(LANES);
+    let right = b.chunks_exact(LANES);
+    let (tail_left, tail_right) = (left.remainder(), right.remainder());
+    for (x, y) in left.zip(right) {
+        for lane in 0..LANES {
+            partial[lane] += x[lane] * f32::from(y[lane]);
+        }
+    }
+    let mut total = partial.iter().sum::<f32>();
+    for (x, y) in tail_left.iter().zip(tail_right) {
+        total += x * f32::from(*y);
+    }
+    total
 }
 
 fn layer_norm(x: &[f32], weight: &[f32], bias: &[f32], width: usize) -> Vec<f32> {

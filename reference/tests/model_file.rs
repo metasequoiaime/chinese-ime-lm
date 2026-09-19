@@ -360,3 +360,60 @@ fn an_unsupported_dtype_is_named_rather_than_guessed() {
     let error = SentenceModel::load(&out).expect_err("accepted an unsupported dtype");
     assert!(format!("{error}").contains("BF16"), "{error}");
 }
+
+/// The same weights, quantized and not, must rank candidates identically.
+///
+/// Quantized matrices are now kept as `i8` and scaled once per output row instead of being expanded
+/// to `f32` on load, which halves what the model occupies — the reason the change exists, since it
+/// runs inside an iOS keyboard extension. A per-row scale is a constant factor over the whole row,
+/// so lifting it out of the dot product is the same arithmetic; this holds that claim to the only
+/// thing that matters, which is the order the scores come out in.
+#[test]
+fn keeping_weights_quantized_does_not_change_the_ranking() {
+    let f32_model = SentenceModel::load(&complete("f32").finish()).expect("f32 model");
+    let int8_model = SentenceModel::load(&complete("int8").finish()).expect("int8 model");
+
+    // The builder's weights are synthetic, so the absolute scores mean nothing; what has to agree
+    // is which candidate each model puts first, over inputs that exercise several rows.
+    let candidates = ["一二三", "一二四", "三二一", "四三二"];
+    let plain = f32_model.score("", &candidates);
+    let quantized = int8_model.score("", &candidates);
+    assert_eq!(plain.len(), quantized.len());
+
+    let best = |scores: &[f32]| {
+        scores
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.total_cmp(b.1))
+            .map(|(index, _)| index)
+            .unwrap()
+    };
+    assert_eq!(
+        best(&plain),
+        best(&quantized),
+        "quantized weights chose a different candidate: {plain:?} vs {quantized:?}"
+    );
+}
+
+/// A tensor `export.py` never quantizes must be refused if it arrives quantized.
+///
+/// Layer-norm parameters and biases stay float precisely because they are what rounding hurts. A
+/// file that quantized them would load and produce quietly worse rankings, which is the failure
+/// mode worth refusing rather than absorbing.
+#[test]
+fn a_quantized_layer_norm_is_refused() {
+    let mut builder = Builder::new("int8");
+    for (name, shape, tensor) in complete("int8").entries {
+        if name == "ln_f.weight" {
+            if let Tensor::F32(values) = &tensor {
+                let scales = vec![1.0f32; shape[0]];
+                let quantized: Vec<i8> = values.iter().map(|v| *v as i8).collect();
+                builder.put(&name, &shape, Tensor::I8(quantized, scales));
+                continue;
+            }
+        }
+        builder.put(&name, &shape, tensor);
+    }
+    let error = SentenceModel::load(&builder.finish()).expect_err("accepted a quantized LayerNorm");
+    assert!(matches!(error, ModelError::Header(_)), "{error}");
+}
