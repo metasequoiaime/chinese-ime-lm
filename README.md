@@ -20,7 +20,7 @@
 
 **与其自己训，不如直接用开源小模型？** 在同一套候选池上量过四个 Qwen：观测上没有一个超过本项目 25.5 MB 的模型，0.6B 与 0.8B 打平 4.5 MB 的那个，而体积差 140 到 380 倍、单次决策慢一个数量级。**但排序质量上的名次差距全部落在噪声里**——52 条上两两分歧只有 2 到 6 条，McNemar 没有一对显著，要检出 1 到 2pp 需要一千到近万条用例。选自训权重的理由是尺寸和延迟这两项确定性测量，不是名次。同一次测量还发现整句集里有 12 条「他/她」在拼音上不可判的用例，本就不该收。全部记在 [`docs/measurements.md`](docs/measurements.md#与开源通用模型比较)。
 
-**当前状态：尚未发布任何模型。** n-gram 一侧从未有产物进入过 shipped product；神经模型一侧仍在训练，且现有版本按音节直接解码的表现比它本想改进的引擎还差。发布之前先把话说在前面。
+**当前状态：权重发出来了，但没有进入任何产品。** 神经模型一侧的两份权重以 Apache-2.0 发布在 Hugging Face —— [`pinyin-ime-reranker-4M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M)（4.5 MB，按键路径用这个）和 [`pinyin-ime-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M)（25.5 MB，精度到顶），同一批文件也在 [`model-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1) release 里。n-gram 一侧从未有产物出过这个仓库。两条路线都没有进入过 shipped product，而且现有神经模型按音节直接解码的表现比它本想改进的引擎还差。采用之前先把话说在前面。
 
 ### 目录
 
