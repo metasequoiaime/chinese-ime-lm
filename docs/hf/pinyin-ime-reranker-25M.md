@@ -133,6 +133,8 @@ int8 and float16 pick the same candidate on all 2,105 cases where a decision is 
 
 The **weights are Apache-2.0**, which is not the licence of the training code (that repository is GPL-3.0, and its `reference/` directory is Apache-2.0). A great many open-source input methods are MIT, Apache or BSD licensed and cannot link GPL code; a public resource nobody can adopt is not one.
 
+`LICENSE` and `NOTICE` are in this repository rather than only named in this metadata, because Apache-2.0 asks a redistributor to pass both along and a label on a web page is not a copy of either.
+
 Trained on the Chinese portion of [C4](https://huggingface.co/datasets/allenai/c4) (ODC-BY) and [LCCC](https://huggingface.co/datasets/silver/lccc) (MIT). **Neither carries a share-alike obligation**, which is the point: adopting this model does not bring one onto you. Chinese Wikipedia and MDN are both supported by the corpus pipeline and were deliberately not used, because CC BY-SA would.
 
 Both corpora do require attribution to travel with anything trained on them. That attribution is written into the weights file's own `__metadata__` header, so it cannot be separated from the weights:
