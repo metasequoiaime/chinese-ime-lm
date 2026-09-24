@@ -29,6 +29,23 @@ let promoted = reranker.best_where(已上屏文本, &候选列表, |index| Candi
 
 **这两个问题 crate 都答不出来，所以它不猜。** 上一版用字数近似第一个、用来源近似第二个，两个近似在不做纠错时都成立，做纠错时都不成立（见下面那节和 [`eval/probes/`](../eval/probes/)）。`Reranker::best` 仍然按那两个近似工作，给沿用同一套来源编号、又不纠正输入的引擎用；它的文档写明了这个限制。
 
+### 做纠错的引擎从哪取这两个答案
+
+**不要新造判据。** 一个会推进 composition 的引擎必然已经算过 `answers_key`，因为"这条候选吃不吃满当前的键"正是"选中它之后还要不要继续输入"。以 MSIME 为例，`answers_key` 就是它的 `SelectionTransition::continues_composition` 取反：
+
+| 要的事实 | 引擎里已有的东西 |
+|---|---|
+| `answers_key` | `!continues_composition`（`core/input_session_composition.cpp` 的三个分支，判据都是 `remove_delimiters(candidate.pinyin)` 吃不吃满去掉 helpcode 后的 raw input） |
+| `trusted_dictionary_hit` | 词典来源 **且** `candidate.corrected_from` 为空——非空表示这条候选是纠错解释的产物 |
+
+两件事值得单独点出来。
+
+**那个谓词是纯的。** 它只看候选的 `pinyin`、当前 request 的 raw input 和分隔符，不依赖"选中"这个动作本身；副作用都在 `if (continues_composition) { ... }` 块里。所以按候选逐条求值不需要复制推进逻辑，提取成一个纯函数就够，而且提取之后原有的调用点应当改为调它——**留两份实现必然漂移**，`neural/compare_models.py` 的注释里记着同一类教训。
+
+**纠错候选的 `pinyin` 是纠正后的码，用户敲的在 `corrected_from` 里，两者长度可以不同**（`sengyin` 七个字母纠成 `shengyin` 八个）。所以覆盖判断要以"用户实际敲的那串"为分母，而这两个字段只在引擎侧同时齐全——过桥前就把 bool 算出来，不要把半份数据递到另一边再拼。
+
+按来源判覆盖是行不通的：`quanpin/word_lattice.h` 的契约里 `Fallback` 那一档明写着是"Fallback、前缀和其余项"混在一起，而[上面那张表](#它做什么以及在哪里不该用)说模型的价值恰恰在解码器拼装的候选上，按来源筛会把它们一起筛掉。
+
 ## 两个会悄悄毁掉你测量结果的陷阱
 
 **只有覆盖整个键的候选之间才可比。** 引擎会在完整答案旁边一并返回前缀。对数概率求和时字数越少值越大，所以混长度的列表里**最短的候选永远排第一**，与质量无关。用这种方式测出来，会显示模型在严重破坏准确率。这里的分数按字数归一，就是为了这个。
