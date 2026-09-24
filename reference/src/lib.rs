@@ -73,6 +73,12 @@ pub struct CandidateFacts {
     ///
     /// Character count cannot answer this. It happens to agree whenever a key has one segmentation,
     /// which is why it served as a proxy, and it disagrees exactly where correction matters.
+    ///
+    /// An engine that advances composition has already computed this, whether or not it calls it
+    /// that: "does this candidate consume the whole key" is the same question as "after selecting it,
+    /// is there more input left to answer". Do not write a second test for it — see
+    /// `docs/measurements.md` for the mapping onto one engine's existing predicate, and for why
+    /// deriving it from the candidate source does not work.
     pub answers_key: bool,
     /// This candidate is an exact dictionary hit **that the engine vouches for as evidence of what
     /// the user meant**, not merely a row that came out of a dictionary.
