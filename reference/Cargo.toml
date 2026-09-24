@@ -1,6 +1,6 @@
 [package]
 name = "chinese-ime-lm"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 # Verified against this toolchain; nothing here needs anything newer, and a low floor is the point.
 rust-version = "1.75"
