@@ -31,7 +31,9 @@ curl -s https://huggingface.co/api/models/metasequoiaime/pinyin-ime-reranker-4M/
 
 ## Resource lock 条目
 
-`export.py` 末尾打印的那条 lock 条目原先带一个 `https://example.invalid/` 占位 URL，因为导出时还不知道会发到哪。现在知道了：
+`export.py` 末尾打印的那条 lock 条目带一个 `https://example.invalid/` 占位 URL，因为导出时还不知道会发到哪。
+
+**MSIME 那边的真实 lock 用的是 GitHub release 的 URL**，不是下面这两条：`msime/resources/desktop-dictionary.lock.json` 和 `msime/resources/settled-model.lock.json` 指向 `releases/download/model-v1/`。下面两条是同一批字节的 Hugging Face 来源，给不想依赖 GitHub release 的采用方用——**摘要和字节数与 GitHub 那份相同**，因为文件就是同一个。要换源只换 `url`，`sha256` 不动；如果换了 `url` 之后摘要对不上，那说明两边的文件不是同一份，该查的是发布流程而不是改摘要。
 
 ```json
 {

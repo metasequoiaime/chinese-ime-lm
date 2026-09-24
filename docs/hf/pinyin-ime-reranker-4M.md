@@ -49,17 +49,23 @@ chinese-ime-lm = { path = "vendor/chinese-ime-lm" }
 
 ```rust
 use std::sync::Arc;
-use chinese_ime_lm::{Reranker, SentenceModel};
+use chinese_ime_lm::{CandidateFacts, Reranker, SentenceModel};
 
 let bytes = std::fs::read("sentence-model.safetensors")?;
 let model = Arc::new(SentenceModel::load(&bytes)?);
 let mut reranker = Reranker::new(model);
 
 // Your engine's candidate list, in its own order. The returned index refers to that list;
-// `None` means leave the order alone.
-let promoted = reranker.best_where(committed_text, &candidates, |index| {
-    // Answered by your engine: did a dictionary hit answer the *whole* key at this position?
-    sources[index] == CandidateSource::Dictionary
+// `None` means leave the order alone. Both facts are things only your engine can answer.
+let promoted = reranker.best_where(committed_text, &candidates, |index| CandidateFacts {
+    // Does this candidate answer the whole key, rather than a prefix of it or a completion
+    // running past it? Not "is it the same length as the leader": `xian` reads as 现 or as
+    // 西安 and both answer the key.
+    answers_key: covers_whole_key[index],
+    // Should the model defer to this dictionary hit? If you corrected the input, a hit on the
+    // uncorrected reading carries frequency for the letters that arrived, not for the word
+    // the user meant — so the answer there is no.
+    trusted_dictionary_hit: sources[index] == CandidateSource::Dictionary && !corrected_key,
 });
 ```
 
@@ -69,9 +75,13 @@ For any other language, [`docs/format.md`](https://github.com/metasequoiaime/chi
 
 Reranking is not universally beneficial, and the crate enforces two rules rather than leaving them to callers.
 
-**Never override an exact dictionary hit on the whole key.** A dictionary that answered the entire key already carries corpus word frequency, which a character-level model does not have. Measured on 2,052 such cases: the engine's own first choice is 0.719, and the best reranked result at any threshold tried is 0.690. Twenty-five weightings of model score against rank against dictionary evidence were swept; none beat "leave dictionary hits alone".
+**Never override a dictionary hit you trust.** A dictionary that answered the entire key already carries corpus word frequency, which a character-level model does not have. Measured on 2,052 such cases: the engine's own first choice is 0.719, and the best reranked result at any threshold tried is 0.690. Twenty-five weightings of model score against rank against dictionary evidence were swept; none beat "leave dictionary hits alone".
 
-**Only candidates covering the whole key are comparable.** Engines also return prefixes and predictive completions. A summed log-probability is larger for fewer characters, so a mixed-length list ranks the shortest candidate first every time, regardless of quality — measured this way, the same weights appear to wreck accuracy. Scores here are per-character means for that reason, and `best_where` additionally restricts comparison to candidates matching the leader's length.
+That rule has a premise — the key the dictionary answered is the key the user meant. **An engine that corrects input breaks the premise and has to say so.** Type `gongsi` meaning `gongshi` and 公司 is an exact hit on the letters that arrived, carrying frequency for a word nobody asked for. So `trusted_dictionary_hit` is not "did a dictionary match" but "should the model defer to this", and only the caller knows.
+
+**Only candidates answering the whole key are comparable.** Engines also return prefixes and predictive completions, and those are not alternatives to the leader — they answer a different key. A summed log-probability is also larger for fewer characters, so scores here are per-character means.
+
+**Answering the key is not the same as being the same length, and the caller has to say which.** Length agrees with the rule while one key has one segmentation and diverges exactly where correction matters: `xian` reads as 现 or as 西安, both consuming the key, and a length filter keeps only whichever matches the leader. `best_where` therefore asks for `CandidateFacts { answers_key, trusted_dictionary_hit }` rather than inferring either. `Reranker::best` still infers both from the source numbering and the character count, which is fine for an engine that does not correct input and wrong for one that does.
 
 A related trap costs you your measurements rather than your accuracy: a gate that filters by the gold answer's length is available offline and not at runtime. Measure with the predicate you will actually ship, or your numbers will be better than your product.
 

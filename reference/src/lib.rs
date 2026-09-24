@@ -61,6 +61,36 @@ impl Matrix {
 /// by `quanpin/word_lattice.h` in the engine: `Database` is 0 and `UserDatabase` is 1.
 pub const DICTIONARY_SOURCES: [u8; 2] = [0, 1];
 
+/// What the caller knows about one candidate. Neither field can be worked out from the candidate
+/// text, which is why they are asked for rather than derived.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CandidateFacts {
+    /// This candidate answers the whole key, rather than a prefix of it or a predictive completion
+    /// running past it. Two candidates that both answer the key are alternatives to each other and
+    /// are comparable **even when they are different numbers of characters**: `xian` reads as 现 or
+    /// as 西安, and both consume the key. A prefix and a completion answer different keys, so
+    /// promoting one over the other would not be a choice between readings.
+    ///
+    /// Character count cannot answer this. It happens to agree whenever a key has one segmentation,
+    /// which is why it served as a proxy, and it disagrees exactly where correction matters.
+    pub answers_key: bool,
+    /// This candidate is an exact dictionary hit **that the engine vouches for as evidence of what
+    /// the user meant**, not merely a row that came out of a dictionary.
+    ///
+    /// Overriding such a hit loses accuracy — 0.719 against 0.690 over 2052 cases, at every margin
+    /// tried — and the reason is that a dictionary answering the whole key carries corpus frequency
+    /// the model does not have. That reason has a premise: the key it answered is the key the user
+    /// meant to type.
+    ///
+    /// **An engine that corrects input breaks that premise and has to say so here.** When the user
+    /// types `gongsi` meaning `gongshi`, 公司 is a perfectly exact hit on the characters that arrived,
+    /// and its frequency is evidence for a word nobody asked for. The engine knows it expanded that
+    /// key; the crate cannot. So this is not "did a dictionary match" — it is "should the model defer
+    /// to this", and only the caller can answer it. An engine offering corrections of a key should
+    /// report `false` for hits on the uncorrected reading of that same key.
+    pub trusted_dictionary_hit: bool,
+}
+
 /// How many comparable candidates are scored. The engine rarely returns more than a handful that
 /// answer the same key — two in almost every real case — so this is a ceiling on the worst case
 /// rather than a limit that normally binds.
@@ -716,45 +746,49 @@ impl Reranker {
     /// order alone. Both slices are the engine's candidate list in its own order, and the returned
     /// index refers to that list.
     ///
-    /// Selecting the comparable subset happens here rather than in the caller, because which
-    /// candidates may be compared is part of the same measured policy as whether to compare at all.
-    /// The engine also returns predictive completions that run past the key — `aba` offers 阿巴阿巴
-    /// alongside 阿爸 — and those are not alternatives to the leader, they are different lengths of
-    /// answer. Candidates matching the leader's length are the ones that answered the same key.
+    /// **This infers comparability from character count, which is only a proxy, and it is the wrong
+    /// proxy as soon as the engine corrects what was typed.** Candidates of the leader's length are
+    /// assumed to have answered the same key. That holds while one key has one segmentation, and
+    /// breaks when it does not: `xian` reads as 现 or as 西安, both consuming the whole key, and this
+    /// method compares only whichever of the two matches the leader. Fuzzy pinyin also makes the
+    /// dictionary test wrong here, because `sources` cannot say whether a dictionary hit landed on
+    /// the key the user typed or on a fuzz-expanded variant of it.
+    ///
+    /// Kept because it is the one call an engine using the same source numbering can make without
+    /// supplying anything else. An engine that corrects input should use [`Reranker::best_where`],
+    /// which asks for both facts instead of guessing at them.
     pub fn best(&mut self, context: &str, texts: &[&str], sources: &[u8]) -> Option<usize> {
-        self.best_where(context, texts, |index| {
-            sources
+        let width = texts.first().map_or(0, |text| text.chars().count());
+        self.best_where(context, texts, |index| CandidateFacts {
+            answers_key: texts
                 .get(index)
-                .is_some_and(|source| DICTIONARY_SOURCES.contains(source))
+                .is_some_and(|text| text.chars().count() == width),
+            trusted_dictionary_hit: sources
+                .get(index)
+                .is_some_and(|source| DICTIONARY_SOURCES.contains(source)),
         })
     }
 
-    /// The same decision with the caller deciding which candidates carry dictionary evidence.
+    /// The same decision with the caller supplying what only the engine knows about each candidate.
     ///
-    /// `trusted(index)` answers whether the candidate at that position is an exact dictionary hit on
-    /// the whole key. That question is what the measurements are about, but how an engine answers it
-    /// is its own business: the source numbering `best` assumes belongs to one particular engine,
-    /// and nothing else about this crate does.
+    /// See [`CandidateFacts`] for what the two fields mean and why neither can be derived from the
+    /// candidate strings. The comparable set is every candidate that answers the key, capped at nine;
+    /// the decision is declined when the leader is an exact dictionary hit on the typed key, when the
+    /// leader does not itself answer the key, or when fewer than two candidates do.
+    ///
+    /// **Candidates that answer the key are compared even when they are different numbers of
+    /// characters.** The scores are per-character means for exactly this reason. A summed
+    /// log-probability would rank the shortest candidate first regardless of quality, which is what
+    /// makes a mixed-length list dangerous — but "mixed length" was never the thing to exclude.
+    /// Prefixes and predictive completions have to be excluded because they answer a different key,
+    /// not because of their length, and `answers_key` says so directly.
     pub fn best_where(
         &mut self,
         context: &str,
         texts: &[&str],
-        trusted: impl Fn(usize) -> bool,
+        facts: impl Fn(usize) -> CandidateFacts,
     ) -> Option<usize> {
-        if texts.is_empty() || trusted(0) {
-            return None;
-        }
-        let width = texts.first()?.chars().count();
-        let considered: Vec<usize> = texts
-            .iter()
-            .enumerate()
-            .filter(|(_, text)| text.chars().count() == width)
-            .map(|(index, _)| index)
-            .take(COMPARED)
-            .collect();
-        if considered.len() < 2 {
-            return None;
-        }
+        let considered = comparable(texts.len(), &facts)?;
         let subset: Vec<&str> = considered.iter().map(|&index| texts[index]).collect();
         let scores = self.score(context, &subset);
         let mut best = 0;
@@ -847,10 +881,38 @@ impl Reranker {
     }
 }
 
+/// Which candidates may be compared, or `None` when the decision should be declined.
+///
+/// Separate from scoring and free of the model, because this is the part that decides what the
+/// measurements mean: every published accuracy number for this crate is a consequence of which
+/// candidates were allowed into the comparison, so it is worth being able to test on its own.
+fn comparable(count: usize, facts: &impl Fn(usize) -> CandidateFacts) -> Option<Vec<usize>> {
+    if count == 0 {
+        return None;
+    }
+    let leader = facts(0);
+    // An exact hit on the typed key carries frequency evidence the model does not have. A leader
+    // that does not answer the key leaves nothing to promote it over: the comparison would be
+    // between readings of different keys.
+    if leader.trusted_dictionary_hit || !leader.answers_key {
+        return None;
+    }
+    let considered: Vec<usize> = (0..count)
+        .filter(|&index| facts(index).answers_key)
+        .take(COMPARED)
+        .collect();
+    (considered.len() >= 2).then_some(considered)
+}
+
 /// Whether the model should be consulted at all, given the sources the engine reported in order.
 ///
 /// Only the leading candidate matters. When it is an exact dictionary hit on the whole key it
 /// carries corpus frequency the model does not have, and reranking measurably loses accuracy.
+///
+/// **Sources alone cannot answer this for an engine that corrects input.** A hit on a fuzz-expanded
+/// key reports the same source as a hit on the typed key while carrying frequency for a word the
+/// user did not ask for. Such an engine should decide with [`CandidateFacts::trusted_dictionary_hit`]
+/// instead, which asks the question this function can only approximate.
 pub fn should_rerank(sources: &[u8]) -> bool {
     match sources.first() {
         Some(source) => !DICTIONARY_SOURCES.contains(source),
@@ -968,7 +1030,65 @@ fn erf(x: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{erf, gelu, should_rerank};
+    use super::{comparable, erf, gelu, should_rerank, CandidateFacts};
+
+    /// `answers_key` per candidate, with no candidate an exact dictionary hit.
+    fn answering(flags: &[bool]) -> impl Fn(usize) -> CandidateFacts + '_ {
+        move |index| CandidateFacts {
+            answers_key: flags[index],
+            trusted_dictionary_hit: false,
+        }
+    }
+
+    #[test]
+    fn only_candidates_answering_the_key_are_compared() {
+        // A prefix and a completion sit among the full answers and stay out of the comparison.
+        let flags = [true, false, true, false, true];
+        assert_eq!(comparable(5, &answering(&flags)), Some(vec![0, 2, 4]));
+    }
+
+    #[test]
+    fn differing_character_counts_are_compared_when_both_answer_the_key() {
+        // The case the old length proxy dropped: `xian` reads as 现 or as 西安, both consuming the
+        // key. Nothing here looks at the text, which is the point — length is not the criterion.
+        assert_eq!(comparable(2, &answering(&[true, true])), Some(vec![0, 1]));
+    }
+
+    #[test]
+    fn a_trusted_dictionary_hit_in_the_lead_declines_the_decision() {
+        let facts = |index: usize| CandidateFacts {
+            answers_key: true,
+            trusted_dictionary_hit: index == 0,
+        };
+        assert_eq!(comparable(3, &facts), None);
+        // The same hit anywhere but the lead is only another candidate; it does not veto.
+        let trailing = |index: usize| CandidateFacts {
+            answers_key: true,
+            trusted_dictionary_hit: index == 2,
+        };
+        assert_eq!(comparable(3, &trailing), Some(vec![0, 1, 2]));
+    }
+
+    #[test]
+    fn a_leader_that_does_not_answer_the_key_declines_the_decision() {
+        // Promoting over a prefix would compare readings of two different keys.
+        assert_eq!(comparable(3, &answering(&[false, true, true])), None);
+    }
+
+    #[test]
+    fn fewer_than_two_comparable_candidates_declines_the_decision() {
+        assert_eq!(comparable(0, &answering(&[])), None);
+        assert_eq!(comparable(1, &answering(&[true])), None);
+        assert_eq!(comparable(3, &answering(&[true, false, false])), None);
+    }
+
+    #[test]
+    fn the_comparison_is_capped_and_keeps_the_leader() {
+        let flags = [true; 12];
+        let considered = comparable(12, &answering(&flags)).expect("all answer the key");
+        assert_eq!(considered.len(), super::COMPARED);
+        assert_eq!(considered[0], 0);
+    }
 
     #[test]
     fn gate_follows_the_leading_candidate_only() {
