@@ -29,4 +29,30 @@ curl -s https://huggingface.co/api/models/metasequoiaime/pinyin-ime-reranker-4M/
   | python3 -c "import json,sys; print([(e['path'], e.get('size'), (e.get('lfs') or {}).get('oid')) for e in json.load(sys.stdin)])"
 ```
 
-`export.py` 末尾打印的 resource lock 条目要的 `--url` 就是这两个仓库的 `resolve/main/sentence-model.safetensors`。
+## Resource lock 条目
+
+`export.py` 末尾打印的那条 lock 条目原先带一个 `https://example.invalid/` 占位 URL，因为导出时还不知道会发到哪。现在知道了：
+
+```json
+{
+  "name": "sentence-model.safetensors",
+  "url": "https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M/resolve/main/sentence-model.safetensors",
+  "sha256": "86ac529510cb3b4968a5e6ade83ec8080f5b34a0a681e75c362accbbd387d1c1",
+  "size": 4486280
+}
+```
+
+```json
+{
+  "name": "sentence-model.safetensors",
+  "url": "https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M/resolve/main/sentence-model.safetensors",
+  "sha256": "0a6ecba69bf1d39c7eb49549c716477dd6c03fdf05757773e1f50435262fb469",
+  "size": 25480184
+}
+```
+
+`resolve/main/...` 会 302 到 CDN，`curl -L` 和 range 请求都正常（实测 200 / 206），所以它可以直接当下载地址用，不需要先解析。
+
+**两条的 `name` 是同一个，所以一份 lock 只能放一条。** 这不是疏漏——`sentence-model.safetensors` 是 host 要找的名字，一个装置只装一个重排模型，选哪个就是选哪条。要让两个模型共存，得先改 host 那边按名字寻址的约定，而不是在这里给文件改名。
+
+这两条的 `sha256` 和 `size` 是从**线上**那份核出来的，不是从本地 `dist/` 抄的：LFS 的 `oid` 与本地摘要逐个相符之后才写在这里。重新导出权重就必须重新核，`url` 不变不代表内容不变。
