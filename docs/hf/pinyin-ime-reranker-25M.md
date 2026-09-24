@@ -25,14 +25,15 @@ Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metas
 
 ## Read this before choosing it
 
-This is the accurate one, and on the sentence evaluation set it reaches the ceiling of what any reranker can do. It is also about 4.8 times slower per decision than its 4.25M sibling, which put roughly 40% of keystrokes past a 16 ms frame when it was measured.
+This is the accurate one, and on the sentence evaluation set it reaches the ceiling of what any reranker can do. It is also **six times more expensive per decision** than its 4.25M sibling, measured directly on both.
 
 | | **this model** | [pinyin-ime-reranker-4M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) |
 |---|---|---|
 | Parameters | 24,863,104 | 4,250,112 |
 | File (int8) | 25.5 MB | **4.5 MB** |
 | Sentence eval, top-1 | **52 / 56** | 49 / 56 |
-| Per-keystroke p95 | 97.2 ms | **8.6 ms** (see below — measured differently) |
+| Cost per candidate-character | 2.0 ms | **0.33 ms** |
+| Worst keystroke, 15-character sentence, 9 candidates | 268 ms | **46 ms** |
 
 **If the model runs on a keystroke, take the smaller one.** A mobile keyboard extension cannot afford this file or this latency. Use this one on the desktop, on paths that are not per-keystroke, or as the accuracy reference you measure the small one against.
 
@@ -103,9 +104,22 @@ So: treat 52 / 52 as "this model does not break anything on a small, partly unde
 
 ### Latency and memory
 
-**The per-keystroke figure for this model is older than the one quoted for the 4.25M, and the two are not comparable.** When both were measured the same way — rescoring every candidate from scratch on every keystroke — this model's p95 was 97.2 ms with 40.4% of keystrokes past a 16 ms frame, against 20.3 ms and 10.1% for the 4.25M. The reference implementation later gained cross-keystroke resumption by position, which cut the 4.25M's p95 from 20.64 ms to 8.61 ms on the same 1,320 keystrokes. This model has not been re-measured since. Expect an improvement of a similar shape and do not assume a specific number.
+Cost is close to linear in both candidate count and characters, so one number covers it: **2.0 ms per candidate-character, against 0.33 ms for the 4.25M** — a factor of six. Both were swept twice on one Apple M4 Pro with `reference/examples/bench.rs`, and only cells that agreed across runs are quoted; all 32 of this model's agreed within 3.0%.
 
-Cost scales roughly linearly in both candidate count and characters, so the per-keystroke cost of a sentence is not one decision but one per prefix length: typing n characters pays for lengths 1 through n.
+One decision, p50 in milliseconds:
+
+| candidates \ characters | 1 | 4 | 8 | 12 | 15 |
+|---|---|---|---|---|---|
+| 1 | 3.52 | 9.43 | 17.33 | 25.16 | 31.10 |
+| 9 | 19.57 | 73.71 | 145.41 | 216.18 | 270.15 |
+
+**A sentence does not cost one decision, it costs one per prefix length**: typing n characters pays for lengths 1 through n. With 9 candidates, typing 15 characters totals 2,160 ms here against 366 ms for the 4.25M, and the worst single keystroke is 268 ms against 46 ms.
+
+**That is what rules this model off the keystroke path**, and it needs no percentile to see: a single 9-candidate decision at six characters is 109 ms, and a frame is 16 ms.
+
+**The older real-runtime figure is a different harness and is not comparable to the table above.** Driven through an actual input method, rescoring every candidate from scratch on every keystroke, this model's p95 was 97.2 ms with 40.4% of keystrokes past a frame, against 20.3 ms and 10.1% for the 4.25M. The reference implementation later gained cross-keystroke resumption by position, which cut the 4.25M's p95 from 20.64 ms to 8.61 ms over the same 1,320 keystrokes. This model has never been re-measured that way, because doing so needs the recorded candidate lists from that runtime rather than a synthetic sweep. Expect an improvement of a similar shape and do not assume a number.
+
+`bench.rs` calls `SentenceModel::score` and never builds a `Reranker`, so the table above is the no-resumption cost by construction — the same regime as the 97.2 ms and 20.3 ms figures, not the 8.61 ms one.
 
 Resident memory is not the file size. The loader keeps quantized matrices as `i8` and lifts the per-row scale out of the dot product, which is the same arithmetic rather than an approximation. The older expand-to-f32 loader turned this 25.5 MB file into **126 MB resident**; keeping int8 roughly halved that on the 4.25M model it was measured against (24.5 MB to 12.3 MB, for about 8% more latency), but the equivalent number for this model was not recorded.
 
@@ -123,7 +137,7 @@ Resident memory is not the file size. The loader keeps quantized matrices as `i8
 | Validation loss | 3.851 |
 | Training steps | 11,000 |
 
-This is the `desktop` preset in `neural/model.py`. Six shapes were swept under the same corpus and step budget; this is the only one that crossed the 4–7M plateau, at about 4.8 times the latency. There is no intermediate result for an intermediate size — a model is either on the plateau or at the ceiling.
+This is the `desktop` preset in `neural/model.py`. Six shapes were swept under the same corpus and step budget; this is the only one that crossed the 4–7M plateau, and it paid for it in latency — the measured factor against the published 4.25M is in the section above. There is no intermediate result for an intermediate size: a model is either on the plateau or at the ceiling.
 
 **Capacity is the most effective lever available.** Under the same corpus, this shape's perplexity at 5,000 steps is already below what the 6×256 keyboard shape reaches at 50,000.
 

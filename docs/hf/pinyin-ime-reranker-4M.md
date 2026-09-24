@@ -30,7 +30,8 @@ Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metas
 | Parameters | 4,250,112 | 24,863,104 |
 | File (int8) | 4.5 MB | 25.5 MB |
 | Sentence eval, top-1 | 49 / 56 | **52 / 56** |
-| Per-keystroke p95 | **8.6 ms** | 97.2 ms (older measurement, see that card) |
+| Cost per candidate-character | **0.33 ms** | 2.0 ms |
+| Worst keystroke, 15-character sentence, 9 candidates | **46 ms** | 268 ms |
 
 Take this one for anything latency-sensitive — a mobile keyboard extension, or any path that runs on a keystroke. The larger model is more accurate and reaches the ceiling of what reranking can do, but at the cost of a per-keystroke budget that does not fit inside a frame.
 
@@ -94,6 +95,15 @@ That last row is the ceiling for any reranker: in the remaining 4 cases the corr
 Full analysis, including a comparison against four open Qwen models on the same candidate pool, is in [`docs/measurements.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/measurements.md).
 
 ### Latency and memory
+
+Cost is close to linear in both candidate count and characters, so one number covers it: **0.33 ms per candidate-character, against 2.0 ms for the 25M**. Swept twice on one Apple M4 Pro with `reference/examples/bench.rs`; 31 of the 32 cells agreed across runs within 3.5%, the exception being 1 candidate × 1 character, which is under a millisecond either way. One decision, p50 in milliseconds:
+
+| candidates \ characters | 1 | 4 | 8 | 12 | 15 |
+|---|---|---|---|---|---|
+| 1 | 0.52 | 1.55 | 2.85 | 4.27 | 5.12 |
+| 9 | 3.17 | 12.03 | 24.31 | 35.77 | 44.97 |
+
+**A sentence does not cost one decision, it costs one per prefix length.** With 9 candidates, typing 15 characters totals 366 ms and the worst single keystroke is 46 ms — against 2,160 ms and 268 ms for the 25M. That sweep rescores from scratch every keystroke, because `bench.rs` calls `SentenceModel::score` and never builds a `Reranker`; the numbers below are what the resumption in `Reranker` does to that.
 
 Measured on Apple Silicon through the real keystroke path: 60 sentences, 1,320 keystrokes, paired.
 
