@@ -14,12 +14,19 @@ use std::time::Instant;
 
 use std::sync::Arc;
 
-use chinese_ime_lm::{Reranker, SentenceModel};
+use chinese_ime_lm::{CandidateFacts, Reranker, SentenceModel};
 
 #[derive(serde::Deserialize)]
 struct Candidate {
     text: String,
     source: u8,
+    /// Absent in dumps recorded before the field existed; the length test stands in then.
+    #[serde(default)]
+    answers_key: Option<bool>,
+    /// Absent likewise; the source stands in. An engine that corrects input has to state it, because
+    /// a hit on a corrected key reports the same source as a hit on the typed one.
+    #[serde(default)]
+    trusted_dictionary_hit: Option<bool>,
 }
 
 #[derive(serde::Deserialize)]
@@ -57,9 +64,9 @@ fn main() {
 
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
         let case: Case = serde_json::from_str(line).expect("parse case");
-        // The runtime criterion, not the evaluation's: the gate reads the source of the list's
-        // leader, and the comparable set is the candidates matching the leader's length. The
-        // evaluation could filter by the length of the correct answer; the input method cannot.
+        // The runtime criterion, not the evaluation's: the gate and the comparable set are decided
+        // from what the dump states about each candidate. The evaluation could filter by the length
+        // of the correct answer; the input method cannot.
         let sources: Vec<u8> = case
             .candidates
             .iter()
@@ -70,20 +77,30 @@ fn main() {
             .iter()
             .map(|candidate| candidate.text.as_str())
             .collect();
-        let Some(&leader) = sources.first() else {
+        if sources.is_empty() {
             continue;
-        };
+        }
+        // Both facts default to what the source and the length imply, so a dump recorded before
+        // either field existed replays exactly as it did. A dump from an engine that corrects input
+        // states them, because there they are not the same question.
         let width = texts[0].chars().count();
-        if texts
+        let facts: Vec<CandidateFacts> = case
+            .candidates
             .iter()
-            .filter(|text| text.chars().count() == width)
-            .count()
-            < 2
-        {
+            .map(|candidate| CandidateFacts {
+                answers_key: candidate
+                    .answers_key
+                    .unwrap_or_else(|| candidate.text.chars().count() == width),
+                trusted_dictionary_hit: candidate.trusted_dictionary_hit.unwrap_or_else(|| {
+                    chinese_ime_lm::DICTIONARY_SOURCES.contains(&candidate.source)
+                }),
+            })
+            .collect();
+        if facts.iter().filter(|fact| fact.answers_key).count() < 2 {
             continue;
         }
 
-        let bucket = if chinese_ime_lm::DICTIONARY_SOURCES.contains(&leader) {
+        let bucket = if facts[0].trusted_dictionary_hit {
             &mut dictionary
         } else {
             &mut decoded
@@ -92,7 +109,9 @@ fn main() {
         bucket.before += usize::from(texts[0] == case.gold);
 
         let started = Instant::now();
-        let chosen = reranker.best(&case.context, &texts, &sources).unwrap_or(0);
+        let chosen = reranker
+            .best_where(&case.context, &texts, |index| facts[index])
+            .unwrap_or(0);
         elapsed += started.elapsed();
         decisions += 1;
         bucket.after += usize::from(texts[chosen] == case.gold);
