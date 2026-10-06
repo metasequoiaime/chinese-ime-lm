@@ -32,7 +32,7 @@ from model import BOS, CharLM, Config
 from rerank_policy import select_candidates
 
 
-def record(rows, case, gold, texts, gated, chosen):
+def record(rows, case, gold, comparable_texts, engine_text, gated, chosen):
     """One row per comparable case, for comparing two models case by case rather than by total.
 
     A total cannot tell "this model is genuinely better" from "this model won three coin flips".
@@ -48,8 +48,8 @@ def record(rows, case, gold, texts, gated, chosen):
         {
             "id": case.get("id") or case["input"],
             "bucket": "dictionary" if gated else "decoded",
-            "reachable": gold in texts,
-            "engine": texts[0] == gold,
+            "reachable": gold in comparable_texts,
+            "engine": engine_text == gold,
             "reranked": chosen == gold,
         }
     )
@@ -127,11 +127,11 @@ def main():
         case = json.loads(line)
         gold = case["gold"]
         candidates = case["candidates"]
-        covering, leader_answers_key, gated = select_candidates(candidates)
-        if len(covering) < 2:
+        comparable, leader_answers_key, gated = select_candidates(candidates)
+        if len(comparable) < 2:
             continue
         leader_text = candidates[0]["text"]
-        texts = [c["text"] for c in covering] if leader_answers_key else [leader_text]
+        texts = [candidate["text"] for candidate in comparable]
 
         bucket = buckets.setdefault("dictionary" if gated else "decoded", {"n": 0, "before": 0, "after": 0})
         bucket["n"] += 1
@@ -139,13 +139,13 @@ def main():
 
         if not leader_answers_key or (gated and not args.ungated):
             bucket["after"] += leader_text == gold
-            record(per_case, case, gold, texts, gated, leader_text)
+            record(per_case, case, gold, texts, leader_text, gated, leader_text)
             continue
         scores = score(case.get("context", ""), texts)
         best = max(range(len(texts)), key=lambda i: scores[i])
         chosen = texts[best] if scores[best] - scores[0] > args.margin else texts[0]
         bucket["after"] += chosen == gold
-        record(per_case, case, gold, texts, gated, chosen)
+        record(per_case, case, gold, texts, leader_text, gated, chosen)
 
     if args.per_case:
         with open(args.per_case, "w", encoding="utf-8") as handle:

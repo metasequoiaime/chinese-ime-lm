@@ -1,7 +1,17 @@
 """Check that evaluation uses the runtime candidate facts."""
 
+import importlib.util
+import io
+import json
+import sys
+import tempfile
 import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from unittest.mock import patch
 
+from neural import rerank_policy
 from neural.rerank_policy import select_candidates
 
 
@@ -68,6 +78,53 @@ class RerankPolicyTests(unittest.TestCase):
         selected, leader_answers_key, _ = select_candidates(candidates)
         self.assertEqual(len(selected), 2)
         self.assertFalse(leader_answers_key)
+
+        torch = ModuleType("torch")
+        torch.__path__ = []
+        torch.backends = SimpleNamespace(
+            mps=SimpleNamespace(is_available=lambda: False),
+            cuda=SimpleNamespace(is_available=lambda: False),
+        )
+        torch.cuda = torch.backends.cuda
+        torch.no_grad = lambda: lambda function: function
+        torch_nn = ModuleType("torch.nn")
+        torch_nn.__path__ = []
+        safetensors = ModuleType("safetensors")
+        safetensors.__path__ = []
+        safetensors_torch = ModuleType("safetensors.torch")
+        safetensors_torch.load_file = lambda path: None
+        model = ModuleType("model")
+        model.BOS, model.CharLM, model.Config = 0, object, object
+        modules = {
+            "torch": torch,
+            "torch.nn": torch_nn,
+            "torch.nn.functional": ModuleType("torch.nn.functional"),
+            "safetensors": safetensors,
+            "safetensors.torch": safetensors_torch,
+            "model": model,
+            "rerank_policy": rerank_policy,
+        }
+        source = Path(__file__).resolve().parents[1] / "neural/rerank_eval.py"
+        spec = importlib.util.spec_from_file_location("rerank_eval_test", source)
+        evaluator = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, modules):
+            spec.loader.exec_module(evaluator)
+
+        evaluator.load = lambda path, device: (None, None, None)
+        case = {"input": "xian", "gold": "西安", "candidates": candidates}
+        with tempfile.TemporaryDirectory() as directory:
+            cases_path = Path(directory) / "cases.jsonl"
+            rows_path = Path(directory) / "rows.jsonl"
+            cases_path.write_text(json.dumps(case, ensure_ascii=False) + "\n", encoding="utf-8")
+            arguments = ["rerank_eval.py", "--model", "unused", "--cases", str(cases_path), "--per-case", str(rows_path)]
+            with patch.object(sys, "argv", arguments), redirect_stdout(io.StringIO()):
+                evaluator.main()
+            row = json.loads(rows_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(row["bucket"], "decoded")
+        self.assertTrue(row["reachable"])
+        self.assertFalse(row["engine"])
+        self.assertFalse(row["reranked"])
 
     def test_limit_and_empty_list(self):
         candidates = [{"text": str(index), "source": 9} for index in range(12)]
