@@ -1,17 +1,21 @@
 """Measure what a trained model does to real candidate lists from the input runtime.
 
-The input is one JSON object per line: for every evaluation case, the candidates the engine actually produced, in the order it produced them, each tagged with the source that produced it.
+The input is one JSON object per line. Each case holds the candidates the engine produced, in order.
 
     {"input": "...", "gold": "...", "context": "...",
-     "candidates": [{"text": "...", "source": 0}, ...]}
+     "candidates": [{"text": "...", "source": 0,
+                     "answers_key": true, "trusted_dictionary_hit": true}, ...]}
 
 Recording that file is each input method's own job: it means driving a real engine against real dictionaries, and nothing here assumes what your engine looks like.
 
-Two rules make this measurement mean something, and both were established by measurement rather than assumed:
+The engine should record both facts for each candidate. Old dumps compare each candidate's
+character count with the leader's for `answers_key`. They use the source for `trusted_dictionary_hit`.
 
-Only candidates that cover the whole key are comparable. The engine also returns prefixes, and a summed log-probability is larger for fewer characters, so scoring a mixed-length list ranks the shortest candidate first every time regardless of quality.
+Only candidates that answer the whole key are comparable. Character count cannot decide this when
+the key has more than one reading or the engine corrects the input.
 
-Only decoder-assembled leading candidates are reranked. When the engine's first candidate is an exact dictionary hit on the whole key it carries corpus frequency that this model does not have, and reranking those loses accuracy at every margin. When the first candidate was assembled by the lattice or the fallback decoder it carries no frequency evidence, and that is where the model pays.
+A trusted dictionary hit in the lead keeps its place. The engine must mark a hit on a corrected
+key as untrusted when its frequency does not support what the user meant to type.
 
 usage:
   python neural/rerank_eval.py --model dist/sentence-v1.safetensors --cases dumps/sentences.jsonl
@@ -25,10 +29,7 @@ import torch.nn.functional as F
 from safetensors.torch import load_file
 
 from model import BOS, CharLM, Config
-
-# CandidateSource values that mean "this row is an exact full-key hit in a dictionary".
-# See quanpin/word_lattice.h for the ordering these come from.
-DICTIONARY_SOURCES = (0, 1)
+from rerank_policy import select_candidates
 
 
 def record(rows, case, gold, texts, gated, chosen):
@@ -125,19 +126,20 @@ def main():
     for line in cases:
         case = json.loads(line)
         gold = case["gold"]
-        covering = [c for c in case["candidates"] if len(c["text"]) == len(gold)][:9]
+        candidates = case["candidates"]
+        covering, leader_answers_key, gated = select_candidates(candidates)
         if len(covering) < 2:
             continue
-        texts = [c["text"] for c in covering]
-        gated = covering[0]["source"] in DICTIONARY_SOURCES
+        leader_text = candidates[0]["text"]
+        texts = [c["text"] for c in covering] if leader_answers_key else [leader_text]
 
         bucket = buckets.setdefault("dictionary" if gated else "decoded", {"n": 0, "before": 0, "after": 0})
         bucket["n"] += 1
-        bucket["before"] += texts[0] == gold
+        bucket["before"] += leader_text == gold
 
-        if gated and not args.ungated:
-            bucket["after"] += texts[0] == gold
-            record(per_case, case, gold, texts, gated, texts[0])
+        if not leader_answers_key or (gated and not args.ungated):
+            bucket["after"] += leader_text == gold
+            record(per_case, case, gold, texts, gated, leader_text)
             continue
         scores = score(case.get("context", ""), texts)
         best = max(range(len(texts)), key=lambda i: scores[i])
