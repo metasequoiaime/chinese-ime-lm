@@ -1,5 +1,6 @@
 """Check that fixed-step snapshots survive independent of the best checkpoint."""
 
+import importlib.util
 import os
 import re
 import subprocess
@@ -8,13 +9,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import torch
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@unittest.skipUnless(importlib.util.find_spec("torch"), "requires neural training dependencies")
 class SnapshotTests(unittest.TestCase):
+    def setUp(self):
+        import torch
+
+        self.torch = torch
+
     def run_training(self, base, *extra):
         corpus = base / "corpus.txt"
         corpus.write_text("今天天气真不错啊\n" * 3000, encoding="utf-8")
@@ -49,7 +54,7 @@ class SnapshotTests(unittest.TestCase):
         return output
 
     def assert_best_matches_log(self, output):
-        best = torch.load(output / "checkpoint.pt", weights_only=True)
+        best = self.torch.load(output / "checkpoint.pt", weights_only=True)
         log = (output / "progress.log").read_text(encoding="utf-8")
         losses = [float(value) for value in re.findall(r"\bval (\d+\.\d+)", log)]
         self.assertEqual(round(best["val"], 4), min(losses))
@@ -58,10 +63,10 @@ class SnapshotTests(unittest.TestCase):
     def test_one_run_keeps_both_steps(self):
         with tempfile.TemporaryDirectory() as directory:
             output = self.run_training(Path(directory), "--snapshot-every", "2")
-            first = torch.load(output / "checkpoint-step-000002.pt", weights_only=True)
-            last = torch.load(output / "checkpoint-step-000004.pt", weights_only=True)
+            first = self.torch.load(output / "checkpoint-step-000002.pt", weights_only=True)
+            last = self.torch.load(output / "checkpoint-step-000004.pt", weights_only=True)
             self.assertEqual((first["step"], last["step"]), (2, 4))
-            self.assertFalse(torch.equal(first["model"]["tok.weight"], last["model"]["tok.weight"]))
+            self.assertFalse(self.torch.equal(first["model"]["tok.weight"], last["model"]["tok.weight"]))
             best = self.assert_best_matches_log(output)
             self.assertIn(best["step"], (2, 3, 4))
 
