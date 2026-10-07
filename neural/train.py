@@ -106,8 +106,16 @@ def main():
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--warmup", type=int, default=500)
     parser.add_argument("--eval-every", type=int, default=1000)
+    parser.add_argument(
+        "--snapshot-every",
+        type=int,
+        default=0,
+        help="save an exact-step checkpoint at this interval; 0 disables snapshots",
+    )
     parser.add_argument("--seed", type=int, default=1234)
     args = parser.parse_args()
+    if args.snapshot_every < 0:
+        parser.error("--snapshot-every must be non-negative")
 
     cfg = Config.preset(args.preset)
     # The flag names are the field names, so overriding is a lookup instead of a branch per field.
@@ -182,7 +190,8 @@ def main():
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
-        if (step + 1) % args.eval_every == 0 or step + 1 == args.steps:
+        snapshot_due = args.snapshot_every > 0 and (step + 1) % args.snapshot_every == 0
+        if (step + 1) % args.eval_every == 0 or step + 1 == args.steps or snapshot_due:
             model.eval()
             with torch.no_grad():
                 val = sum(model(*next(val_stream))[1].item() for _ in range(20)) / 20
@@ -216,12 +225,17 @@ def main():
                     },
                     status,
                 )
+            checkpoint = {
+                "config": dataclasses.asdict(cfg),
+                "model": model.state_dict(),
+                "val": val,
+                "step": step + 1,
+            }
+            if snapshot_due:
+                torch.save(checkpoint, os.path.join(args.out, f"checkpoint-step-{step + 1:06d}.pt"))
             if val < best:
                 best = val
-                torch.save(
-                    {"config": dataclasses.asdict(cfg), "model": model.state_dict(), "val": val, "step": step + 1},
-                    os.path.join(args.out, "checkpoint.pt"),
-                )
+                torch.save(checkpoint, os.path.join(args.out, "checkpoint.pt"))
     print(f"best validation loss {best:.4f} (perplexity {math.exp(best):.2f})")
 
 
