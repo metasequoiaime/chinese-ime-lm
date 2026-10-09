@@ -33,7 +33,13 @@ s-001	wojintianqushangban	我今天去上班	6	function-word
 
 ## 怎么用
 
-**神经模型**（本仓库内）：先让你的引擎把候选列表录成 JSONL，每行 `{"input":…, "gold":…, "context":…, "candidates":[{"text":…,"source":…}]}`，再打分：
+**神经模型**（本仓库内）：先让你的引擎把候选列表录成 JSONL。每条候选提供 `text`、`source`、`answers_key` 和 `trusted_dictionary_hit`。例如：
+
+```json
+{"input":"xian","gold":"西安","context":"我去","candidates":[{"text":"现","source":9,"answers_key":true,"trusted_dictionary_hit":false},{"text":"西安","source":9,"answers_key":true,"trusted_dictionary_hit":false}]}
+```
+
+旧 dump 可省略两个布尔字段。此时评测用首选候选的字数估计 `answers_key`，用来源估计 `trusted_dictionary_hit`。然后打分：
 
 ```sh
 python neural/rerank_eval.py --model dist/model.safetensors --cases dumps/sentences.jsonl
@@ -69,9 +75,9 @@ python neural/compare_models.py a.jsonl b.jsonl
 
 ## 两个会悄悄毁掉测量的陷阱
 
-**只有等长候选可比。** 对数概率求和时字数越少值越大，混长度的列表里最短的永远排第一。用这种方式测会显示模型在破坏准确率，而同一份权重在等长集合上是提升的。
+**只有回答整个键的候选可比。** 评测使用引擎提供的 `answers_key`。不同字数的候选也可以回答同一个键。旧 dump 才用与首选等长作为回退判据。
 
-**评测能用的门控，运行时用不了。** 评测知道正确答案，可以按它的长度过滤；输入法不知道。用你真正会发布的判据去测，否则数字比产品好看。
+**评测不能靠正确答案筛候选。** 输入法不知道正确答案。评测使用 `trusted_dictionary_hit` 判断首选的词典证据是否可信。
 
 ## 已知测不到的东西
 
