@@ -27,3 +27,8 @@ updates:
     commit-message:
       prefix: chore(deps)
     open-pull-requests-limit: 5
+    # reference/Cargo.toml 承诺 rust-version = "1.75"，CI 的最低 Rust 版本任务用 1.75.0 守着它。Dependabot 不看 rust-version，会提出要求更新编译器的补丁版本；这些版本在下面挡住，直到有意提高 MSRV 时再一并删掉。
+    ignore:
+      # thiserror 2.0.21 要求 rustc 1.77
+      - dependency-name: thiserror
+        versions: ['>= 2.0.21']
