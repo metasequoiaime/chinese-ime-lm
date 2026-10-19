@@ -51,15 +51,21 @@ impl Matrix {
         }
     }
 
-    /// One row as `f32`, for the token table, which is read as an embedding as well as multiplied
-    /// as an output projection. A row is `n_embd` values, so materializing it costs nothing.
-    fn row(&self, index: usize, width: usize) -> Vec<f32> {
+    /// 将 token 与位置嵌入直接写入目标行；量化值先乘行缩放，再加位置。
+    fn embed_row(&self, index: usize, position: &[f32], out: &mut [f32]) {
+        let width = out.len();
         let span = index * width..(index + 1) * width;
         match &self.inner {
-            Tensor::Float(values) => values[span].to_vec(),
+            Tensor::Float(values) => {
+                for ((out, &token), &position) in out.iter_mut().zip(&values[span]).zip(position) {
+                    *out = token + position;
+                }
+            }
             Tensor::Quantized { values, scales } => {
                 let scale = scales[index];
-                values[span].iter().map(|&v| f32::from(v) * scale).collect()
+                for ((out, &token), &position) in out.iter_mut().zip(&values[span]).zip(position) {
+                    *out = f32::from(token) * scale + position;
+                }
             }
         }
     }
@@ -616,11 +622,8 @@ impl SentenceModel {
             let token = (token as usize).min(self.config.vocab - 1);
             let position = (offset + step).min(self.config.context - 1);
             let row = &mut x[step * n_embd..(step + 1) * n_embd];
-            let token_row = self.token.row(token, n_embd);
             let position_row = &self.position[position * n_embd..(position + 1) * n_embd];
-            for ((out, &t), &p) in row.iter_mut().zip(&token_row).zip(position_row) {
-                *out = t + p;
-            }
+            self.token.embed_row(token, position_row, row);
         }
         x
     }
@@ -2007,3 +2010,6 @@ mod prefix_final_row_tests;
 
 #[cfg(test)]
 mod terminal_prefix_tests;
+
+#[cfg(test)]
+mod embedding_tests;
