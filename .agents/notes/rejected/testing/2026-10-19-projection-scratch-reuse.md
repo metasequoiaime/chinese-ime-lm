@@ -10,6 +10,10 @@ Status: rejected — 局部配对测量没有稳定收益，恢复生产实现
 
 新增 `ProjectionScratch`，把 `project` 的写入拆为 `project_into`；`run_tail` 为整批隐藏状态持有一个可复用的 `Vec<f32>`，保持 Float/Quantized 分支、逐行点积、最高值和指数求和顺序不变。公开分布仍返回独立 logits，归一化位模式保持逐位一致。
 
+## Alternatives considered
+
+- 保留每次 `project` 独立拥有 logits：没有跨状态的工作区与借用契约，公开分布和归一化仍共用既有实现。代价是继续申请临时向量；本次配对没有证明缓冲复用能覆盖新增复杂度，因此保留现状。
+
 ## Verification
 
 先加入行为测试：无 logits 辅助路径与完整投影的归一化逐位相同；连续投影复用同一缓冲地址。测试在旧实现上按预期无法编译，加入最小实现后通过。原型在 Rust release 下运行参考仓库完整测试：46 个普通单测、15 个模型文件测试和 doc tests 全部通过，10 个既有性能测试保持忽略。
