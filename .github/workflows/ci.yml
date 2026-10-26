@@ -13,7 +13,7 @@ concurrency:
 jobs:
   python:
     name: Python ${{ matrix.python }} / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ fromJSON('{"ubuntu-24.04":"depot-ubuntu-24.04-4","windows-2025":"depot-windows-2025-8"}')[matrix.os] }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
