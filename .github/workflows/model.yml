@@ -8,7 +8,7 @@ on:
 jobs:
   reference:
     name: 参考实现
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-8
     defaults:
       run:
         working-directory: reference
@@ -24,7 +24,7 @@ jobs:
 
   msrv:
     name: 最低 Rust 版本
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-8
     defaults:
       run:
         working-directory: reference
@@ -40,7 +40,7 @@ jobs:
 
   training:
     name: 训练管线
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ad3497abcd142e169a10aac37abd5175c44f33c4 # v5
@@ -78,7 +78,7 @@ jobs:
 
   eval-sets:
     name: 评测集
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The evaluation sets are the part of this repository other projects depend on most, so a
