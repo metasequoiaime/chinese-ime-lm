@@ -1,7 +1,6 @@
 //! Reranks candidates the pinyin decoder assembled, using a character-level language model.
 //!
-//! The model is produced by `neural/`, and the measurements that shaped this crate are recorded in
-//! `docs/measurements.md`. Two of them are load-bearing and are enforced here rather than left to callers:
+//! The model is produced by [`neural/`](https://github.com/metasequoiaime/chinese-ime-lm/tree/main/neural), and the measurements that shaped this crate are recorded in [`docs/measurements.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/measurements.md). Two of them are load-bearing and are enforced here rather than left to callers:
 //!
 //! Reranking applies only when the engine's leading candidate was assembled by the lattice or the
 //! fallback decoder. An exact dictionary hit on the whole key carries corpus frequency the model
@@ -71,8 +70,9 @@ impl Matrix {
     }
 }
 
-/// `CandidateSource` values meaning an exact full-key hit in a dictionary. The ordering is defined
-/// by `quanpin/word_lattice.h` in the engine: `Database` is 0 and `UserDatabase` is 1.
+/// `CandidateSource` values meaning an exact full-key hit in a dictionary. The ordering is defined by `quanpin/word_lattice.h` in the engine: `Database` is 0 and `UserDatabase` is 1.
+///
+/// This numbering belongs to that one engine and means nothing to any other. An engine with its own candidate sources should describe each candidate with [`CandidateFacts`] and call [`Reranker::best_where`], which never consults these values.
 pub const DICTIONARY_SOURCES: [u8; 2] = [0, 1];
 
 /// What the caller knows about one candidate. Neither field can be worked out from the candidate
@@ -88,11 +88,7 @@ pub struct CandidateFacts {
     /// Character count cannot answer this. It happens to agree whenever a key has one segmentation,
     /// which is why it served as a proxy, and it disagrees exactly where correction matters.
     ///
-    /// An engine that advances composition has already computed this, whether or not it calls it
-    /// that: "does this candidate consume the whole key" is the same question as "after selecting it,
-    /// is there more input left to answer". Do not write a second test for it — see
-    /// `docs/measurements.md` for the mapping onto one engine's existing predicate, and for why
-    /// deriving it from the candidate source does not work.
+    /// An engine that advances composition has already computed this, whether or not it calls it that: "does this candidate consume the whole key" is the same question as "after selecting it, is there more input left to answer". Do not write a second test for it — see [`docs/measurements.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/measurements.md) for the mapping onto one engine's existing predicate, and for why deriving it from the candidate source does not work.
     pub answers_key: bool,
     /// This candidate is an exact dictionary hit **that the engine vouches for as evidence of what
     /// the user meant**, not merely a row that came out of a dictionary.
@@ -153,7 +149,11 @@ std::thread_local! {
     static LAST_ENCODED_LENGTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
+/// Why a model file was rejected.
+///
+/// Non-exhaustive because the loader is the first thing a hostile file meets, and a check added there later must not be a breaking change for every caller that matches on this.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ModelError {
     #[error("model file is truncated")]
     Truncated,

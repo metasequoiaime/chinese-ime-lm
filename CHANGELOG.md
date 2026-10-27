@@ -6,6 +6,8 @@
 
 ### 变更
 
+- **破坏性变更（`reference` 0.2.0）**：`ModelError` 标为 `#[non_exhaustive]`。加载器是恶意模型文件最先碰到的地方，以后在这里加校验时不应让每个匹配该枚举的调用方都跟着破坏；外部 `match` 需要带通配分支。crate 尚未发布到 crates.io，现有使用方按 git 版本锁定，不受影响。
+
 - **破坏性变更（`reference` 0.2.0）**：`Reranker::best_where` 的第三个参数从 `impl Fn(usize) -> bool` 改为 `impl Fn(usize) -> CandidateFacts`，后者带 `answers_key` 与 `trusted_dictionary_hit` 两个字段。此前"哪些候选可比"用字数近似,"这条词典命中是否可信"用来源近似。两个近似在不做纠错时都成立、做纠错时都不成立：`xian` 读成「现」也读成「西安」,两者都覆盖全键而字数不同；而用户打错拼音时词典命中的是他没想打的那个键,词频成了另一个词的证据。两个问题只有引擎答得出,所以交给调用方而不是继续猜。`Reranker::best` 签名与行为不变,仍按那两个近似工作,文档写明限制。
 
 - 训练进度同时写入 `progress.log` 与 `progress.json` 并逐次刷盘。此前进度只走 stdout，而长训练通常输出重定向到管道，缓冲会让进度在进程结束前完全读不到；退而求其次去读 `checkpoint.pt` 又会被误导——它只在损失改善时才写，`step` 是下界、时间戳在没有改善时停滞。
@@ -13,6 +15,8 @@
 - 目录按职责重排：语料相关的三件事收进 `corpus/`（`fetch.py` 获取、`clean/` 清洗、`pinyin/` 拼音表），n-gram 的 Viterbi 解码器从 `test/` 移到 `ngram/`——它是解码器，不是测试，放在 `test/` 里与真正的 `tests/` 只差一个字母。
 
 ### 新增
+
+- `reference/README.md`：crates.io 页面展示的说明，含模型下载与校验、调用示例、门控规则和许可。crate 文档里指向仓库文件的路径改成绝对链接，在 docs.rs 上也能打开。
 
 - `eval/probes/`：定性探针,回答"某个还不存在的功能拦在哪一层"。首个探针量的是拼音纠错要不要重训模型——不用,拦路的是候选生成与门控。它不是评测集,用例手写、候选是假设引擎会产出的样子,`eval/probes/README.md` 把这些限制写在最前面。
 

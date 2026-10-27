@@ -6,6 +6,7 @@ edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
 description = "A character-level language model for reranking Chinese input method candidates"
+readme = "README.md"
 repository = "https://github.com/metasequoiaime/chinese-ime-lm"
 keywords = ["chinese", "input-method", "pinyin", "language-model"]
 categories = ["text-processing"]
