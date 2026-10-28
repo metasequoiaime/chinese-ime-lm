@@ -3,6 +3,8 @@
 <!-- badges:start -->
 [![CI](https://img.shields.io/github/actions/workflow/status/metasequoiaime/chinese-ime-lm/ci.yml?branch=main&label=CI)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/ci.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/metasequoiaime/chinese-ime-lm/codeql.yml?branch=main&label=CodeQL)](https://github.com/metasequoiaime/chinese-ime-lm/actions/workflows/codeql.yml)
+[![chinese-ime-lm](https://img.shields.io/crates/v/chinese-ime-lm?label=chinese-ime-lm)](https://crates.io/crates/chinese-ime-lm)
+[![chinese-ime-lm-ffi](https://img.shields.io/crates/v/chinese-ime-lm-ffi?label=chinese-ime-lm-ffi)](https://crates.io/crates/chinese-ime-lm-ffi)
 [![License](https://img.shields.io/github/license/metasequoiaime/chinese-ime-lm)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/metasequoiaime/chinese-ime-lm?style=flat)](https://github.com/metasequoiaime/chinese-ime-lm/stargazers)
 <!-- badges:end -->
@@ -24,6 +26,19 @@
 
 n-gram 一侧从未有产物进入过任何产品，而神经一侧按音节直接解码（`reference/examples/decode.rs`）的表现仍然比它本想改进的引擎还差——重排有用，直接解码没到。采用之前先把话说在前面。
 
+### 直接使用
+
+推理代码已经发布到 crates.io，两个包都是 Apache-2.0，最低 Rust 版本 1.75：
+
+| 包 | 给谁用 |
+|---|---|
+| [`chinese-ime-lm`](https://crates.io/crates/chinese-ime-lm) | Rust 写的引擎：`cargo add chinese-ime-lm`，调用方式见 [`reference/README.md`](reference/README.md) |
+| [`chinese-ime-lm-ffi`](https://crates.io/crates/chinese-ime-lm-ffi) | C、C++、Swift、JNI 等宿主：静态库、动态库与头文件 `chinese_ime_lm.h`，见 [`reference/ffi/README.md`](reference/ffi/README.md) |
+
+两个包执行同一套门控：只在引擎的首选本身覆盖整个输入、又不是引擎采信的词典命中，并且至少有两个候选覆盖整个输入时，才可能改动首选。所以接入时引擎要为每个候选回答两件事：它是否覆盖整个输入，它是不是引擎愿意采信的词典命中。两份 README 写了这两件事的含义和理由，接入之前先读。模型文件另行下载（见上），加载之前按 [`SECURITY.md`](SECURITY.md) 校验。
+
+要用别的语言自己实现加载器，只需要 [`docs/format.md`](docs/format.md)。
+
 ### 目录
 
 | 路径 | 内容 |
@@ -31,8 +46,8 @@ n-gram 一侧从未有产物进入过任何产品，而神经一侧按音节直�
 | [`corpus/`](corpus/) | 语料：`fetch.py` 获取可再分发语料，`clean/` 清洗自备语料，`pinyin/` 生成单字拼音表 |
 | [`ngram/`](ngram/) | n-gram 路线：KenLM + Viterbi 解码 |
 | [`neural/`](neural/) | 神经路线：字级 Transformer 的训练、导出、评测 |
-| [`reference/`](reference/) | Rust 推理参考实现，无 unsafe，除 serde 外无依赖（**Apache-2.0**） |
-| [`reference/ffi/`](reference/ffi/) | 参考实现的 C ABI：静态库、动态库与头文件 `include/chinese_ime_lm.h`，供 C、C++、Swift、JNI 等宿主调用（**Apache-2.0**） |
+| [`reference/`](reference/) | Rust 推理参考实现，以 [`chinese-ime-lm`](https://crates.io/crates/chinese-ime-lm) 发布，无 unsafe，依赖只有 `serde`、`serde_json` 与 `thiserror`（**Apache-2.0**） |
+| [`reference/ffi/`](reference/ffi/) | 参考实现的 C ABI，以 [`chinese-ime-lm-ffi`](https://crates.io/crates/chinese-ime-lm-ffi) 发布：静态库、动态库与头文件 `include/chinese_ime_lm.h`，供 C、C++、Swift、JNI 等宿主调用（**Apache-2.0**） |
 | [`integrations/rime/`](integrations/rime/) | Rime（librime）插件：按实测门控重排当前分段的候选，以及在 Arch Linux 的 librime 上复现评测的环境（**Apache-2.0**） |
 | [`eval/`](eval/) | 25,119 条词级用例 + 60 条整句用例 |
 | [`docs/format.md`](docs/format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
@@ -156,7 +171,7 @@ python neural/export.py --run runs/desktop --out dist/model.safetensors --precis
 
 `corpus/fetch.py` 与 `corpus/clean/` 的关系：后者处理你自己准备好的语料，前者负责**获取**许可清晰、可再分发的语料。两者的中文规范化是同一个算法——保留汉字连通块，其余一律当分隔符。
 
-推理见 `reference/`，格式见 [`docs/format.md`](docs/format.md)。
+推理见 `reference/`（crates.io 上的 `chinese-ime-lm`，C ABI 是 `chinese-ime-lm-ffi`），格式见 [`docs/format.md`](docs/format.md)。
 
 ## 构建与测试
 
