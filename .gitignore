@@ -15,6 +15,7 @@ model/*
 tmp/*
 # 参考实现与模型产物
 reference/target/
+reference/ffi/target/
 .ruff_cache/
 dist/
 runs/
