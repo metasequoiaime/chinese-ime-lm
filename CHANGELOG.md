@@ -16,6 +16,8 @@
 
 ### 新增
 
+- 整句重排模型权重 v1：4.25M 与 24.9M 两个规模，2026-09-18 发布于 GitHub release [`model-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1)，同一批文件也在 Hugging Face 的 [`pinyin-ime-reranker-4M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) 与 [`pinyin-ime-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M)。它们只用于重排引擎已经产出的候选：按音节直接解码（`reference/examples/decode.rs`）的表现仍比它本想改进的引擎差，不要当解码器用。
+
 - 参考实现以 [`chinese-ime-lm` 0.2.0](https://crates.io/crates/chinese-ime-lm) 发布到 crates.io，源码为 `795e8bf` 的 `reference/`。两张 Hugging Face 模型卡的「Use it」改为按版本号依赖，不再要求 vendor。
 
 - `reference/README.md`：crates.io 页面展示的说明，含模型下载与校验、调用示例、门控规则和许可。crate 文档里指向仓库文件的路径改成绝对链接，在 docs.rs 上也能打开。
@@ -32,7 +34,3 @@
 - 加载器在头部长度为 `u64::MAX` 时溢出 panic，而不是返回错误。由新增的针对性测试发现——`SECURITY.md` 声称的正是这一类不会发生。
 - 张量形状相乘不做溢出检查；恶意形状溢出后得到的乘积可能恰好与真实长度相符而通过校验。配置维度现在有上界。
 - 训练管线四处未用上下文管理器打开文件，会泄漏句柄。
-
-### 尚未提供
-
-- **发布的模型权重。** 训练仍在进行。在当前模型上，按音节直接解码的表现比它本想改进的引擎还差，发布这样的权重对一个公共资源是负资产。
