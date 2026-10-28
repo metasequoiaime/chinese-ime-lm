@@ -19,7 +19,9 @@ fi
 work=/work
 mkdir -p "$work"
 package=$(pacman -Q librime | awk '{print $2}')
-version=${package%%-*}
+# Arch versions read [epoch:]version-release, such as 1:1.17.0-6; the librime tag is the middle part.
+version=${package#*:}
+version=${version%%-*}
 echo "librime $package, schema $schema"
 
 git clone --quiet --depth 1 --branch "$version" https://github.com/rime/librime.git "$work/librime"
