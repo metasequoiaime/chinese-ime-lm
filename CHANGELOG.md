@@ -16,6 +16,8 @@
 
 ### 新增
 
+- `reference/ffi/`：参考实现的 C ABI（`chinese-ime-lm-ffi` 0.1.0，尚未发布到 crates.io），产出静态库、动态库与 cbindgen 生成并提交的头文件 `include/chinese_ime_lm.h`。只导出 `best_where` 与 `log_probabilities`，不导出按某一个引擎的来源编号推断事实的 `best`。每个导出函数都捕获 panic、检查指针与 UTF-8，经状态码和 `cimelm_last_error` 报错；发生过 panic 的重排器拒绝后续调用，不带着可能写了一半的缓存继续运行。CI 用 `cbindgen --verify` 检查头文件与代码一致，并用真实的 C 程序链接静态库跑一遍。
+
 - 整句重排模型权重 v1：4.25M 与 24.9M 两个规模，2026-09-18 发布于 GitHub release [`model-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1)，同一批文件也在 Hugging Face 的 [`pinyin-ime-reranker-4M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) 与 [`pinyin-ime-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M)。它们只用于重排引擎已经产出的候选：按音节直接解码（`reference/examples/decode.rs`）的表现仍比它本想改进的引擎差，不要当解码器用。
 
 - 参考实现以 [`chinese-ime-lm` 0.2.0](https://crates.io/crates/chinese-ime-lm) 发布到 crates.io，源码为 `795e8bf` 的 `reference/`。两张 Hugging Face 模型卡的「Use it」改为按版本号依赖，不再要求 vendor。

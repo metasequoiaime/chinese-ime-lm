@@ -63,7 +63,9 @@ Both facts are things only your engine knows, which is why `CandidateFacts` asks
 
 ## Other languages
 
-[`docs/format.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/format.md) specifies the file and the forward pass completely; it is the only document needed to write a loader in another language.
+To call this crate from C, C++, Swift, Kotlin or anything else with a C FFI, use its C ABI in [`reference/ffi`](https://github.com/metasequoiaime/chinese-ime-lm/tree/main/reference/ffi): a static and a shared library with the header `include/chinese_ime_lm.h`, exporting the same model and the same gating.
+
+To write a native implementation instead, [`docs/format.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/format.md) specifies the file and the forward pass completely; it is the only document needed to write a loader in another language.
 
 ## Licence
 
