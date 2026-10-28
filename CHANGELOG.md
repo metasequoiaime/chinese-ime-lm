@@ -16,6 +16,8 @@
 
 ### 新增
 
+- 参考实现以 [`chinese-ime-lm` 0.2.0](https://crates.io/crates/chinese-ime-lm) 发布到 crates.io，源码为 `795e8bf` 的 `reference/`。两张 Hugging Face 模型卡的「Use it」改为按版本号依赖，不再要求 vendor。
+
 - `reference/README.md`：crates.io 页面展示的说明，含模型下载与校验、调用示例、门控规则和许可。crate 文档里指向仓库文件的路径改成绝对链接，在 docs.rs 上也能打开。
 
 - `eval/probes/`：定性探针,回答"某个还不存在的功能拦在哪一层"。首个探针量的是拼音纠错要不要重训模型——不用,拦路的是候选生成与门控。它不是评测集,用例手写、候选是假设引擎会产出的样子,`eval/probes/README.md` 把这些限制写在最前面。
@@ -34,4 +36,3 @@
 ### 尚未提供
 
 - **发布的模型权重。** 训练仍在进行。在当前模型上，按音节直接解码的表现比它本想改进的引擎还差，发布这样的权重对一个公共资源是负资产。
-- crates.io 发布。
