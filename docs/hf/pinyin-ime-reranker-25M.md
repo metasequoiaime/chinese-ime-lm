@@ -41,12 +41,11 @@ Both files are named `sentence-model.safetensors`, which is the name a host look
 
 ## Use it
 
-The reference implementation is Rust, no `unsafe`, no dependencies beyond serde. It is not on crates.io — the [`reference/`](https://github.com/metasequoiaime/chinese-ime-lm/tree/main/reference) directory is separately licensed Apache-2.0 so that it can be vendored on its own, which is how it is meant to be adopted.
+The reference implementation is Rust, with no `unsafe` and no dependencies beyond `serde`, `serde_json` and `thiserror`. It is published on crates.io as [`chinese-ime-lm`](https://crates.io/crates/chinese-ime-lm), under Apache-2.0 like these weights. Its source is the repository's [`reference/`](https://github.com/metasequoiaime/chinese-ime-lm/tree/main/reference) directory, which is licensed separately from the GPL-3.0 training pipeline so that it can also be vendored on its own.
 
 ```toml
 [dependencies]
-# the repository's `reference/` directory, copied into your tree
-chinese-ime-lm = { path = "vendor/chinese-ime-lm" }
+chinese-ime-lm = "0.2"
 ```
 
 ```rust
