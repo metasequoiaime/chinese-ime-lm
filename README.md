@@ -33,6 +33,7 @@ n-gram 一侧从未有产物进入过任何产品，而神经一侧按音节直�
 | [`neural/`](neural/) | 神经路线：字级 Transformer 的训练、导出、评测 |
 | [`reference/`](reference/) | Rust 推理参考实现，无 unsafe，除 serde 外无依赖（**Apache-2.0**） |
 | [`reference/ffi/`](reference/ffi/) | 参考实现的 C ABI：静态库、动态库与头文件 `include/chinese_ime_lm.h`，供 C、C++、Swift、JNI 等宿主调用（**Apache-2.0**） |
+| [`integrations/rime/`](integrations/rime/) | Rime（librime）插件：按实测门控重排当前分段的候选，以及在 Arch Linux 的 librime 上复现评测的环境（**Apache-2.0**） |
 | [`eval/`](eval/) | 25,119 条词级用例 + 60 条整句用例 |
 | [`docs/format.md`](docs/format.md) | 模型文件格式规范，用任何语言实现加载器只需要这一篇 |
 | [`docs/measurements.md`](docs/measurements.md) | 实测结论：模型在哪里有用、在哪里有害，两个测量陷阱，以及与开源通用模型的对比 |
@@ -42,7 +43,7 @@ n-gram 一侧从未有产物进入过任何产品，而神经一侧按音节直�
 
 仓库整体为 **GPL-3.0**（见 [`LICENSE`](LICENSE)）。
 
-`reference/` 下的 Rust 代码（包括 C ABI `reference/ffi/`）著作权单一，另以 **Apache-2.0** 授权（见 [`reference/LICENSE`](reference/LICENSE)），因为大量开源输入法是 MIT/Apache/BSD，链不了 GPL 代码——第三方可以只取那个目录。
+`reference/` 下的 Rust 代码（包括 C ABI `reference/ffi/`）与 Rime 插件 `integrations/rime/` 著作权单一，另以 **Apache-2.0** 授权（见 [`reference/LICENSE`](reference/LICENSE)），因为大量开源输入法是 MIT/Apache/BSD，链不了 GPL 代码——第三方可以只取那些目录。
 
 格式规范、评测集和发布的权重都不受代码许可约束。**发布的权重为 Apache-2.0**，理由和 `reference/` 一样：链不了 GPL 的输入法同样用不了 GPL 的权重，而一个没人能采用的公共资源不成其为公共资源。该许可写在权重文件自己的 `__metadata__` 里，所以它不会与权重分离。
 

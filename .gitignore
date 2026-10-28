@@ -20,3 +20,4 @@ reference/ffi/target/
 dist/
 runs/
 dumps/
+integrations/rime/eval/out/
