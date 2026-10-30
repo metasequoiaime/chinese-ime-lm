@@ -16,6 +16,8 @@
 
 ### 新增
 
+- `eval/open-models/`：「与开源通用模型比较」那张表的候选池（52 条，由 2026-09-19 的 MSIME 引擎重新录出，前三行逐条复现）、每个打分器的适配器（本项目 `reference/examples/pool.rs`、通用模型 `mlx_lm_pool.py`、青简 `qingjian_pool.rs`、知意 `zhiyi_onnx_pool.py`）、汇总脚本，以及机器可读的结果 `results.json` / `results.csv`。表里加上青简的含章·通变、含章·知微和知意输入法的知意（1.4V2-Long-L12 的两种权重与 ML-pumpkin-1026），命中 49 到 51 条，与本项目两个模型之间都不显著。别的项目的权重和代码都不进仓库，来源与哈希记在 `models.json`。
+
 - `integrations/rime/`：Rime（librime ≥ 1.17.0）插件 `ime_lm_filter`，经 C ABI 调用重排模型，只在首选是 Rime 造的句子、且至少两个候选覆盖整个分段时才可能改动首选；首选是覆盖整个分段的词典词时一律不动。librime 默认只造 1 个句子，插件要配合调高 `translator/max_sentences` 才有候选可比。附带在 Arch Linux 的 librime 上复现评测的 Docker 环境与驱动程序；在 Rime 上的实测数字尚未取得。
 
 - `reference/ffi/`：参考实现的 C ABI（[`chinese-ime-lm-ffi` 0.1.0](https://crates.io/crates/chinese-ime-lm-ffi)，已发布到 crates.io，源码为 `96043f2` 的 `reference/ffi/`），产出静态库、动态库与 cbindgen 生成并提交的头文件 `include/chinese_ime_lm.h`。只导出 `best_where` 与 `log_probabilities`，不导出按某一个引擎的来源编号推断事实的 `best`。每个导出函数都捕获 panic、检查指针与 UTF-8，经状态码和 `cimelm_last_error` 报错；发生过 panic 的重排器拒绝后续调用，不带着可能写了一半的缓存继续运行。CI 用 `cbindgen --verify` 检查头文件与代码一致，并用真实的 C 程序链接静态库跑一遍。
@@ -34,6 +36,8 @@
 - `docs/format.md`：模型文件格式规范，供其他语言实现加载器。
 
 ### 修复
+
+- `docs/measurements.md`「与开源通用模型比较」：延迟那段把对开源模型偏严的比较写成了「偏宽容」，并称优化后仍差一个数量级，同一个池上实测是 2 到 8.5 倍；配对检验缺 Qwen2.5-0.5B 的行，并称没有一对显著，实际引擎原序和 0.5B 都显著低于 24.9M；体积倍数改成逐个模型的数。复测还发现原表的 Qwen 行没有给第一个 token 打分，补上之后同一份权重的命中数随起始 token 变化最多 10 条，记在同一节。两张 Hugging Face 模型卡里「没有一对显著」的说法同样改正，需要重新同步到 Hugging Face。
 
 - 加载器在头部长度为 `u64::MAX` 时溢出 panic，而不是返回错误。由新增的针对性测试发现——`SECURITY.md` 声称的正是这一类不会发生。
 - 张量形状相乘不做溢出检查；恶意形状溢出后得到的乘积可能恰好与真实长度相符而通过校验。配置维度现在有上界。

@@ -20,7 +20,7 @@
 
 两者用**同一套评测集**（`eval/`）衡量，所以可以直接比较。评测集本身比任何一个模型都更值得先看：它把"某个改动好不好"从意见变成数字，并且把两个会悄悄毁掉测量的陷阱固化成了用例（详见 [`docs/measurements.md`](docs/measurements.md)）。
 
-**与其自己训，不如直接用开源小模型？** 在同一套候选池上量过四个 Qwen：观测上没有一个超过本项目 25.5 MB 的模型，0.6B 与 0.8B 打平 4.5 MB 的那个，而体积差 140 到 380 倍、单次决策慢一个数量级。**但排序质量上的名次差距全部落在噪声里**——52 条上两两分歧只有 2 到 6 条，McNemar 没有一对显著，要检出 1 到 2pp 需要一千到近万条用例。选自训权重的理由是尺寸和延迟这两项确定性测量，不是名次。同一次测量还发现整句集里有 12 条「他/她」在拼音上不可判的用例，本就不该收。全部记在 [`docs/measurements.md`](docs/measurements.md#与开源通用模型比较)。
+**与其自己训，不如直接用开源小模型？** 在同一套候选池上量过四个 Qwen 和另外两个开源输入法的重排模型（青简的含章·通变、含章·知微，知意输入法的知意）：观测上没有一个超过本项目 25.5 MB 的模型；Qwen 的体积是 4.5 MB 那个的 62 到 384 倍，一次决策慢 2 到 8.5 倍，输入法模型的延迟与它相当、体积是它的 10 到 44 倍。**但排序质量上的名次差距全部落在噪声里**——命中 48 到 52 条的模型两两分歧最多 7 条，McNemar 没有一对显著（显著的只有不重排的引擎原序和一个只对 42 条的 Qwen），要检出 1 到 2pp 需要一千到近万条用例；复测还发现 Qwen 的命中数随候选前面接哪个起始 token 而变，0.5B 在 42 到 52 之间跳。选自训权重的理由是尺寸，对通用模型还有延迟，不是名次。同一次测量还发现整句集里有 12 条「他/她」在拼音上不可判的用例，本就不该收。全部记在 [`docs/measurements.md`](docs/measurements.md#与开源通用模型比较)。
 
 **当前状态：神经模型两条都在用，n-gram 一条从未出过这个仓库。** 权重以 Apache-2.0 发布在 Hugging Face —— [`pinyin-ime-reranker-4M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M)（4.5 MB，按键路径用这个）和 [`pinyin-ime-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M)（25.5 MB，精度到顶），同一批文件也在 [`model-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1) release 里，[MSIME](https://github.com/metasequoiaime/msime) 的 `host-api` 通过资源锁装载它们：小的跑按键路径，大的在输入停顿时接手。
 
