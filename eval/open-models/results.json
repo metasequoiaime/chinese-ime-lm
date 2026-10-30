@@ -1,0 +1,1612 @@
+{
+  "protocol": "Each scorer picks one candidate from the same pool per case; a case counts when the pick is the gold. McNemar entries compare the named reference (a) with this scorer (b).",
+  "pool": {
+    "file": "pool.jsonl",
+    "cases": 52,
+    "set": "eval/sentences-v1.tsv (sha256 f0c5916a555039b16d8da7337114b5514f6f4f6799fda3da1e006e50ac0b295c)",
+    "engine": "MSIME dcdb815df26da8968012710ac7097c41bec9987f (2026-09-19), crates/input-runtime/examples/convert_eval --dump, no sentence-model.safetensors in the resource directory",
+    "engine_source": "MSIME-Engine 0531d4211ab17d3ba43dc8ef86c05ec574b02fa8 with Google-PinyinIME-Rev 12db5237adfcecb79b8ac602d80f3576639ea219, as locked in engine-lock.json; GitHub now serves the MSIME-Engine archive with sha256 352dbebc8dfd28ef4e9e9c69170e924462640840d323b9420b82a9cc4f16e586 instead of the locked 819ea3175d5f37c7c164c3423bb313140aa25887c5e421b309adaeffca839b72, so the lock's hash was updated to build it",
+    "dictionary": "resources/desktop-dictionary.lock.json at dcdb815: MSIME-Engine release dict-v1.0.0 (msime.db sha256 9e68e88be036206fc14d44db7111376b1d92f9173b04d623e601e31edd664c2f)",
+    "rule": "candidates from sources generated (8) and fallback (9) with as many characters as the gold, engine order; cases whose gold is not among them are dropped"
+  },
+  "machine": "Apple M4 Pro (12 cores, 48 GB), macOS, 2026-10-30",
+  "scorers": [
+    {
+      "id": "engine",
+      "label": "引擎原序（不重排）",
+      "label_en": "Engine order (no reranking)",
+      "group": "engine",
+      "inputs": "none",
+      "hits": 41,
+      "n": 52,
+      "rate": 0.7885,
+      "wilson95": [
+        0.6597,
+        0.8776
+      ],
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "wrong": [
+        {
+          "id": "s-006",
+          "picked": "他吧书房在桌子上",
+          "gold": "他把书放在桌子上"
+        },
+        {
+          "id": "s-023",
+          "picked": "他正在写作也",
+          "gold": "他正在写作业"
+        },
+        {
+          "id": "s-028",
+          "picked": "请你再说一边",
+          "gold": "请你再说一遍"
+        },
+        {
+          "id": "s-029",
+          "picked": "这件事情很难版",
+          "gold": "这件事情很难办"
+        },
+        {
+          "id": "s-036",
+          "picked": "我买两瓶谁",
+          "gold": "我买两瓶水"
+        },
+        {
+          "id": "s-039",
+          "picked": "一共以前而百元",
+          "gold": "一共一千二百元"
+        },
+        {
+          "id": "s-043",
+          "picked": "网方式我的同时",
+          "gold": "王芳是我的同事"
+        },
+        {
+          "id": "s-045",
+          "picked": "我想去程度看看",
+          "gold": "我想去成都看看"
+        },
+        {
+          "id": "s-046",
+          "picked": "张敏明天会广州",
+          "gold": "张敏明天回广州"
+        },
+        {
+          "id": "s-050",
+          "picked": "我们应该吧这个问题解决掉",
+          "gold": "我们应该把这个问题解决掉"
+        },
+        {
+          "id": "s-052",
+          "picked": "这份文件需要经历签字后才能发出",
+          "gold": "这份文件需要经理签字后才能发出"
+        }
+      ],
+      "mcnemar": {
+        "ours-4m": {
+          "a_only": 10,
+          "b_only": 2,
+          "discordant": 12,
+          "p": 0.038574
+        },
+        "ours-25m": {
+          "a_only": 11,
+          "b_only": 0,
+          "discordant": 11,
+          "p": 0.000977
+        }
+      }
+    },
+    {
+      "id": "ours-4m",
+      "label": "本项目 4.25M int8",
+      "label_en": "chinese-ime-lm 4.25M int8",
+      "group": "ours",
+      "inputs": "context",
+      "weights_bytes": 4486280,
+      "source": "https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1 sentence-model.safetensors",
+      "sha256": "86ac529510cb3b4968a5e6ade83ec8080f5b34a0a681e75c362accbbd387d1c1",
+      "license": "Apache-2.0",
+      "runtime": "reference/examples/pool.rs (Rust reference implementation, CPU, one thread, SentenceModel::score with no state kept between decisions)",
+      "picks": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "ours-4m.r1",
+        "ours-4m.r2"
+      ],
+      "hits": 49,
+      "n": 52,
+      "rate": 0.9423,
+      "wilson95": [
+        0.8436,
+        0.9802
+      ],
+      "wrong": [
+        {
+          "id": "s-003",
+          "picked": "这是一个好注意",
+          "gold": "这是一个好主意"
+        },
+        {
+          "id": "s-050",
+          "picked": "我们应该把这个问题解决调",
+          "gold": "我们应该把这个问题解决掉"
+        },
+        {
+          "id": "s-051",
+          "picked": "今天下午的回忆推迟到明天",
+          "gold": "今天下午的会议推迟到明天"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "ours-4m.r1",
+          "decision_ms_p50": 11.87
+        },
+        {
+          "run": "ours-4m.r2",
+          "decision_ms_p50": 12.11
+        }
+      ],
+      "decision_ms_p50_range": [
+        11.87,
+        12.11
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 2,
+          "b_only": 10,
+          "discordant": 12,
+          "p": 0.038574
+        },
+        "ours-25m": {
+          "a_only": 3,
+          "b_only": 0,
+          "discordant": 3,
+          "p": 0.25
+        }
+      }
+    },
+    {
+      "id": "ours-25m",
+      "label": "本项目 24.9M int8",
+      "label_en": "chinese-ime-lm 24.9M int8",
+      "group": "ours",
+      "inputs": "context",
+      "weights_bytes": 25480184,
+      "source": "https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1 sentence-model-desktop.safetensors",
+      "sha256": "0a6ecba69bf1d39c7eb49549c716477dd6c03fdf05757773e1f50435262fb469",
+      "license": "Apache-2.0",
+      "runtime": "reference/examples/pool.rs (Rust reference implementation, CPU, one thread, SentenceModel::score with no state kept between decisions)",
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "ours-25m.r1",
+        "ours-25m.r2"
+      ],
+      "hits": 52,
+      "n": 52,
+      "rate": 1.0,
+      "wilson95": [
+        0.9312,
+        1.0
+      ],
+      "wrong": [],
+      "decision_ms_p50_runs": [
+        {
+          "run": "ours-25m.r1",
+          "decision_ms_p50": 71.73
+        },
+        {
+          "run": "ours-25m.r2",
+          "decision_ms_p50": 71.5
+        }
+      ],
+      "decision_ms_p50_range": [
+        71.5,
+        71.73
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 0,
+          "b_only": 11,
+          "discordant": 11,
+          "p": 0.000977
+        },
+        "ours-4m": {
+          "a_only": 0,
+          "b_only": 3,
+          "discordant": 3,
+          "p": 0.25
+        }
+      }
+    },
+    {
+      "id": "qwen2.5-0.5b",
+      "label": "Qwen2.5-0.5B-Instruct-4bit",
+      "label_en": "Qwen2.5-0.5B-Instruct-4bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 278064920,
+      "source": "https://huggingface.co/mlx-community/Qwen2.5-0.5B-Instruct-4bit revision a5339a4131f135d0fdc6a5c8b5bbed2753bbe0f3",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), one forward pass per candidate",
+      "published_hits": 42,
+      "start_variants": {
+        "none": 42,
+        "endoftext": 51,
+        "eos": 52
+      },
+      "picks": [
+        0,
+        0,
+        0,
+        5,
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        4,
+        0,
+        4,
+        5,
+        0,
+        1,
+        1,
+        0,
+        3,
+        1,
+        0,
+        1,
+        0,
+        2,
+        0,
+        0,
+        6
+      ],
+      "timing": [
+        "qwen2.5-0.5b.none",
+        "qwen2.5-0.5b.endoftext",
+        "qwen2.5-0.5b.eos"
+      ],
+      "hits": 42,
+      "n": 52,
+      "rate": 0.8077,
+      "wilson95": [
+        0.681,
+        0.892
+      ],
+      "wrong": [
+        {
+          "id": "s-004",
+          "picked": "卧明天早来公司",
+          "gold": "我明天早来公司"
+        },
+        {
+          "id": "s-006",
+          "picked": "她把书放在桌子上",
+          "gold": "他把书放在桌子上"
+        },
+        {
+          "id": "s-012",
+          "picked": "我要取香港",
+          "gold": "我要去香港"
+        },
+        {
+          "id": "s-013",
+          "picked": "她是工程师",
+          "gold": "他是工程师"
+        },
+        {
+          "id": "s-023",
+          "picked": "她正在写作业",
+          "gold": "他正在写作业"
+        },
+        {
+          "id": "s-038",
+          "picked": "她住了三天",
+          "gold": "他住了三天"
+        },
+        {
+          "id": "s-041",
+          "picked": "长尾去年去了杭州",
+          "gold": "张伟去年去了杭州"
+        },
+        {
+          "id": "s-049",
+          "picked": "她们正在准备下年的计划",
+          "gold": "他们正在准备下年的计划"
+        },
+        {
+          "id": "s-054",
+          "picked": "她在公司工作了三年多",
+          "gold": "他在公司工作了三年多"
+        },
+        {
+          "id": "s-060",
+          "picked": "我妈伤到",
+          "gold": "我马上到"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "qwen2.5-0.5b.none",
+          "decision_ms_p50": 26.99
+        },
+        {
+          "run": "qwen2.5-0.5b.endoftext",
+          "decision_ms_p50": 43.15
+        },
+        {
+          "run": "qwen2.5-0.5b.eos",
+          "decision_ms_p50": 32.58
+        }
+      ],
+      "decision_ms_p50_range": [
+        26.99,
+        43.15
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 8,
+          "b_only": 9,
+          "discordant": 17,
+          "p": 1.0
+        },
+        "ours-4m": {
+          "a_only": 10,
+          "b_only": 3,
+          "discordant": 13,
+          "p": 0.092285
+        },
+        "ours-25m": {
+          "a_only": 10,
+          "b_only": 0,
+          "discordant": 10,
+          "p": 0.001953
+        }
+      }
+    },
+    {
+      "id": "qwen3-0.6b",
+      "label": "Qwen3-0.6B-8bit",
+      "label_en": "Qwen3-0.6B-8bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 633442994,
+      "source": "https://huggingface.co/mlx-community/Qwen3-0.6B-8bit revision 11de96878523501bcaa86104e3c186de07ff9068",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), one forward pass per candidate",
+      "published_hits": 49,
+      "start_variants": {
+        "none": 49,
+        "endoftext": 49,
+        "eos": 50
+      },
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "qwen3-0.6b.none",
+        "qwen3-0.6b.endoftext",
+        "qwen3-0.6b.eos"
+      ],
+      "hits": 49,
+      "n": 52,
+      "rate": 0.9423,
+      "wilson95": [
+        0.8436,
+        0.9802
+      ],
+      "wrong": [
+        {
+          "id": "s-011",
+          "picked": "现在祭典中",
+          "gold": "现在几点钟"
+        },
+        {
+          "id": "s-013",
+          "picked": "她是工程师",
+          "gold": "他是工程师"
+        },
+        {
+          "id": "s-018",
+          "picked": "她的英语水平很高",
+          "gold": "他的英语水平很高"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "qwen3-0.6b.none",
+          "decision_ms_p50": 33.17
+        },
+        {
+          "run": "qwen3-0.6b.endoftext",
+          "decision_ms_p50": 36.51
+        },
+        {
+          "run": "qwen3-0.6b.eos",
+          "decision_ms_p50": 36.64
+        }
+      ],
+      "decision_ms_p50_range": [
+        33.17,
+        36.64
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 3,
+          "b_only": 11,
+          "discordant": 14,
+          "p": 0.057373
+        },
+        "ours-4m": {
+          "a_only": 3,
+          "b_only": 3,
+          "discordant": 6,
+          "p": 1.0
+        },
+        "ours-25m": {
+          "a_only": 3,
+          "b_only": 0,
+          "discordant": 3,
+          "p": 0.25
+        }
+      }
+    },
+    {
+      "id": "qwen3.5-0.8b",
+      "label": "Qwen3.5-0.8B-8bit",
+      "label_en": "Qwen3.5-0.8B-8bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 1001176958,
+      "source": "https://huggingface.co/mlx-community/Qwen3.5-0.8B-8bit revision 87e768fbfa03994095f3d14527c80c5ae70c5758",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), one forward pass per candidate",
+      "published_hits": 49,
+      "start_variants": {
+        "none": 48,
+        "endoftext": 48,
+        "eos": 49
+      },
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "qwen3.5-0.8b.none",
+        "qwen3.5-0.8b.endoftext",
+        "qwen3.5-0.8b.eos"
+      ],
+      "hits": 48,
+      "n": 52,
+      "rate": 0.9231,
+      "wilson95": [
+        0.8183,
+        0.9697
+      ],
+      "wrong": [
+        {
+          "id": "s-006",
+          "picked": "她把书放在桌子上",
+          "gold": "他把书放在桌子上"
+        },
+        {
+          "id": "s-013",
+          "picked": "她是工程师",
+          "gold": "他是工程师"
+        },
+        {
+          "id": "s-023",
+          "picked": "她正在写作业",
+          "gold": "他正在写作业"
+        },
+        {
+          "id": "s-054",
+          "picked": "她在公司工作了三年多",
+          "gold": "他在公司工作了三年多"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "qwen3.5-0.8b.none",
+          "decision_ms_p50": 52.1
+        },
+        {
+          "run": "qwen3.5-0.8b.endoftext",
+          "decision_ms_p50": 56.6
+        },
+        {
+          "run": "qwen3.5-0.8b.eos",
+          "decision_ms_p50": 44.19
+        }
+      ],
+      "decision_ms_p50_range": [
+        44.19,
+        56.6
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 2,
+          "b_only": 9,
+          "discordant": 11,
+          "p": 0.06543
+        },
+        "ours-4m": {
+          "a_only": 4,
+          "b_only": 3,
+          "discordant": 7,
+          "p": 1.0
+        },
+        "ours-25m": {
+          "a_only": 4,
+          "b_only": 0,
+          "discordant": 4,
+          "p": 0.125
+        }
+      }
+    },
+    {
+      "id": "qwen3.5-2b",
+      "label": "Qwen3.5-2B-4bit",
+      "label_en": "Qwen3.5-2B-4bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 1722271785,
+      "source": "https://huggingface.co/mlx-community/Qwen3.5-2B-4bit revision 674aaa7240b91e8012fcad5d791b7dfe5ba90207",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), one forward pass per candidate",
+      "published_hits": 50,
+      "start_variants": {
+        "none": 50,
+        "endoftext": 45,
+        "eos": 51
+      },
+      "picks": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "qwen3.5-2b.none",
+        "qwen3.5-2b.endoftext",
+        "qwen3.5-2b.eos"
+      ],
+      "hits": 50,
+      "n": 52,
+      "rate": 0.9615,
+      "wilson95": [
+        0.8702,
+        0.9894
+      ],
+      "wrong": [
+        {
+          "id": "s-002",
+          "picked": "她们正在开会",
+          "gold": "他们正在开会"
+        },
+        {
+          "id": "s-006",
+          "picked": "她把书放在桌子上",
+          "gold": "他把书放在桌子上"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "qwen3.5-2b.none",
+          "decision_ms_p50": 90.05
+        },
+        {
+          "run": "qwen3.5-2b.endoftext",
+          "decision_ms_p50": 100.61
+        },
+        {
+          "run": "qwen3.5-2b.eos",
+          "decision_ms_p50": 76.02
+        }
+      ],
+      "decision_ms_p50_range": [
+        76.02,
+        100.61
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 1,
+          "b_only": 10,
+          "discordant": 11,
+          "p": 0.011719
+        },
+        "ours-4m": {
+          "a_only": 2,
+          "b_only": 3,
+          "discordant": 5,
+          "p": 1.0
+        },
+        "ours-25m": {
+          "a_only": 2,
+          "b_only": 0,
+          "discordant": 2,
+          "p": 0.5
+        }
+      }
+    },
+    {
+      "id": "hanzhang-tongbian",
+      "label": "含章·通变（青简）",
+      "label_en": "Hanzhang Tongbian (Qingjian)",
+      "group": "ime",
+      "inputs": "pinyin",
+      "weights_bytes": 46141208,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/hanzhang-tongbian-v1.0.0 hanzhang-tongbian-v1.0.0.tar.gz.part1 (sha256 8661aea75ca3ba431c6f0398bf7ef9883f806b33fe97d03dd0f0bcfec52ab801) -> hanzhang-tongbian-small.qjm",
+      "sha256": "4eabcb140b1833ac8bc7afb4f71d3a9ad8db0d9c8073c1890ec96644b6bef973",
+      "license": "GPL-3.0-or-later",
+      "parameters": 23037056,
+      "runtime": "qingjian_pool.rs built in Qingjian b7a4f8bbb124c7e4df7660f6c2ce97b627113205 with --features metal,zhiyi (candle 0.11, Metal, f16): P2cScorer as SentenceScorer",
+      "cpu_round": "hanzhang-tongbian.cpu",
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "hanzhang-tongbian.r1",
+        "hanzhang-tongbian.r2",
+        "hanzhang-tongbian.r3"
+      ],
+      "cpu_decision_ms_p50": 29.08,
+      "hits": 50,
+      "n": 52,
+      "rate": 0.9615,
+      "wilson95": [
+        0.8702,
+        0.9894
+      ],
+      "wrong": [
+        {
+          "id": "s-018",
+          "picked": "它的英语水平很高",
+          "gold": "他的英语水平很高"
+        },
+        {
+          "id": "s-052",
+          "picked": "这份文件需要经历签字后才能发出",
+          "gold": "这份文件需要经理签字后才能发出"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "hanzhang-tongbian.r1",
+          "decision_ms_p50": 9.39
+        },
+        {
+          "run": "hanzhang-tongbian.r2",
+          "decision_ms_p50": 7.42
+        },
+        {
+          "run": "hanzhang-tongbian.r3",
+          "decision_ms_p50": 10.33
+        }
+      ],
+      "decision_ms_p50_range": [
+        7.42,
+        10.33
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 1,
+          "b_only": 10,
+          "discordant": 11,
+          "p": 0.011719
+        },
+        "ours-4m": {
+          "a_only": 2,
+          "b_only": 3,
+          "discordant": 5,
+          "p": 1.0
+        },
+        "ours-25m": {
+          "a_only": 2,
+          "b_only": 0,
+          "discordant": 2,
+          "p": 0.5
+        }
+      }
+    },
+    {
+      "id": "hanzhang-zhiwei",
+      "label": "含章·知微（青简）",
+      "label_en": "Hanzhang Zhiwei (Qingjian)",
+      "group": "ime",
+      "inputs": "context",
+      "weights_bytes": 56044208,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/hanzhang-zhiwei-v1.0.0 hanzhang-zhiwei-v1.0.0.tar.gz.part1 (sha256 3fa74002f4f9938bd4245b2112c71a34d1a7871c17f6815c54527cc5222494e5) -> hanzhang-zhiwei-small.qjm",
+      "sha256": "83ad55abab750dd04bae93b48430981035d6c530d155db719cf1dccd4c07b0ef",
+      "license": "GPL-3.0-or-later",
+      "parameters": 27950272,
+      "runtime": "qingjian_pool.rs built in Qingjian b7a4f8bbb124c7e4df7660f6c2ce97b627113205 with --features metal,zhiyi (candle 0.11, Metal, f16): CharScorer as SentenceScorer",
+      "cpu_round": "hanzhang-zhiwei.cpu",
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "hanzhang-zhiwei.r1",
+        "hanzhang-zhiwei.r2",
+        "hanzhang-zhiwei.r3"
+      ],
+      "cpu_decision_ms_p50": 20.89,
+      "hits": 49,
+      "n": 52,
+      "rate": 0.9423,
+      "wilson95": [
+        0.8436,
+        0.9802
+      ],
+      "wrong": [
+        {
+          "id": "s-015",
+          "picked": "我们学习韩语",
+          "gold": "我们学习汉语"
+        },
+        {
+          "id": "s-023",
+          "picked": "她正在写作业",
+          "gold": "他正在写作业"
+        },
+        {
+          "id": "s-052",
+          "picked": "这份文件需要经历签字后才能发出",
+          "gold": "这份文件需要经理签字后才能发出"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "hanzhang-zhiwei.r1",
+          "decision_ms_p50": 6.56
+        },
+        {
+          "run": "hanzhang-zhiwei.r2",
+          "decision_ms_p50": 4.67
+        },
+        {
+          "run": "hanzhang-zhiwei.r3",
+          "decision_ms_p50": 7.33
+        }
+      ],
+      "decision_ms_p50_range": [
+        4.67,
+        7.33
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 1,
+          "b_only": 9,
+          "discordant": 10,
+          "p": 0.021484
+        },
+        "ours-4m": {
+          "a_only": 3,
+          "b_only": 3,
+          "discordant": 6,
+          "p": 1.0
+        },
+        "ours-25m": {
+          "a_only": 3,
+          "b_only": 0,
+          "discordant": 3,
+          "p": 0.25
+        }
+      }
+    },
+    {
+      "id": "zhiyi-l12-candle",
+      "label": "知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）",
+      "label_en": "Zhiyi 1.4V2-Long-L12, safetensors (as Qingjian runs it on macOS)",
+      "group": "ime",
+      "inputs": "context+pinyin",
+      "weights_bytes": 161801998,
+      "tokenizer_bytes": 34363188,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/zhiyi-v1.0.0 (archive sha256 4fca2aad3d40d6649328e7eb420ca6965a2437e4e033981804c19a6bb60f235d) -> model.safetensors, byte-identical to https://github.com/dd1000001000/zhiyi_ime/releases/tag/model-zhen-long-l12 laya-zhen-long-l12-safetensors.zip (sha256 73284dc7a3d897fc599008859d0bf1030c3c7807b6f5242979a84f94dfc4b1f0)",
+      "sha256": "c975b57b621f34799434557bd556efde3f818077808426b025a4e22b34f5644f",
+      "license": "Apache-2.0",
+      "parameters": 76309652,
+      "runtime": "qingjian_pool.rs built in Qingjian b7a4f8bbb124c7e4df7660f6c2ce97b627113205 with --features metal,zhiyi (candle 0.11, Metal, linear layers Q8_0): ChoiceScorer as ChoiceModel",
+      "cpu_round": "zhiyi-candle.cpu",
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "zhiyi-candle.r1",
+        "zhiyi-candle.r2",
+        "zhiyi-candle.r3"
+      ],
+      "cpu_decision_ms_p50": 21.09,
+      "hits": 51,
+      "n": 52,
+      "rate": 0.9808,
+      "wilson95": [
+        0.8988,
+        0.9966
+      ],
+      "wrong": [
+        {
+          "id": "s-015",
+          "picked": "我们学习韩语",
+          "gold": "我们学习汉语"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "zhiyi-candle.r1",
+          "decision_ms_p50": 8.74
+        },
+        {
+          "run": "zhiyi-candle.r2",
+          "decision_ms_p50": 6.63
+        },
+        {
+          "run": "zhiyi-candle.r3",
+          "decision_ms_p50": 9.48
+        }
+      ],
+      "decision_ms_p50_range": [
+        6.63,
+        9.48
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 1,
+          "b_only": 11,
+          "discordant": 12,
+          "p": 0.006348
+        },
+        "ours-4m": {
+          "a_only": 1,
+          "b_only": 3,
+          "discordant": 4,
+          "p": 0.625
+        },
+        "ours-25m": {
+          "a_only": 1,
+          "b_only": 0,
+          "discordant": 1,
+          "p": 1.0
+        }
+      }
+    },
+    {
+      "id": "zhiyi-l12-onnx",
+      "label": "知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）",
+      "label_en": "Zhiyi 1.4V2-Long-L12, int8 ONNX (as Zhiyi IME 1.5.12-1.5.18 runs it)",
+      "group": "ime",
+      "inputs": "context+pinyin",
+      "weights_bytes": 84400754,
+      "tokenizer_bytes": 34363188,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/zhiyi-onnx-v1.0.0 zhiyi-onnx-v1.0.0.tar.gz.part1 (sha256 d693c2a262613888202e2de73b9bfce9f6421db3db2e1b7e1109aac9a296d5f3) -> laya.int8g.onnx, the ONNX_SHA256 of Zhiyi IME v1.5.18 scripts/fetch_model.py",
+      "sha256": "82d0fd05a5c2bff7898be518101d23dd03d0a5c4ecb8abaebcb397d42bebb529",
+      "license": "Apache-2.0",
+      "runtime": "zhiyi_onnx_pool.py (ONNX Runtime 1.24.4, CPU, 4 intra-op threads, as Zhiyi IME's laya::Reranker)",
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "zhiyi-onnx.r1",
+        "zhiyi-onnx.r2",
+        "zhiyi-onnx.r3"
+      ],
+      "hits": 51,
+      "n": 52,
+      "rate": 0.9808,
+      "wilson95": [
+        0.8988,
+        0.9966
+      ],
+      "wrong": [
+        {
+          "id": "s-015",
+          "picked": "我们学习韩语",
+          "gold": "我们学习汉语"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "zhiyi-onnx.r1",
+          "decision_ms_p50": 5.27
+        },
+        {
+          "run": "zhiyi-onnx.r2",
+          "decision_ms_p50": 5.36
+        },
+        {
+          "run": "zhiyi-onnx.r3",
+          "decision_ms_p50": 5.49
+        }
+      ],
+      "decision_ms_p50_range": [
+        5.27,
+        5.49
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 1,
+          "b_only": 11,
+          "discordant": 12,
+          "p": 0.006348
+        },
+        "ours-4m": {
+          "a_only": 1,
+          "b_only": 3,
+          "discordant": 4,
+          "p": 0.625
+        },
+        "ours-25m": {
+          "a_only": 1,
+          "b_only": 0,
+          "discordant": 1,
+          "p": 1.0
+        }
+      }
+    },
+    {
+      "id": "zhiyi-pumpkin-onnx",
+      "label": "知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）",
+      "label_en": "Zhiyi ML-pumpkin-1026, int8 ONNX (Zhiyi IME 1.6.0 default)",
+      "group": "ime",
+      "inputs": "context+pinyin",
+      "weights_bytes": 92229221,
+      "tokenizer_bytes": 34363188,
+      "source": "https://github.com/dd1000001000/zhiyi_ime/releases/tag/model-ml-pumpkin-1026 laya-ml-pumpkin-1026-int8g.zip (sha256 f73c380bd46a2b2270c1bbd2fc5d48acb268335dcb5b14057a6af33831ad7c4e) -> laya.int8g.onnx, the ONNX_SHA256 of Zhiyi IME 935226bb1fc9de205fd1ceb10869a2ce7fab11a0 scripts/fetch_model.py",
+      "sha256": "bbf51918f88873ea550618bb23d4932851ee3c0497bad5478bf8823ff4dc7a06",
+      "license": "Apache-2.0",
+      "runtime": "zhiyi_onnx_pool.py (ONNX Runtime 1.24.4, CPU, 4 intra-op threads, as Zhiyi IME's laya::Reranker)",
+      "picks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        4,
+        0,
+        0,
+        5,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "timing": [
+        "zhiyi-pumpkin.r1",
+        "zhiyi-pumpkin.r2"
+      ],
+      "hits": 49,
+      "n": 52,
+      "rate": 0.9423,
+      "wilson95": [
+        0.8436,
+        0.9802
+      ],
+      "wrong": [
+        {
+          "id": "s-006",
+          "picked": "她把书放在桌子上",
+          "gold": "他把书放在桌子上"
+        },
+        {
+          "id": "s-030",
+          "picked": "她的工作非常忙",
+          "gold": "他的工作非常忙"
+        },
+        {
+          "id": "s-038",
+          "picked": "她住了三天",
+          "gold": "他住了三天"
+        }
+      ],
+      "decision_ms_p50_runs": [
+        {
+          "run": "zhiyi-pumpkin.r1",
+          "decision_ms_p50": 5.32
+        },
+        {
+          "run": "zhiyi-pumpkin.r2",
+          "decision_ms_p50": 5.36
+        }
+      ],
+      "decision_ms_p50_range": [
+        5.32,
+        5.36
+      ],
+      "mcnemar": {
+        "engine": {
+          "a_only": 2,
+          "b_only": 10,
+          "discordant": 12,
+          "p": 0.038574
+        },
+        "ours-4m": {
+          "a_only": 3,
+          "b_only": 3,
+          "discordant": 6,
+          "p": 1.0
+        },
+        "ours-25m": {
+          "a_only": 3,
+          "b_only": 0,
+          "discordant": 3,
+          "p": 0.25
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+id,label,group,inputs,hits,n,rate,wilson_low,wilson_high,decision_ms_p50_min,decision_ms_p50_max,weights_bytes,vs_engine_ref_only,vs_engine_this_only,vs_engine_p,vs_ours-4m_ref_only,vs_ours-4m_this_only,vs_ours-4m_p,vs_ours-25m_ref_only,vs_ours-25m_this_only,vs_ours-25m_p
+engine,引擎原序（不重排）,engine,none,41,52,0.7885,0.6597,0.8776,,,,,,,10,2,0.038574,11,0,0.000977
+ours-4m,本项目 4.25M int8,ours,context,49,52,0.9423,0.8436,0.9802,11.87,12.11,4486280,2,10,0.038574,,,,3,0,0.25
+ours-25m,本项目 24.9M int8,ours,context,52,52,1.0,0.9312,1.0,71.5,71.73,25480184,0,11,0.000977,0,3,0.25,,,
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,42,52,0.8077,0.681,0.892,26.99,43.15,278064920,8,9,1.0,10,3,0.092285,10,0,0.001953
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,49,52,0.9423,0.8436,0.9802,33.17,36.64,633442994,3,11,0.057373,3,3,1.0,3,0,0.25
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,48,52,0.9231,0.8183,0.9697,44.19,56.6,1001176958,2,9,0.06543,4,3,1.0,4,0,0.125
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,50,52,0.9615,0.8702,0.9894,76.02,100.61,1722271785,1,10,0.011719,2,3,1.0,2,0,0.5
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,50,52,0.9615,0.8702,0.9894,7.42,10.33,46141208,1,10,0.011719,2,3,1.0,2,0,0.5
+hanzhang-zhiwei,含章·知微（青简）,ime,context,49,52,0.9423,0.8436,0.9802,4.67,7.33,56044208,1,9,0.021484,3,3,1.0,3,0,0.25
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,51,52,0.9808,0.8988,0.9966,6.63,9.48,161801998,1,11,0.006348,1,3,0.625,1,0,1.0
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,51,52,0.9808,0.8988,0.9966,5.27,5.49,84400754,1,11,0.006348,1,3,0.625,1,0,1.0
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,49,52,0.9423,0.8436,0.9802,5.32,5.36,92229221,2,10,0.038574,3,3,1.0,3,0,0.25
