@@ -1,0 +1,12 @@
+# Clauses read and dropped before any scorer ran: the gold is not the standard written form. One per line: source, unit, gold, reason.
+kdconv	film-043-05	你猜的很对	的 for 得 (猜得很对)
+kdconv	film-143-21	我在知道的就是他的那部代表作	typo (我在知道的 for 我现在知道的)
+kdconv	music-103-14	话说说回来	typo (话说说回来)
+kdconv	film-073-16	他手下的优秀作品不数不胜数	typo (不数不胜数)
+kdconv	film-060-05	这样的人确实让崇拜	missing word (让崇拜 for 让人崇拜)
+kdconv	film-143-01	日一位年轻的演员	fragment (日一位 cut from 日本一位)
+crosswoz	221-05	不还意思	typo (不还意思 for 不好意思)
+risawoz	attraction_restaurant_hotel_goal_5-18-13u	给我他家电话把	把 for 吧
+risawoz	restaurant_hotel_goal_3-66###5563-02s	他家新疆大盘鸡做的最好了	的 for 得 (做得最好)
+risawoz	attraction_restaurant_goal_3-40###5079-02s	他是苏州四大名园之一	他 for 它, of a garden
+risawoz	movie_tv_goal_5-11-07u	很好看的亚子啊	internet slang 亚子 for 样子
