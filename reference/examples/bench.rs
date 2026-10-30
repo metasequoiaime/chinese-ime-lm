@@ -14,9 +14,12 @@
 //! actually triggers.
 //!
 //! Candidates are prefixes of the evaluation set's sentences. Cost depends on the shape of the
-//! request — how many candidates, how many characters each — and not on which characters they are,
-//! so real text at a controlled length measures the same thing as invented text without inventing
-//! any.
+//! request — how many candidates, how many characters each, and how many of those characters the
+//! candidates share at the start, since a decision runs a shared beginning once — and not on which
+//! characters they are, so real text at a controlled length measures the same thing as invented
+//! text without inventing any. Prefixes of different sentences share their beginnings now and then,
+//! as an engine's candidates do far more often, so the table is close to the cost of candidates
+//! that share nothing.
 //!
 //! usage: bench <model.safetensors> [sentences.tsv] [--budget-ms N]
 
@@ -102,14 +105,19 @@ fn sentences(path: Option<&str>) -> Result<Vec<String>, Box<dyn std::error::Erro
 /// Equal length is not a convenience. Summed log probability favours shorter text, so a mixed-length
 /// list is not a comparison at all — `docs/format.md` says why, and a benchmark that ignored it
 /// would be timing a request no caller should ever make.
-/// Returns the list and how many entries had to be repeated to reach `count`.
+///
+/// Sentences long enough come first. When too few are, shorter sentences are repeated end to end
+/// up to the length (我今天去上班我今天…), so that a long row is still that many different
+/// candidates: a decision runs each distinct prefix once, so a candidate that merely repeats
+/// another costs nothing and a padded row would read as cheaper than the shape it is labelled with.
+/// Returns the list and how many entries had to be repeated to reach `count`, which only happens
+/// when the whole pool has fewer distinct prefixes than that.
 fn candidates(pool: &[String], count: usize, length: usize) -> (Vec<String>, usize) {
     let mut distinct: Vec<String> = Vec::new();
-    for sentence in pool {
-        if sentence.chars().count() < length {
-            continue;
-        }
-        let prefix: String = sentence.chars().take(length).collect();
+    let long = pool.iter().filter(|s| s.chars().count() >= length);
+    let short = pool.iter().filter(|s| s.chars().count() < length);
+    for sentence in long.chain(short) {
+        let prefix: String = sentence.chars().cycle().take(length).collect();
         if !distinct.contains(&prefix) {
             distinct.push(prefix);
         }
@@ -195,7 +203,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     if padded {
         println!(
-            "some cells repeated candidates: the pool has too few sentences that long. Cost depends\non the shape of the request, so the timings hold, but the text in those cells is not 9 distinct\nsentences."
+            "some cells repeated candidates: the pool has too few distinct prefixes. A decision runs a\nrepeated candidate once, so those cells are cheaper than the number of candidates says."
         );
     }
 
