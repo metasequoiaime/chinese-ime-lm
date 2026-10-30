@@ -1,0 +1,291 @@
+{
+  "set": {
+    "dir": "eval/sentences-ctx-v1",
+    "built_by": "build_set.py",
+    "sampled_clauses": 2485
+  },
+  "pool": {
+    "file": "pool.jsonl",
+    "stripped": "pool-stripped.jsonl",
+    "engine": "MSIME develop e6b494be617a03ce90c4a3e104e641dcae8b02bc (2026-10-30), crates/input-runtime/examples/convert_eval --dump, built in release on the Mac Studio, no sentence-model.safetensors or sentence-model-desktop.safetensors in the resource directory",
+    "dictionary": "resources/desktop-dictionary.lock.json at e6b494be61: msime-dictionary release dict-v2.0.41 (msime-pinyin.db sha256 5973347e707b4654b1c97eae8d99dc113a0915c461cd4b14fe5f438741dc3725)",
+    "rule": "clauses typed in full: candidates from sources generated (8) and fallback (9) with as many characters as the gold, engine order (eval/open-models/build_pool.py); words: the first nine distinct candidates of the gold's length from any source, engine order, at least two; cases whose gold is not in the pool dropped"
+  },
+  "machine": "Apple M4 Pro (12 cores, 48 GB), macOS, 2026-10-30",
+  "timing": {
+    "pool": "pool-timing.jsonl: 480 cases drawn by timing_pool.py, 60 from each of the 8 strata level x style x has-context (clause/full and word/full, word/initials, word/mixed, each with and without context); 含章·通变 runs the 240 full-pinyin ones",
+    "passes": 5,
+    "figure": "per case the median over the 5 passes (each pass goes through all cases in order, no state kept between decisions); per subset the median (decision_ms_p50) and nearest-rank 95th percentile (decision_ms_p95) over the subset's timed cases (timed_n). The strata are equal in size, not in proportion to the pool, so only per-subset figures are given.",
+    "machine": "Apple M4 Pro: 12-core CPU (8 performance, 4 efficiency), 16-core GPU, 48 GB; macOS 27.0.1; on mains power",
+    "devices": {
+      "ours-4m": "CPU, 1 thread",
+      "ours-25m": "CPU, 1 thread",
+      "qwen2.5-0.5b": "GPU (Metal, mlx)",
+      "qwen3-0.6b": "GPU (Metal, mlx)",
+      "qwen3.5-0.8b": "GPU (Metal, mlx)",
+      "qwen3.5-2b": "GPU (Metal, mlx)",
+      "hanzhang-tongbian": "GPU (Metal, candle)",
+      "hanzhang-zhiwei": "GPU (Metal, candle)",
+      "zhiyi-l12-candle": "GPU (Metal, candle)",
+      "zhiyi-l12-onnx": "CPU, 4 intra-op threads",
+      "zhiyi-pumpkin-onnx": "CPU, 4 intra-op threads"
+    },
+    "runs": [
+      {
+        "scorers": [
+          "qwen2.5-0.5b",
+          "qwen3-0.6b",
+          "qwen3.5-0.8b",
+          "qwen3.5-2b"
+        ],
+        "when": "2026-10-30 15:08-15:25",
+        "load_1min_before": 2.4,
+        "load_1min_during": [
+          1.29,
+          2.96
+        ]
+      },
+      {
+        "scorers": [
+          "hanzhang-tongbian",
+          "hanzhang-zhiwei",
+          "zhiyi-l12-candle",
+          "zhiyi-l12-onnx",
+          "zhiyi-pumpkin-onnx"
+        ],
+        "when": "2026-10-30 15:33-15:35",
+        "load_1min_before": 2.8,
+        "load_1min_during": [
+          2.46,
+          4.04
+        ],
+        "note": "The load rises from 2.75 to 4.04 during the two ONNX runs, which keep 4 threads busy themselves. These five were timed a second time because their first pass (15:24-15:26) overlapped another session's compile and a Python process at 100% CPU; the two passes pick the same and differ by at most 10% at p50 and 8% at p95 (the second is the slower one for the three Metal scorers)."
+      },
+      {
+        "scorers": [
+          "ours-4m",
+          "ours-25m"
+        ],
+        "when": "2026-10-30 15:40-15:45",
+        "load_1min_before": 2.47,
+        "load_1min_during": [
+          1.95,
+          3.2
+        ],
+        "note": "Re-timed: the first pass (15:06-15:08) ran a pool binary that cargo had taken from the build directory ~/.cargo/config.toml shares between worktrees, built from another checkout's source, and it picked differently on 8 of the 480 cases. Rebuilt from this branch, both models give the accuracy run's scores exactly on every timed case, and 4.25M reproduces all 6317 picks of the accuracy run."
+      }
+    ],
+    "load_note": "1-minute load average sampled every 20 s (every 5 s for the second and third runs); the idle desktop alone keeps it near 2; nothing else heavy (cargo, rustc, clang, mlx, training) was running at the start of any run"
+  },
+  "scorers": [
+    {
+      "id": "engine",
+      "label": "引擎原序（不重排）",
+      "label_en": "Engine order (no reranking)",
+      "group": "engine",
+      "inputs": "none"
+    },
+    {
+      "id": "ours-4m",
+      "label": "本项目 4.25M int8",
+      "label_en": "chinese-ime-lm 4.25M int8",
+      "group": "ours",
+      "inputs": "context",
+      "weights_bytes": 4486280,
+      "source": "https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1 sentence-model.safetensors",
+      "sha256": "86ac529510cb3b4968a5e6ade83ec8080f5b34a0a681e75c362accbbd387d1c1",
+      "license": "Apache-2.0",
+      "runtime": "reference/examples/pool.rs (Rust reference implementation, CPU, one thread, SentenceModel::score with no state kept between decisions; context cut by MSIME's rerank_context)",
+      "fed": "The context as MSIME hands it to its reranker: the committed text, its last 1024 bytes, cut by rerank_context in steps of 16 characters once it no longer fits the window. MSIME itself does not rerank the word cases: their pools are dictionary rows, which its gate leaves alone (trusted dictionary hit); there the row measures the model, not MSIME.",
+      "picks": "ours-4m",
+      "stripped": "ours-4m.stripped"
+    },
+    {
+      "id": "ours-25m",
+      "label": "本项目 24.9M int8",
+      "label_en": "chinese-ime-lm 24.9M int8",
+      "group": "ours",
+      "inputs": "context",
+      "weights_bytes": 25480184,
+      "source": "https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1 sentence-model-desktop.safetensors",
+      "sha256": "0a6ecba69bf1d39c7eb49549c716477dd6c03fdf05757773e1f50435262fb469",
+      "license": "Apache-2.0",
+      "runtime": "reference/examples/pool.rs (Rust reference implementation, CPU, one thread, SentenceModel::score with no state kept between decisions; context cut by MSIME's rerank_context)",
+      "fed": "The context as MSIME hands it to its reranker: the committed text, its last 1024 bytes, cut by rerank_context in steps of 16 characters once it no longer fits the window. MSIME itself does not rerank the word cases: their pools are dictionary rows, which its gate leaves alone (trusted dictionary hit); there the row measures the model, not MSIME.",
+      "picks": "ours-25m",
+      "stripped": "ours-25m.stripped"
+    },
+    {
+      "id": "qwen2.5-0.5b",
+      "label": "Qwen2.5-0.5B-Instruct-4bit",
+      "label_en": "Qwen2.5-0.5B-Instruct-4bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 278064920,
+      "source": "https://huggingface.co/mlx-community/Qwen2.5-0.5B-Instruct-4bit revision a5339a4131f135d0fdc6a5c8b5bbed2753bbe0f3",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), the pool's candidates in one batched forward pass after the context",
+      "fed": "The whole stored context (at most 1024 bytes), tokenized on its own, then the candidate; no input method of its own to follow. `primary_start` is `eos` (the tokenizer's eos_token before the context), the best of the three starts on the 52-case pool; only `eos` is run on pool.jsonl and pool-stripped.jsonl, all three on pool-sentences-v1.jsonl.",
+      "primary_start": "eos",
+      "start_variants": {
+        "none": "qwen2.5-0.5b.none",
+        "endoftext": "qwen2.5-0.5b.endoftext",
+        "eos": "qwen2.5-0.5b.eos"
+      },
+      "picks": "qwen2.5-0.5b.eos",
+      "stripped": {
+        "none": "qwen2.5-0.5b.none.stripped",
+        "endoftext": "qwen2.5-0.5b.endoftext.stripped",
+        "eos": "qwen2.5-0.5b.eos.stripped"
+      }
+    },
+    {
+      "id": "qwen3-0.6b",
+      "label": "Qwen3-0.6B-8bit",
+      "label_en": "Qwen3-0.6B-8bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 633442994,
+      "source": "https://huggingface.co/mlx-community/Qwen3-0.6B-8bit revision 11de96878523501bcaa86104e3c186de07ff9068",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), the pool's candidates in one batched forward pass after the context",
+      "fed": "The whole stored context (at most 1024 bytes), tokenized on its own, then the candidate; no input method of its own to follow. `primary_start` is `eos` (the tokenizer's eos_token before the context), the best of the three starts on the 52-case pool; only `eos` is run on pool.jsonl and pool-stripped.jsonl, all three on pool-sentences-v1.jsonl.",
+      "primary_start": "eos",
+      "start_variants": {
+        "none": "qwen3-0.6b.none",
+        "endoftext": "qwen3-0.6b.endoftext",
+        "eos": "qwen3-0.6b.eos"
+      },
+      "picks": "qwen3-0.6b.eos",
+      "stripped": {
+        "none": "qwen3-0.6b.none.stripped",
+        "endoftext": "qwen3-0.6b.endoftext.stripped",
+        "eos": "qwen3-0.6b.eos.stripped"
+      }
+    },
+    {
+      "id": "qwen3.5-0.8b",
+      "label": "Qwen3.5-0.8B-8bit",
+      "label_en": "Qwen3.5-0.8B-8bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 1001176958,
+      "source": "https://huggingface.co/mlx-community/Qwen3.5-0.8B-8bit revision 87e768fbfa03994095f3d14527c80c5ae70c5758",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), the pool's candidates in one batched forward pass after the context",
+      "fed": "The whole stored context (at most 1024 bytes), tokenized on its own, then the candidate; no input method of its own to follow. `primary_start` is `eos` (the tokenizer's eos_token before the context), the best of the three starts on the 52-case pool; only `eos` is run on pool.jsonl and pool-stripped.jsonl, all three on pool-sentences-v1.jsonl.",
+      "primary_start": "eos",
+      "start_variants": {
+        "none": "qwen3.5-0.8b.none",
+        "endoftext": "qwen3.5-0.8b.endoftext",
+        "eos": "qwen3.5-0.8b.eos"
+      },
+      "picks": "qwen3.5-0.8b.eos",
+      "stripped": {
+        "none": "qwen3.5-0.8b.none.stripped",
+        "endoftext": "qwen3.5-0.8b.endoftext.stripped",
+        "eos": "qwen3.5-0.8b.eos.stripped"
+      }
+    },
+    {
+      "id": "qwen3.5-2b",
+      "label": "Qwen3.5-2B-4bit",
+      "label_en": "Qwen3.5-2B-4bit",
+      "group": "general",
+      "inputs": "context",
+      "weights_bytes": 1722271785,
+      "source": "https://huggingface.co/mlx-community/Qwen3.5-2B-4bit revision 674aaa7240b91e8012fcad5d791b7dfe5ba90207",
+      "runtime": "mlx_lm_pool.py (mlx 0.32.4, mlx-lm 0.32.2, GPU), the pool's candidates in one batched forward pass after the context",
+      "fed": "The whole stored context (at most 1024 bytes), tokenized on its own, then the candidate; no input method of its own to follow. `primary_start` is `eos` (the tokenizer's eos_token before the context), the best of the three starts on the 52-case pool; only `eos` is run on pool.jsonl and pool-stripped.jsonl, all three on pool-sentences-v1.jsonl.",
+      "primary_start": "eos",
+      "start_variants": {
+        "none": "qwen3.5-2b.none",
+        "endoftext": "qwen3.5-2b.endoftext",
+        "eos": "qwen3.5-2b.eos"
+      },
+      "picks": "qwen3.5-2b.eos",
+      "stripped": {
+        "none": "qwen3.5-2b.none.stripped",
+        "endoftext": "qwen3.5-2b.endoftext.stripped",
+        "eos": "qwen3.5-2b.eos.stripped"
+      }
+    },
+    {
+      "id": "hanzhang-tongbian",
+      "label": "含章·通变（青简）",
+      "label_en": "Hanzhang Tongbian (Qingjian)",
+      "group": "ime",
+      "inputs": "pinyin",
+      "weights_bytes": 46141208,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/hanzhang-tongbian-v1.0.0 hanzhang-tongbian-v1.0.0.tar.gz.part1 (sha256 8661aea75ca3ba431c6f0398bf7ef9883f806b33fe97d03dd0f0bcfec52ab801) -> hanzhang-tongbian-small.qjm",
+      "sha256": "4eabcb140b1833ac8bc7afb4f71d3a9ad8db0d9c8073c1890ec96644b6bef973",
+      "license": "GPL-3.0-or-later",
+      "parameters": 23037056,
+      "runtime": "qingjian_pool.rs built in Qingjian b7a4f8bbb124c7e4df7660f6c2ce97b627113205 with --features metal,zhiyi (candle 0.11, Metal, f16): P2cScorer as SentenceScorer",
+      "fed": "Complete pinyin only, as Qingjian calls it (log P(candidate | complete pinyin)); no context. Not run on cases typed as initials or mixed. Qingjian uses it on sentences, so the word rows are not how Qingjian uses it.",
+      "picks": "hanzhang-tongbian"
+    },
+    {
+      "id": "hanzhang-zhiwei",
+      "label": "含章·知微（青简）",
+      "label_en": "Hanzhang Zhiwei (Qingjian)",
+      "group": "ime",
+      "inputs": "context",
+      "weights_bytes": 56044208,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/hanzhang-zhiwei-v1.0.0 hanzhang-zhiwei-v1.0.0.tar.gz.part1 (sha256 3fa74002f4f9938bd4245b2112c71a34d1a7871c17f6815c54527cc5222494e5) -> hanzhang-zhiwei-small.qjm",
+      "sha256": "83ad55abab750dd04bae93b48430981035d6c530d155db719cf1dccd4c07b0ef",
+      "license": "GPL-3.0-or-later",
+      "parameters": 27950272,
+      "runtime": "qingjian_pool.rs built in Qingjian b7a4f8bbb124c7e4df7660f6c2ce97b627113205 with --features metal,zhiyi (candle 0.11, Metal, f16): CharScorer as SentenceScorer",
+      "fed": "The last 64 characters of the context (Qingjian's RESCORE_CONTEXT_CHARS); not the letters. Qingjian used it to rescore sentences and no longer loads it, so the word rows are not how Qingjian used it.",
+      "picks": "hanzhang-zhiwei",
+      "stripped": "hanzhang-zhiwei.stripped"
+    },
+    {
+      "id": "zhiyi-l12-candle",
+      "label": "知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）",
+      "label_en": "Zhiyi 1.4V2-Long-L12, safetensors (as Qingjian runs it on macOS)",
+      "group": "ime",
+      "inputs": "context+pinyin",
+      "weights_bytes": 161801998,
+      "tokenizer_bytes": 34363188,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/zhiyi-v1.0.0 (archive sha256 4fca2aad3d40d6649328e7eb420ca6965a2437e4e033981804c19a6bb60f235d) -> model.safetensors, byte-identical to https://github.com/dd1000001000/zhiyi_ime/releases/tag/model-zhen-long-l12 laya-zhen-long-l12-safetensors.zip (sha256 73284dc7a3d897fc599008859d0bf1030c3c7807b6f5242979a84f94dfc4b1f0)",
+      "sha256": "c975b57b621f34799434557bd556efde3f818077808426b025a4e22b34f5644f",
+      "license": "Apache-2.0",
+      "parameters": 76309652,
+      "runtime": "qingjian_pool.rs built in Qingjian b7a4f8bbb124c7e4df7660f6c2ce97b627113205 with --features metal,zhiyi (candle 0.11, Metal, linear layers Q8_0): ChoiceScorer as ChoiceModel",
+      "fed": "As Qingjian's Engine::rerank_choices at its default tier: the last 64 characters of context, the leader's syllables aligned with the typed letters (initials as p: units); all three input styles.",
+      "picks": "zhiyi-candle",
+      "stripped": "zhiyi-candle.stripped"
+    },
+    {
+      "id": "zhiyi-l12-onnx",
+      "label": "知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）",
+      "label_en": "Zhiyi 1.4V2-Long-L12, int8 ONNX (as Zhiyi IME 1.5.12-1.5.18 runs it)",
+      "group": "ime",
+      "inputs": "context+pinyin",
+      "weights_bytes": 84400754,
+      "tokenizer_bytes": 34363188,
+      "source": "https://github.com/qingjian-team/qingjian-models/releases/tag/zhiyi-onnx-v1.0.0 zhiyi-onnx-v1.0.0.tar.gz.part1 (sha256 d693c2a262613888202e2de73b9bfce9f6421db3db2e1b7e1109aac9a296d5f3) -> laya.int8g.onnx, the ONNX_SHA256 of Zhiyi IME v1.5.18 scripts/fetch_model.py",
+      "sha256": "82d0fd05a5c2bff7898be518101d23dd03d0a5c4ecb8abaebcb397d42bebb529",
+      "license": "Apache-2.0",
+      "runtime": "zhiyi_onnx_pool.py (ONNX Runtime 1.24.4, CPU, 4 intra-op threads, as Zhiyi IME's laya::Reranker)",
+      "fed": "As Zhiyi IME's laya::Reranker: the last 128 characters of context, slot_units of the leader's syllables against the typed letters; all three input styles. Zhiyi IME skips the model when there is no context (unless its n-gram is loaded); here it is called anyway.",
+      "picks": "zhiyi-onnx",
+      "stripped": "zhiyi-onnx.stripped"
+    },
+    {
+      "id": "zhiyi-pumpkin-onnx",
+      "label": "知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）",
+      "label_en": "Zhiyi ML-pumpkin-1026, int8 ONNX (Zhiyi IME 1.6.0 default)",
+      "group": "ime",
+      "inputs": "context+pinyin",
+      "weights_bytes": 92229221,
+      "tokenizer_bytes": 34363188,
+      "source": "https://github.com/dd1000001000/zhiyi_ime/releases/tag/model-ml-pumpkin-1026 laya-ml-pumpkin-1026-int8g.zip (sha256 f73c380bd46a2b2270c1bbd2fc5d48acb268335dcb5b14057a6af33831ad7c4e) -> laya.int8g.onnx, the ONNX_SHA256 of Zhiyi IME 935226bb1fc9de205fd1ceb10869a2ce7fab11a0 scripts/fetch_model.py",
+      "sha256": "bbf51918f88873ea550618bb23d4932851ee3c0497bad5478bf8823ff4dc7a06",
+      "license": "Apache-2.0",
+      "runtime": "zhiyi_onnx_pool.py (ONNX Runtime 1.24.4, CPU, 4 intra-op threads, as Zhiyi IME's laya::Reranker)",
+      "fed": "As Zhiyi IME's laya::Reranker: the last 128 characters of context, slot_units of the leader's syllables against the typed letters; all three input styles. Zhiyi IME skips the model when there is no context (unless its n-gram is loaded); here it is called anyway.",
+      "picks": "zhiyi-pumpkin",
+      "stripped": "zhiyi-pumpkin.stripped"
+    }
+  ]
+}

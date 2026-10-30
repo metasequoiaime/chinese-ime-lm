@@ -1,0 +1,293 @@
+scorer,label,group,inputs,subset,hits,n,rate,wilson_low,wilson_high,timed_n,decision_ms_p50,decision_ms_p95,weights_bytes
+engine,引擎原序（不重排）,engine,none,clause/full,1131,1631,0.6934,0.6706,0.7153,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/context,838,1196,0.7007,0.6741,0.7259,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/none,293,435,0.6736,0.6281,0.7159,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/context-stripped,838,1196,0.7007,0.6741,0.7259,,,,
+engine,引擎原序（不重排）,engine,none,word/full,1969,2356,0.8357,0.8202,0.8502,,,,
+engine,引擎原序（不重排）,engine,none,word/full/context,1803,2156,0.8363,0.8201,0.8513,,,,
+engine,引擎原序（不重排）,engine,none,word/full/none,166,200,0.83,0.7718,0.8757,,,,
+engine,引擎原序（不重排）,engine,none,word/full/context-stripped,1803,2156,0.8363,0.8201,0.8513,,,,
+engine,引擎原序（不重排）,engine,none,word/initials,426,1043,0.4084,0.379,0.4386,,,,
+engine,引擎原序（不重排）,engine,none,word/initials/context,369,934,0.3951,0.3642,0.4268,,,,
+engine,引擎原序（不重排）,engine,none,word/initials/none,57,109,0.5229,0.43,0.6143,,,,
+engine,引擎原序（不重排）,engine,none,word/initials/context-stripped,369,934,0.3951,0.3642,0.4268,,,,
+engine,引擎原序（不重排）,engine,none,word/mixed,760,1287,0.5905,0.5634,0.6171,,,,
+engine,引擎原序（不重排）,engine,none,word/mixed/context,684,1182,0.5787,0.5503,0.6065,,,,
+engine,引擎原序（不重排）,engine,none,word/mixed/none,76,105,0.7238,0.6315,0.8003,,,,
+engine,引擎原序（不重排）,engine,none,word/mixed/context-stripped,684,1182,0.5787,0.5503,0.6065,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/gov,533,735,0.7252,0.6918,0.7562,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/gov/context-stripped,533,735,0.7252,0.6918,0.7562,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/dialogue,598,896,0.6674,0.6359,0.6975,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/dialogue/context,305,461,0.6616,0.6172,0.7033,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/dialogue/context-stripped,305,461,0.6616,0.6172,0.7033,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/unseen,914,1362,0.6711,0.6457,0.6955,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/ta,42,96,0.4375,0.3426,0.5372,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/ta/none,24,47,0.5106,0.3724,0.6472,,,,
+engine,引擎原序（不重排）,engine,none,clause/full/ta/context,18,49,0.3673,0.2467,0.5073,,,,
+ours-4m,本项目 4.25M int8,ours,context,clause/full,1316,1631,0.8069,0.787,0.8253,120,18.6,34.33,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/context,979,1196,0.8186,0.7957,0.8394,60,23.99,34.87,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/none,337,435,0.7747,0.7331,0.8115,60,15.44,22.97,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/context-stripped,973,1196,0.8135,0.7905,0.8346,,,,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/full,2025,2356,0.8595,0.8449,0.873,120,5.05,14.67,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/full/context,1857,2156,0.8613,0.8461,0.8753,60,7.44,14.72,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/full/none,168,200,0.84,0.7829,0.8843,60,3.15,5.99,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/full/context-stripped,1721,2156,0.7982,0.7808,0.8146,,,,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/initials,693,1043,0.6644,0.6352,0.6924,120,4.85,14.67,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/initials/context,631,934,0.6756,0.6449,0.7048,60,7.33,14.78,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/initials/none,62,109,0.5688,0.4751,0.6579,60,3.16,6.01,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/initials/context-stripped,357,934,0.3822,0.3516,0.4138,,,,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/mixed,957,1287,0.7436,0.719,0.7667,120,3.51,11.82,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/mixed/context,878,1182,0.7428,0.7171,0.7669,60,6.42,11.84,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/mixed/none,79,105,0.7524,0.6619,0.8251,60,3.14,5.97,4486280
+ours-4m,本项目 4.25M int8,ours,context,word/mixed/context-stripped,688,1182,0.5821,0.5537,0.6099,,,,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/gov,623,735,0.8476,0.8198,0.8718,40,26.4,34.88,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/gov/context-stripped,611,735,0.8313,0.8025,0.8566,,,,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/dialogue,693,896,0.7734,0.7449,0.7996,80,15.44,23.0,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/dialogue/context,356,461,0.7722,0.7318,0.8082,20,15.64,25.41,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/dialogue/context-stripped,362,461,0.7852,0.7455,0.8203,,,,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/unseen,1084,1362,0.7959,0.7737,0.8164,103,19.24,34.82,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/ta,45,96,0.4688,0.3721,0.5678,9,13.56,19.24,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/ta/none,25,47,0.5319,0.3923,0.6667,7,13.5,19.24,4486280
+ours-4m,本项目 4.25M int8,ours,context,clause/full/ta/context,20,49,0.4082,0.2822,0.5475,2,15.78,17.09,4486280
+ours-25m,本项目 24.9M int8,ours,context,clause/full,1415,1631,0.8676,0.8502,0.8832,120,116.43,312.55,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/context,1041,1196,0.8704,0.8502,0.8883,60,241.2,312.74,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/none,374,435,0.8598,0.824,0.8893,60,93.37,139.17,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/context-stripped,1046,1196,0.8746,0.8546,0.8922,,,,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/full,2141,2356,0.9087,0.8964,0.9197,120,33.27,193.14,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/full/context,1970,2156,0.9137,0.9011,0.9249,60,50.63,193.46,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/full/none,171,200,0.855,0.7995,0.8971,60,19.22,36.51,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/full/context-stripped,1780,2156,0.8256,0.809,0.841,,,,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/initials,773,1043,0.7411,0.7137,0.7668,120,32.13,187.65,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/initials/context,706,934,0.7559,0.7273,0.7824,60,46.47,193.71,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/initials/none,67,109,0.6147,0.5209,0.7007,60,19.2,36.49,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/initials/context-stripped,385,934,0.4122,0.3811,0.4441,,,,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/mixed,1053,1287,0.8182,0.7962,0.8383,120,22.66,175.86,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/mixed/context,973,1182,0.8232,0.8004,0.8439,60,44.49,175.91,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/mixed/none,80,105,0.7619,0.6721,0.8332,60,19.19,36.06,25480184
+ours-25m,本项目 24.9M int8,ours,context,word/mixed/context-stripped,695,1182,0.588,0.5597,0.6157,,,,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/gov,653,735,0.8884,0.8636,0.9092,40,265.22,312.91,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/gov/context-stripped,657,735,0.8939,0.8695,0.9141,,,,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/dialogue,762,896,0.8504,0.8256,0.8723,80,93.51,139.59,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/dialogue/context,388,461,0.8416,0.8055,0.8721,20,98.91,155.02,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/dialogue/context-stripped,389,461,0.8438,0.8079,0.8741,,,,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/unseen,1164,1362,0.8546,0.8349,0.8723,103,125.08,312.67,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/ta,54,96,0.5625,0.4628,0.6574,9,82.41,116.49,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/ta/none,28,47,0.5957,0.4534,0.7236,7,82.39,116.49,25480184
+ours-25m,本项目 24.9M int8,ours,context,clause/full/ta/context,26,49,0.5306,0.3938,0.663,2,98.14,104.6,25480184
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full,1522,1631,0.9332,0.92,0.9443,120,16.06,198.27,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/context,1150,1196,0.9615,0.9491,0.971,60,171.37,198.79,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/none,372,435,0.8552,0.819,0.8851,60,15.28,16.09,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/context-stripped,1033,1196,0.8637,0.8431,0.882,,,,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/full,2205,2356,0.9359,0.9253,0.9451,120,10.51,209.29,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/full/context,2061,2156,0.9559,0.9464,0.9638,60,23.06,214.22,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/full/none,144,200,0.72,0.6541,0.7776,60,10.05,10.63,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/full/context-stripped,1445,2156,0.6702,0.6501,0.6897,,,,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/initials,820,1043,0.7862,0.7603,0.81,120,13.91,256.21,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/initials/context,788,934,0.8437,0.819,0.8656,60,22.78,271.16,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/initials/none,32,109,0.2936,0.2163,0.3849,60,10.01,14.22,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/initials/context-stripped,274,934,0.2934,0.2651,0.3234,,,,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/mixed,1101,1287,0.8555,0.8352,0.8736,120,10.65,271.42,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/mixed/context,1052,1182,0.89,0.8709,0.9066,60,19.39,286.96,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/mixed/none,49,105,0.4667,0.3741,0.5616,60,10.06,10.57,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,word/mixed/context-stripped,457,1182,0.3866,0.3593,0.4147,,,,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/gov,729,735,0.9918,0.9823,0.9963,40,179.77,207.3,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/gov/context-stripped,655,735,0.8912,0.8666,0.9117,,,,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/dialogue,793,896,0.885,0.8625,0.9043,80,15.44,27.69,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/dialogue/context,421,461,0.9132,0.884,0.9356,20,20.7,41.56,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/dialogue/context-stripped,378,461,0.82,0.7823,0.8523,,,,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/unseen,1262,1362,0.9266,0.9115,0.9393,103,16.12,198.33,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/ta,53,96,0.5521,0.4525,0.6476,9,15.16,22.82,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/ta/none,25,47,0.5319,0.3923,0.6667,7,14.03,15.79,278064920
+qwen2.5-0.5b,Qwen2.5-0.5B-Instruct-4bit,general,context,clause/full/ta/context,28,49,0.5714,0.4327,0.6998,2,21.51,22.82,278064920
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full,1497,1631,0.9178,0.9035,0.9302,120,22.18,243.97,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/context,1154,1196,0.9649,0.9529,0.9739,60,210.52,246.67,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/none,343,435,0.7885,0.7477,0.8243,60,20.33,22.58,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/context-stripped,1035,1196,0.8654,0.8449,0.8836,,,,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/full,2192,2356,0.9304,0.9194,0.94,120,15.37,259.79,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/full/context,2060,2156,0.9555,0.9459,0.9634,60,31.6,264.53,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/full/none,132,200,0.66,0.5919,0.7221,60,14.0,15.71,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/full/context-stripped,1453,2156,0.6739,0.6539,0.6934,,,,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/initials,812,1043,0.7785,0.7523,0.8027,120,19.13,318.57,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/initials/context,782,934,0.8373,0.8122,0.8595,60,30.26,334.16,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/initials/none,30,109,0.2752,0.2001,0.3656,60,13.54,19.36,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/initials/context-stripped,273,934,0.2923,0.264,0.3223,,,,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/mixed,1097,1287,0.8524,0.8319,0.8707,120,16.06,334.56,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/mixed/context,1051,1182,0.8892,0.87,0.9058,60,26.51,356.83,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/mixed/none,46,105,0.4381,0.347,0.5335,60,13.39,16.48,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,word/mixed/context-stripped,556,1182,0.4704,0.4421,0.4989,,,,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/gov,733,735,0.9973,0.9901,0.9993,40,221.8,259.5,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/gov/context-stripped,664,735,0.9034,0.8799,0.9227,,,,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/dialogue,764,896,0.8527,0.828,0.8744,80,20.57,34.36,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/dialogue/context,421,461,0.9132,0.884,0.9356,20,27.41,53.48,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/dialogue/context-stripped,371,461,0.8048,0.7661,0.8384,,,,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/unseen,1245,1362,0.9141,0.898,0.9278,103,22.62,245.94,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/ta,51,96,0.5312,0.4322,0.6279,9,20.74,28.85,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/ta/none,24,47,0.5106,0.3724,0.6472,7,19.26,21.69,633442994
+qwen3-0.6b,Qwen3-0.6B-8bit,general,context,clause/full/ta/context,27,49,0.551,0.4132,0.6815,2,26.93,28.85,633442994
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full,1544,1631,0.9467,0.9347,0.9566,120,28.15,283.01,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/context,1164,1196,0.9732,0.9625,0.981,60,244.73,295.08,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/none,380,435,0.8736,0.839,0.9016,60,24.69,28.17,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/context-stripped,1106,1196,0.9247,0.9084,0.9384,,,,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/full,2193,2356,0.9308,0.9199,0.9404,120,22.03,303.43,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/full/context,2042,2156,0.9471,0.9369,0.9558,60,40.25,319.25,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/full/none,151,200,0.755,0.691,0.8094,60,16.93,23.06,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/full/context-stripped,1647,2156,0.7639,0.7455,0.7814,,,,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/initials,815,1043,0.7814,0.7553,0.8054,120,22.62,368.43,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/initials/context,784,934,0.8394,0.8145,0.8615,60,34.82,377.21,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/initials/none,31,109,0.2844,0.2082,0.3753,60,16.86,22.98,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/initials/context-stripped,299,934,0.3201,0.291,0.3507,,,,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/mixed,1108,1287,0.8609,0.8409,0.8788,120,20.47,390.55,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/mixed/context,1056,1182,0.8934,0.8745,0.9097,60,31.38,405.5,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/mixed/none,52,105,0.4952,0.4015,0.5893,60,16.94,19.32,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,word/mixed/context-stripped,504,1182,0.4264,0.3985,0.4548,,,,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/gov,731,735,0.9946,0.9861,0.9979,40,258.19,298.35,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/gov/context-stripped,704,735,0.9578,0.9408,0.9701,,,,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/dialogue,813,896,0.9074,0.8866,0.9246,80,25.76,39.65,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/dialogue/context,433,461,0.9393,0.9136,0.9576,20,32.78,65.75,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/dialogue/context-stripped,402,461,0.872,0.8384,0.8995,,,,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/unseen,1281,1362,0.9405,0.9267,0.9519,103,28.85,285.83,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/ta,63,96,0.6562,0.5569,0.7436,9,25.85,32.77,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/ta/none,26,47,0.5532,0.4125,0.6859,7,17.04,26.82,1001176958
+qwen3.5-0.8b,Qwen3.5-0.8B-8bit,general,context,clause/full/ta/context,37,49,0.7551,0.6191,0.854,2,31.23,32.77,1001176958
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full,1559,1631,0.9559,0.9448,0.9648,120,56.21,692.89,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/context,1169,1196,0.9774,0.9674,0.9844,60,601.64,723.64,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/none,390,435,0.8966,0.8644,0.9218,60,50.04,56.43,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/context-stripped,1122,1196,0.9381,0.923,0.9504,,,,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/full,2211,2356,0.9385,0.928,0.9475,120,40.44,752.83,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/full/context,2050,2156,0.9508,0.9409,0.9592,60,82.18,777.9,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/full/none,161,200,0.805,0.7446,0.8539,60,30.26,45.78,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/full/context-stripped,1761,2156,0.8168,0.7999,0.8326,,,,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/initials,820,1043,0.7862,0.7603,0.81,120,45.39,911.63,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/initials/context,788,934,0.8437,0.819,0.8656,60,72.84,927.07,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/initials/none,32,109,0.2936,0.2163,0.3849,60,29.67,47.01,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/initials/context-stripped,316,934,0.3383,0.3087,0.3693,,,,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/mixed,1107,1287,0.8601,0.8401,0.878,120,35.58,966.05,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/mixed/context,1048,1182,0.8866,0.8673,0.9035,60,69.44,1004.71,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/mixed/none,59,105,0.5619,0.4665,0.653,60,30.31,35.81,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,word/mixed/context-stripped,658,1182,0.5567,0.5282,0.5848,,,,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/gov,734,735,0.9986,0.9923,0.9998,40,631.42,727.14,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/gov/context-stripped,709,735,0.9646,0.9487,0.9757,,,,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/dialogue,825,896,0.9208,0.9012,0.9367,80,52.37,82.67,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/dialogue/context,435,461,0.9436,0.9186,0.9612,20,64.73,152.03,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/dialogue/context-stripped,413,461,0.8959,0.8647,0.9206,,,,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/unseen,1295,1362,0.9508,0.938,0.9611,103,56.33,703.25,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/ta,60,96,0.625,0.5251,0.7153,9,51.86,64.63,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/ta/none,25,47,0.5319,0.3923,0.6667,7,32.98,56.19,1722271785
+qwen3.5-2b,Qwen3.5-2B-4bit,general,context,clause/full/ta/context,35,49,0.7143,0.5759,0.8215,2,64.05,64.63,1722271785
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full,1456,1631,0.8927,0.8768,0.9068,120,7.9,10.35,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/context,1102,1196,0.9214,0.9048,0.9353,60,7.92,10.46,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/none,354,435,0.8138,0.7745,0.8476,60,7.89,9.35,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/context-stripped,1102,1196,0.9214,0.9048,0.9353,60,7.92,10.46,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,word/full,1983,2356,0.8417,0.8264,0.8559,120,5.63,6.23,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,word/full/context,1826,2156,0.8469,0.8311,0.8615,60,5.64,6.33,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,word/full/none,157,200,0.785,0.723,0.8363,60,5.57,6.16,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,word/full/context-stripped,1826,2156,0.8469,0.8311,0.8615,60,5.64,6.33,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/gov,706,735,0.9605,0.9439,0.9724,40,8.03,10.46,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/gov/context-stripped,706,735,0.9605,0.9439,0.9724,40,8.03,10.46,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/dialogue,750,896,0.8371,0.8114,0.8598,80,7.76,10.06,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/dialogue/context,396,461,0.859,0.8243,0.8878,20,7.61,10.26,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/dialogue/context-stripped,396,461,0.859,0.8243,0.8878,20,7.61,10.26,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/unseen,1199,1362,0.8803,0.862,0.8965,103,7.97,10.43,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/ta,56,96,0.5833,0.4834,0.6769,9,7.59,8.41,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/ta/none,28,47,0.5957,0.4534,0.7236,7,7.58,8.41,46141208
+hanzhang-tongbian,含章·通变（青简）,ime,pinyin,clause/full/ta/context,28,49,0.5714,0.4327,0.6998,2,7.67,7.74,46141208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full,1475,1631,0.9044,0.8891,0.9177,120,6.92,11.69,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/context,1091,1196,0.9122,0.8948,0.927,60,9.68,11.85,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/none,384,435,0.8828,0.8491,0.9097,60,5.15,6.88,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/context-stripped,1013,1196,0.847,0.8255,0.8663,,,,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/full,2178,2356,0.9244,0.9131,0.9344,120,4.0,8.75,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/full/context,2004,2156,0.9295,0.9179,0.9396,60,6.89,8.87,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/full/none,174,200,0.87,0.8163,0.9097,60,3.68,4.0,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/full/context-stripped,1647,2156,0.7639,0.7455,0.7814,,,,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/initials,790,1043,0.7574,0.7305,0.7825,120,4.57,9.12,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/initials/context,728,934,0.7794,0.7517,0.8049,60,6.8,9.22,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/initials/none,62,109,0.5688,0.4751,0.6579,60,3.87,4.04,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/initials/context-stripped,343,934,0.3672,0.3369,0.3986,,,,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/mixed,1081,1287,0.8399,0.8189,0.859,120,4.06,9.08,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/mixed/context,1003,1182,0.8486,0.827,0.8679,60,6.76,9.1,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/mixed/none,78,105,0.7429,0.6517,0.8168,60,3.83,3.98,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,word/mixed/context-stripped,632,1182,0.5347,0.5062,0.563,,,,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/gov,681,735,0.9265,0.9054,0.9433,40,10.48,11.93,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/gov/context-stripped,614,735,0.8354,0.8068,0.8604,,,,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/dialogue,794,896,0.8862,0.8637,0.9053,80,5.73,8.47,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/dialogue/context,410,461,0.8894,0.8575,0.9148,20,7.79,9.14,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/dialogue/context-stripped,399,461,0.8655,0.8313,0.8937,,,,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/unseen,1213,1362,0.8906,0.8729,0.9061,103,7.05,11.7,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/ta,57,96,0.5938,0.4937,0.6865,9,5.18,7.57,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/ta/none,25,47,0.5319,0.3923,0.6667,7,4.97,5.87,56044208
+hanzhang-zhiwei,含章·知微（青简）,ime,context,clause/full/ta/context,32,49,0.6531,0.5131,0.7708,2,7.54,7.57,56044208
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full,1503,1631,0.9215,0.9075,0.9336,120,7.28,10.32,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/context,1118,1196,0.9348,0.9194,0.9474,60,9.33,10.42,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/none,385,435,0.8851,0.8517,0.9117,60,6.91,7.78,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/context-stripped,1057,1196,0.8838,0.8644,0.9007,,,,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/full,2213,2356,0.9393,0.9289,0.9482,120,5.86,7.65,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/full/context,2039,2156,0.9457,0.9354,0.9545,60,7.12,7.71,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/full/none,174,200,0.87,0.8163,0.9097,60,5.71,5.95,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/full/context-stripped,1744,2156,0.8089,0.7918,0.8249,,,,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/initials,814,1043,0.7804,0.7543,0.8045,120,5.87,7.62,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/initials/context,754,934,0.8073,0.7807,0.8313,60,6.73,8.74,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/initials/none,60,109,0.5505,0.4569,0.6405,60,5.78,6.21,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/initials/context-stripped,308,934,0.3298,0.3004,0.3606,,,,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/mixed,1096,1287,0.8516,0.8311,0.87,120,5.88,7.33,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/mixed/context,1021,1182,0.8638,0.8431,0.8822,60,6.3,7.59,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/mixed/none,75,105,0.7143,0.6215,0.7919,60,5.77,6.16,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,word/mixed/context-stripped,589,1182,0.4983,0.4699,0.5268,,,,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/gov,709,735,0.9646,0.9487,0.9757,40,9.69,10.95,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/gov/context-stripped,664,735,0.9034,0.8799,0.9227,,,,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/dialogue,794,896,0.8862,0.8637,0.9053,80,6.95,7.92,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/dialogue/context,409,461,0.8872,0.8551,0.9129,20,7.16,9.02,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/dialogue/context-stripped,393,461,0.8525,0.8172,0.8819,,,,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/unseen,1246,1362,0.9148,0.8988,0.9285,103,7.45,10.39,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/ta,61,96,0.6354,0.5357,0.7248,9,6.89,8.06,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/ta/none,26,47,0.5532,0.4125,0.6859,7,6.91,8.06,161801998
+zhiyi-l12-candle,知意 1.4V2-Long-L12，safetensors（青简 macOS 的跑法）,ime,context+pinyin,clause/full/ta/context,35,49,0.7143,0.5759,0.8215,2,6.88,6.89,161801998
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full,1504,1631,0.9221,0.9081,0.9342,120,7.07,15.74,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/context,1122,1196,0.9381,0.923,0.9504,60,12.67,16.43,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/none,382,435,0.8782,0.8441,0.9056,60,6.01,7.5,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/context-stripped,1054,1196,0.8813,0.8617,0.8984,,,,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/full,2216,2356,0.9406,0.9303,0.9494,120,4.22,11.1,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/full/context,2042,2156,0.9471,0.9369,0.9558,60,5.4,12.06,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/full/none,174,200,0.87,0.8163,0.9097,60,3.59,4.48,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/full/context-stripped,1759,2156,0.8159,0.7989,0.8317,,,,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/initials,822,1043,0.7881,0.7623,0.8118,120,4.42,11.35,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/initials/context,759,934,0.8126,0.7863,0.8364,60,4.94,12.46,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/initials/none,63,109,0.578,0.4842,0.6665,60,4.03,4.74,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/initials/context-stripped,314,934,0.3362,0.3066,0.3671,,,,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/mixed,1100,1287,0.8547,0.8344,0.8729,120,4.22,11.03,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/mixed/context,1025,1182,0.8672,0.8466,0.8853,60,4.82,11.23,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/mixed/none,75,105,0.7143,0.6215,0.7919,60,4.04,4.47,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,word/mixed/context-stripped,592,1182,0.5008,0.4724,0.5293,,,,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/gov,714,735,0.9714,0.9567,0.9812,40,14.11,16.67,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/gov/context-stripped,664,735,0.9034,0.8799,0.9227,,,,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/dialogue,790,896,0.8817,0.8589,0.9012,80,6.15,8.21,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/dialogue/context,408,461,0.885,0.8527,0.911,20,6.33,8.56,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/dialogue/context-stripped,390,461,0.846,0.8102,0.8761,,,,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/unseen,1246,1362,0.9148,0.8988,0.9285,103,7.28,15.77,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/ta,59,96,0.6146,0.5146,0.7057,9,5.73,6.22,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/ta/none,24,47,0.5106,0.3724,0.6472,7,5.73,6.22,84400754
+zhiyi-l12-onnx,知意 1.4V2-Long-L12，int8 ONNX（知意输入法 1.5.12–1.5.18 的跑法）,ime,context+pinyin,clause/full/ta/context,35,49,0.7143,0.5759,0.8215,2,5.88,6.03,84400754
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full,1509,1631,0.9252,0.9114,0.937,120,7.11,15.78,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/context,1131,1196,0.9457,0.9313,0.9571,60,12.7,16.39,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/none,378,435,0.869,0.834,0.8975,60,6.01,7.52,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/context-stripped,1070,1196,0.8946,0.876,0.9108,,,,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/full,2174,2356,0.9228,0.9113,0.9329,120,4.22,11.13,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/full/context,2005,2156,0.93,0.9184,0.94,60,5.44,12.12,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/full/none,169,200,0.845,0.7884,0.8886,60,3.6,4.5,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/full/context-stripped,1691,2156,0.7843,0.7665,0.8012,,,,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/initials,824,1043,0.79,0.7643,0.8137,120,4.44,11.3,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/initials/context,759,934,0.8126,0.7863,0.8364,60,4.93,12.49,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/initials/none,65,109,0.5963,0.5025,0.6836,60,4.05,4.78,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/initials/context-stripped,304,934,0.3255,0.2962,0.3562,,,,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/mixed,1104,1287,0.8578,0.8377,0.8758,120,4.23,11.01,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/mixed/context,1025,1182,0.8672,0.8466,0.8853,60,4.85,11.23,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/mixed/none,79,105,0.7524,0.6619,0.8251,60,4.05,4.45,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,word/mixed/context-stripped,594,1182,0.5025,0.4741,0.531,,,,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/gov,712,735,0.9687,0.9535,0.9791,40,14.1,16.6,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/gov/context-stripped,664,735,0.9034,0.8799,0.9227,,,,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/dialogue,797,896,0.8895,0.8673,0.9084,80,6.15,8.21,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/dialogue/context,419,461,0.9089,0.8791,0.9319,20,6.37,8.58,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/dialogue/context-stripped,406,461,0.8807,0.8479,0.9072,,,,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/unseen,1252,1362,0.9192,0.9036,0.9326,103,7.26,15.81,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/ta,58,96,0.6042,0.5042,0.6962,9,5.77,6.26,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/ta/none,23,47,0.4894,0.3528,0.6276,7,5.77,6.26,92229221
+zhiyi-pumpkin-onnx,知意 ML-pumpkin-1026，int8 ONNX（知意输入法 1.6.0 的默认模型）,ime,context+pinyin,clause/full/ta/context,35,49,0.7143,0.5759,0.8215,2,5.89,6.02,92229221

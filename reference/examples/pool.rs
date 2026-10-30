@@ -11,6 +11,11 @@
 //! pool all answer the whole key and have the same length, so the gate in front of that decision has
 //! nothing to decline here.
 //!
+//! The context is handed over the way MSIME, the input method this model ships in, hands it to its
+//! reranker: the committed text (at most its last 1024 bytes, which the pool already is), cut by
+//! MSIME's `rerank_context` (`crates/engine/src/ordering.rs`) once it no longer fits the model's
+//! window, in steps of 16 characters, before `SentenceModel::score` trims it to the window itself.
+//!
 //! The time is one `SentenceModel::score` call over the whole pool: the cost of a decision taken
 //! from scratch, with no state kept between decisions. That is the "每次按键整条重算" column of the
 //! keystroke table, not the resumed path a host gets through `Reranker`. Each pass goes through the
@@ -31,6 +36,24 @@ struct Case {
     #[serde(default)]
     context: String,
     candidates: Vec<String>,
+}
+
+/// MSIME's `rerank_context`: the tail of the committed text that fits the window next to the
+/// longest candidate, cut in steps of `RERANK_CONTEXT_STEP` characters so that it holds still while
+/// a candidate grows; a context that fits is handed over whole.
+fn rerank_context(context: &str, window: usize, longest: usize) -> &str {
+    const RERANK_CONTEXT_STEP: usize = 16;
+    let room = window.saturating_sub(longest + 1);
+    let keep = room / RERANK_CONTEXT_STEP * RERANK_CONTEXT_STEP;
+    let count = context.chars().count();
+    if count <= room {
+        return context;
+    }
+    let skip = count - keep;
+    context
+        .char_indices()
+        .nth(skip)
+        .map_or("", |(start, _)| &context[start..])
 }
 
 fn median(values: &mut [f64]) -> f64 {
@@ -68,18 +91,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect::<Result<_, _>>()?;
 
     // One untimed pass so the first-touch page faults for the weights land outside the samples.
-    for case in &cases {
+    let contexts: Vec<&str> = cases
+        .iter()
+        .map(|case| {
+            let longest = case
+                .candidates
+                .iter()
+                .map(|text| text.chars().count())
+                .max()
+                .unwrap_or(0);
+            rerank_context(&case.context, model.context_length(), longest)
+        })
+        .collect();
+    for (case, context) in cases.iter().zip(&contexts) {
         let texts: Vec<&str> = case.candidates.iter().map(String::as_str).collect();
-        let _ = model.score(&case.context, &texts);
+        let _ = model.score(context, &texts);
     }
 
     let mut samples = vec![Vec::with_capacity(passes); cases.len()];
     let mut scores = vec![Vec::new(); cases.len()];
     for _ in 0..passes.max(1) {
-        for (index, case) in cases.iter().enumerate() {
+        for (index, (case, context)) in cases.iter().zip(&contexts).enumerate() {
             let texts: Vec<&str> = case.candidates.iter().map(String::as_str).collect();
             let started = Instant::now();
-            let scored = model.score(&case.context, &texts);
+            let scored = model.score(context, &texts);
             samples[index].push(started.elapsed().as_secs_f64() * 1000.0);
             scores[index] = scored;
         }

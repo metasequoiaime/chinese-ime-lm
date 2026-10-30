@@ -1,0 +1,739 @@
+{
+  "retrieved": "2026-10-30",
+  "gov": [
+    {
+      "doc": "content_7080190",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080190.htm",
+      "title": "电力安全事故应急处置和调查处理条例",
+      "code": "国令第845号",
+      "issuer": "国务院",
+      "published": "2026.09.04",
+      "sha256": "7d33ef7e74953a6510a4688f7fd922ac08feea85eb337d98311b541d5f0de25a",
+      "attachments": []
+    },
+    {
+      "doc": "content_7080330",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080330.htm",
+      "title": "工业和信息化部等六部门关于印发《关于推动历史经典产业高质量发展的意见》的通知",
+      "code": "工信部联消费〔2026〕204号",
+      "issuer": "工业和信息化部 人力资源社会保障部 农业农村部 商务部 文化和旅游部 市场监管总局",
+      "published": "2026.09.07",
+      "sha256": "f87f2e3920d63bf01908babdffa75e3e6b8478c26259e04dcfa9cc3f0f5b65a6",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260907445170206710.pdf",
+          "file": "content_7080330-P020260907445170206710.pdf",
+          "sha256": "1bebdae76cc87a3f725ff1d2cec371d8a88aaf31e76fca918929303d4bb493e4"
+        }
+      ]
+    },
+    {
+      "doc": "content_7080361",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080361.htm",
+      "title": "农业农村部 中央农办 国家发展改革委 财政部 中国人民银行 金融监管总局关于印发《坚持农业农村优先发展 完善乡村振兴投入机制实施方案》的通知",
+      "code": "农计财发〔2026〕9号",
+      "issuer": "农业农村部 中央农办 国家发展改革委 财政部 中国人民银行 金融监管总局",
+      "published": "2026.09.07",
+      "sha256": "0ff44f0e4feaa16ba8f17d1dbbe65748dcc7c0b6419eb85967ab954ffae0985d",
+      "attachments": []
+    },
+    {
+      "doc": "content_7080376",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080376.htm",
+      "title": "工业和信息化部关于印发《信息通信行业发展“十五五”规划》的通知",
+      "code": "工信部规〔2026〕188号",
+      "issuer": "工业和信息化部",
+      "published": "2026.09.07",
+      "sha256": "c1337dbf2e092a13f64a02d3eccd3a5a7ff4ffc1ef9bbee2118a0a8ce0ec89e7",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260907785145440077.pdf",
+          "file": "content_7080376-P020260907785145440077.pdf",
+          "sha256": "3e623d05d21be41b858623d29299ac22ebcd767af8a7c51d9c1c8f143b099caf"
+        }
+      ]
+    },
+    {
+      "doc": "content_7080386",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080386.htm",
+      "title": "国家版权局关于印发《版权工作“十五五”规划》的通知",
+      "code": "国版发〔2026〕3号",
+      "issuer": "国家版权局",
+      "published": "2026.09.07",
+      "sha256": "6cdcaa256ef1c0fd5ad25d2370ac2f35d51c8c516f623ae8d822f8fb763509f3",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260907807723078287.pdf",
+          "file": "content_7080386-P020260907807723078287.pdf",
+          "sha256": "18df92dd7d1628c0d0e6fbaa7aae3f6ce5c966e0c89c4adb8a9a64aa079c71ad"
+        }
+      ]
+    },
+    {
+      "doc": "content_7080453",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080453.htm",
+      "title": "农业农村部关于印发《全国渔业发展“十五五”规划》的通知",
+      "code": "农渔发〔2026〕17号",
+      "issuer": "农业农村部",
+      "published": "2026.09.08",
+      "sha256": "0dbbebc203f7ffb1e890d9d13ae85ee1e6f22f22db96d2c4d177d84af45d6c47",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260908775205214318.pdf",
+          "file": "content_7080453-P020260908775205214318.pdf",
+          "sha256": "6c3da03a6b852f46d6f101a5848326527abf309fbdc7426bd17ade9a5d3f4008"
+        }
+      ]
+    },
+    {
+      "doc": "content_7080628",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080628.htm",
+      "title": "国务院办公厅关于加强中小企业回款难问题治理有关工作的通知",
+      "code": "国办发〔2026〕24号",
+      "issuer": "国务院办公厅",
+      "published": "2026.09.10",
+      "sha256": "746f4328f0742c8e2f9a5ef2d5c7f52105a84ef2a0c2f150fc6c2763d1a79a9b",
+      "attachments": []
+    },
+    {
+      "doc": "content_7080736",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080736.htm",
+      "title": "市场监督管理所条例",
+      "code": "国令第846号",
+      "issuer": "国务院",
+      "published": "2026.09.11",
+      "sha256": "37bb49cfe539ec046aab6fe7579c068147b3f7de68b5421a59e5d26db863d756",
+      "attachments": []
+    },
+    {
+      "doc": "content_7080773",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080773.htm",
+      "title": "工业和信息化部关于印发《“人工智能+软件”专项行动实施方案》的通知",
+      "code": "工信部信发〔2026〕209号",
+      "issuer": "工业和信息化部",
+      "published": "2026.09.11",
+      "sha256": "af372290be78a66b264a843dd4eb3f09e9c795750efa6b014bd922b9af3afaf5",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260911688449695690.pdf",
+          "file": "content_7080773-P020260911688449695690.pdf",
+          "sha256": "80a723667b725b4311d71a1494ab9eb05c386713caf4a8b2919b722a6430c5bb"
+        }
+      ]
+    },
+    {
+      "doc": "content_7080776",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080776.htm",
+      "title": "农业农村部关于印发《全国畜牧兽医行业发展“十五五”规划》的通知",
+      "code": "农牧发〔2026〕9号",
+      "issuer": "农业农村部",
+      "published": "2026.09.11",
+      "sha256": "91a9e728a50393f04411843e95e511a3987b9bcc85c825438bc58b2836bfa40b",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260911691118189412.pdf",
+          "file": "content_7080776-P020260911691118189412.pdf",
+          "sha256": "2d0f8e4f765732e3afe9a570302d66076f394037c992e9b17816114d47422761"
+        }
+      ]
+    },
+    {
+      "doc": "content_7080788",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080788.htm",
+      "title": "关于印发《关于加快农业保险高质量发展的实施方案》的通知",
+      "code": "财金〔2026〕88号",
+      "issuer": "财政部 农业农村部 金融监管总局 国家林草局",
+      "published": "2026.09.11",
+      "sha256": "6879d8899673ba3c93a8697be9ae1c9cd3222db02784cb67ca50ce9db390807e",
+      "attachments": []
+    },
+    {
+      "doc": "content_7080845",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7080845.htm",
+      "title": "工业和信息化部等九部门关于印发《智能网联新能源汽车产业发展“十五五”规划》的通知",
+      "code": "工信部联规函〔2026〕305号",
+      "issuer": "工业和信息化部 国家发展改革委 公安部 交通运输部 商务部 自然资源部 住房和城乡建设部 市场监管总局 国家网信办",
+      "published": "2026.09.12",
+      "sha256": "7ca92ca091d915fc322bc2f21f0bdf4d9dc26c4f056dd7aac9b94209fc8d9cfb",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260912375693571065.pdf",
+          "file": "content_7080845-P020260912375693571065.pdf",
+          "sha256": "e9abad46d370bce7709d881413f44b7504aa0eae5b20cfcd79a085177c29f589"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081037",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081037.htm",
+      "title": "商务部等8部门关于印发《促进智能家居消费行动方案》的通知",
+      "code": "商消费发〔2026〕148号",
+      "issuer": "商务部 国家发展改革委 工业和信息化部 民政部 财政部 自然资源部 住房城乡建设部 市场监管总局",
+      "published": "2026.09.14",
+      "sha256": "844e394447d3ddb2c5597b0146581620eae50486805b4aacb4646685d766a3ce",
+      "attachments": []
+    },
+    {
+      "doc": "content_7081153",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081153.htm",
+      "title": "关于印发《紧急采购管理暂行办法》的通知",
+      "code": "财库〔2026〕12号",
+      "issuer": "财政部 应急管理部",
+      "published": "2026.09.15",
+      "sha256": "c658855f68fd5f91a3f15f65873afc45087ec2baeef83877aa8a6128100afcb7",
+      "attachments": []
+    },
+    {
+      "doc": "content_7081160",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081160.htm",
+      "title": "两部门关于印发《电子信息制造业发展“十五五”规划》的通知",
+      "code": "工信部联规〔2026〕216号",
+      "issuer": "工业和信息化部 国家发展改革委",
+      "published": "2026.09.15",
+      "sha256": "0719a352a951525f710bcd83299037f7cd3634b7fa7ab6a2ba7658a49ca1fb11",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260915591218170456.pdf",
+          "file": "content_7081160-P020260915591218170456.pdf",
+          "sha256": "34dae2a3b42ed82ebbda46f40793321d5fab839bb1ceaf3fe4b609bb3f97f2c4"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081315",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081315.htm",
+      "title": "文化和旅游部关于印发《文化和旅游发展“十五五”规划》的通知",
+      "code": "文旅政法发〔2026〕60号",
+      "issuer": "文化和旅游部",
+      "published": "2026.09.16",
+      "sha256": "350f00eb0d6abe360d7ee577750ae0e491ba66d14be1a8d951982ecbeffc24a4",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260916775507697878.pdf",
+          "file": "content_7081315-P020260916775507697878.pdf",
+          "sha256": "a39b4ef14854159318f64ef5384cd8a40138926faf3121b56e24b2ce304a5fc9"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081357",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081357.htm",
+      "title": "国务院办公厅关于进一步加强烟花爆竹全链条安全监管的意见",
+      "code": "国办发〔2026〕26号",
+      "issuer": "国务院办公厅",
+      "published": "2026.09.17",
+      "sha256": "d6cf3fa0306e046fc220f22cb03c0e9e8bd1cfb259460db9efc2957a6f0b720e",
+      "attachments": []
+    },
+    {
+      "doc": "content_7081404",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081404.htm",
+      "title": "农业农村部关于印发《全国种植业发展“十五五”规划》的通知",
+      "code": "农农发〔2026〕9 号",
+      "issuer": "农业农村部",
+      "published": "2026.09.18",
+      "sha256": "73bbe28b9a028a1430b0cf916f75df19af63422e815e9ba1ef0247383000fd88",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260918313662744451.pdf",
+          "file": "content_7081404-P020260918313662744451.pdf",
+          "sha256": "8e81a3e21ba224faf25e37cc8690c919c0583b4ad6e1d36e5029e7a9b4756bfc"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081442",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081442.htm",
+      "title": "国务院办公厅转发文化和旅游部等部门《关于促进房车消费的若干措施》的通知",
+      "code": "国办函〔2026〕82号",
+      "issuer": "国务院办公厅",
+      "published": "2026.09.18",
+      "sha256": "53d0c343f34e964a8470f9063d78d7bd8158fce6b23417bc3b08880bd7893a8a",
+      "attachments": []
+    },
+    {
+      "doc": "content_7081457",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081457.htm",
+      "title": "工业和信息化部等十部门关于印发《医药工业发展“十五五”规划》的通知",
+      "code": "工信部联规﹝2026﹞210号",
+      "issuer": "工业和信息化部 国家发展改革委 自然资源部 农业农村部 商务部 国家卫生健康委 应急管理部 国家医保局 国家中医药局 国家药监局",
+      "published": "2026.09.18",
+      "sha256": "e1fd32494915f01564c13b0c0a73b8573b74688d9ab1bcfe77453cc2df12b4f3",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260918659867198517.pdf",
+          "file": "content_7081457-P020260918659867198517.pdf",
+          "sha256": "e4ba3a4c737f9ed1deafde79fb0d7cf63b4bd47aac93f68502aadaa95a25da8e"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081514",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081514.htm",
+      "title": "文化和旅游部关于印发《文化产业发展“十五五”规划》的通知",
+      "code": "文旅产业发〔2026〕61号",
+      "issuer": "文化和旅游部",
+      "published": "2026.09.19",
+      "sha256": "fbbfb95994853799123b4c7c3e98b4ec95b368a8f13ca580f27d5cb3f4dbf7c3",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260919315558229232.pdf",
+          "file": "content_7081514-P020260919315558229232.pdf",
+          "sha256": "9e143ebf6e7b1776548061e8630a2153ddc842e229c6596f0586d6c701dbcc38"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081520",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081520.htm",
+      "title": "农业农村部 工业和信息化部关于印发《全国农业机械化发展“十五五”规划》的通知",
+      "code": "农机发〔2026〕5号",
+      "issuer": "农业农村部 工业和信息化部",
+      "published": "2026.09.19",
+      "sha256": "001064213f978d8593a97607538105b847b29af8bf226648a15c89fa1b7e7def",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260919320442436834.pdf",
+          "file": "content_7081520-P020260919320442436834.pdf",
+          "sha256": "7217ba26d18e43e0180c660ef3730d6b5a50ccd804d75a45c4136bbfcc45b8c0"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081591",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081591.htm",
+      "title": "关于进一步加强罕见病防治工作的通知",
+      "code": "国卫办医政函〔2026〕305号",
+      "issuer": "国家卫生健康委办公厅 国家中医药局综合司",
+      "published": "2026.09.20",
+      "sha256": "826f8dfa54a9b3a4fc2c4bd0e5382cb3cdf400192894285e08fca21a24a2509f",
+      "attachments": []
+    },
+    {
+      "doc": "content_7081612",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081612.htm",
+      "title": "文化和旅游部关于印发《公共文化服务体系建设“十五五”规划》的通知",
+      "code": "文旅公共发〔2026〕63号",
+      "issuer": "文化和旅游部",
+      "published": "2026.09.20",
+      "sha256": "2a793d1c58d65db000af13dd366dca4305bb43a0e53aa8c0c95d1a2837e3c8c9",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260920786676790929.pdf",
+          "file": "content_7081612-P020260920786676790929.pdf",
+          "sha256": "bc16b49e9015f4629a60e8da57f714afc060d04d6c988f2781ca69cf6e351ea0"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081666",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081666.htm",
+      "title": "国家新闻出版署关于印发《出版业发展“十五五”规划》的通知",
+      "code": "国新出发〔2026〕8号",
+      "issuer": "国家新闻出版署",
+      "published": "2026.09.21",
+      "sha256": "5fc421fcbe2ca10c29f2217fa796ec9e5f6662f58d055b2aa35e1c529ab0058f",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260921638064461054.pdf",
+          "file": "content_7081666-P020260921638064461054.pdf",
+          "sha256": "97d92b2e564f0ef82a54f0bc257b7879cd892a0193fa65ebe3c2c702c242f48c"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081712",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081712.htm",
+      "title": "文化和旅游部关于印发《非物质文化遗产保护传承“十五五”规划》的通知",
+      "code": "文旅非遗发〔2026〕64号",
+      "issuer": "文化和旅游部",
+      "published": "2026.09.21",
+      "sha256": "651eb6c674712471515a3501396e976ffa1d410e4ae0eeb477504a462b7a7766",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260921806421552506.pdf",
+          "file": "content_7081712-P020260921806421552506.pdf",
+          "sha256": "8f93cd0199f4c389de321b0e0390a66a54da6290e527171a041fd593607fbb44"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081805",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081805.htm",
+      "title": "三部门关于印发《轻工纺织产业发展“十五五”规划》的通知",
+      "code": "工信部联规〔2026〕211号",
+      "issuer": "工业和信息化部 商务部 市场监管总局",
+      "published": "2026.09.22",
+      "sha256": "ee48ec1e0211d0dedfc1fd0f3a979a83ea8781e711ba4bc5dff2b4a6537fe046",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260922773095555136.pdf",
+          "file": "content_7081805-P020260922773095555136.pdf",
+          "sha256": "a3d493114be2f6999dce3ac74fa6700c293a694b1cc0d7ac22853ea7c8f86012"
+        }
+      ]
+    },
+    {
+      "doc": "content_7081881",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081881.htm",
+      "title": "国务院办公厅关于印发《“高效办成一件事”2026年度第二批重点事项清单》的通知",
+      "code": "国办函〔2026〕84号",
+      "issuer": "国务院办公厅",
+      "published": "2026.09.23",
+      "sha256": "f629bf46c19a944d5927010fb6f46e86181b50915b7f8fdc64489548ee3bce1c",
+      "attachments": []
+    },
+    {
+      "doc": "content_7081973",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7081973.htm",
+      "title": "中华人民共和国审计法实施条例",
+      "code": "国令第847号",
+      "issuer": "国务院",
+      "published": "2026.09.24",
+      "sha256": "f6f2e730be7e8981b046e503788fc16a50da171f5c5bddb798f4d1f6b6b3fc62",
+      "attachments": []
+    },
+    {
+      "doc": "content_7082302",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7082302.htm",
+      "title": "中国人民银行等八部门联合印发《关于金融支持服务业扩能提质的指导意见》",
+      "code": "",
+      "issuer": "中国人民银行 金融监管总局 中国证监会 国家发展改革委 工业和信息化部 财政部 商务部 文化和旅游部",
+      "published": "2026.09.28",
+      "sha256": "49a45d9fd5ea90f53978736363c005d9ee819ff613b1093424b29183e4a7c61d",
+      "attachments": []
+    },
+    {
+      "doc": "content_7082379",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7082379.htm",
+      "title": "国务院关于《医疗康复护理扩容提升工程实施方案》的批复",
+      "code": "国函〔2026〕99号",
+      "issuer": "国务院",
+      "published": "2026.09.29",
+      "sha256": "767937dbf583ef97c4610c8a01745cbf20ad97e8c835d9766e06c2a1a291976a",
+      "attachments": []
+    },
+    {
+      "doc": "content_7082413",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7082413.htm",
+      "title": "国家金融监督管理总局 商务部关于加强商务和保险协同 做好内贸险有关工作的通知",
+      "code": "金发〔2026〕17号",
+      "issuer": "金融监管总局 商务部",
+      "published": "2026.09.29",
+      "sha256": "919b1a597ef875e8e6cb81c17bae9ab9fb2827365868267811e850dc6b0f7209",
+      "attachments": []
+    },
+    {
+      "doc": "content_7082493",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7082493.htm",
+      "title": "国务院办公厅关于发展体育赛事激发消费活力的意见",
+      "code": "国办发〔2026〕28号",
+      "issuer": "国务院办公厅",
+      "published": "2026.09.30",
+      "sha256": "7255ded719508f27cbd4c0105431986155bd7b6bf427d87ca1005e51f9f0bb2a",
+      "attachments": []
+    },
+    {
+      "doc": "content_7082561",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202609/content_7082561.htm",
+      "title": "文化和旅游部关于印发《艺术发展“十五五”规划》的通知",
+      "code": "文旅艺发〔2026〕66号",
+      "issuer": "文化和旅游部",
+      "published": "2026.09.30",
+      "sha256": "1edde6d5d0fcc1e227c68cf4f478cc5f9f675df6b069bf56ac8daaa747dfb070",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202609/P020260930799553380054.pdf",
+          "file": "content_7082561-P020260930799553380054.pdf",
+          "sha256": "e56cc605e568f2ad878dc563d8007f582aa334911001b752d05997c8e2674079"
+        }
+      ]
+    },
+    {
+      "doc": "content_7082724",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7082724.htm",
+      "title": "关于印发医疗康复护理扩容提升工程实施方案的通知 ",
+      "code": "国卫规划发〔2026〕24号",
+      "issuer": "国家卫生健康委 国家发展改革委",
+      "published": "2026.10.08",
+      "sha256": "871a82c2c148b0ffc8884fd60e2a542573d50c2b990c98705baee5f6f819c02e",
+      "attachments": []
+    },
+    {
+      "doc": "content_7082738",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7082738.htm",
+      "title": "国务院关于《国家残疾预防行动计划（2026—2030年）》的批复",
+      "code": "国函〔2026〕105号",
+      "issuer": "国务院",
+      "published": "2026.10.08",
+      "sha256": "e7f30d4551583d6ca282c539521be5e53edaa9d16355d8da18edcc66c5a68cbb",
+      "attachments": []
+    },
+    {
+      "doc": "content_7082906",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7082906.htm",
+      "title": "商务部等7部门关于实施品质电商“五优”行动的通知",
+      "code": "",
+      "issuer": "商务部 中央网信办 国家发展改革委 工业和信息化部 农业农村部 市场监管总局 国家邮政局",
+      "published": "2026.10.10",
+      "sha256": "3c44961f4259fa85bc73ec267977822f3c97fdc1de351d95b4fd23a4a44c84d0",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083092",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083092.htm",
+      "title": "国家铁路局关于印发《铁路科技创新“十五五”规划》的通知",
+      "code": "",
+      "issuer": "国家铁路局",
+      "published": "2026.10.13",
+      "sha256": "7620493063c9165df03cddce41e2e79e306a5c948104af851ce5861ead922b5d",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083107",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083107.htm",
+      "title": "交通运输部 工业和信息化部 国家能源局关于印发《内河新能源船舶推广应用行动方案（2026—2030年）》的通知",
+      "code": "交水发〔2026〕127号",
+      "issuer": "交通运输部 工业和信息化部 国家能源局",
+      "published": "2026.10.13",
+      "sha256": "710c8ef5798cb49378938b0f3f43f4bd8a1a82e7a6b0466941c023851659bdc2",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083226",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083226.htm",
+      "title": "国家知识产权局关于加强知识产权公共服务体系建设的意见",
+      "code": "国知发服字〔2026〕29号",
+      "issuer": "国家知识产权局",
+      "published": "2026.10.14",
+      "sha256": "2f15691178c743702d2e68f949a63d57c489ccfa8b22789d39828418a7a7e5a1",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083422",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083422.htm",
+      "title": "住房城乡建设部办公厅等关于印发《城镇供热“温暖工程”三年行动方案（2026—2028年）》的通知",
+      "code": "建办城函〔2026〕239号",
+      "issuer": "住房城乡建设部办公厅 国家发展改革委办公厅 工业和信息化部办公厅 市场监管总局办公厅 中国气象局办公室 国家能源局",
+      "published": "2026.10.16",
+      "sha256": "3739beecac8aa781e2a8e0a6d4073e604896c1d9441f5fcbd50f6dca04bd15b7",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083441",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083441.htm",
+      "title": "国家发展改革委 民政部 国家卫生健康委关于进一步完善价格形成机制 推动普惠养老服务提质扩面的指导意见",
+      "code": "发改价格〔2026〕1476号",
+      "issuer": "国家发展改革委 民政部 国家卫生健康委",
+      "published": "2026.10.16",
+      "sha256": "0fa4a47f0f413062cd03616e95e12d06fef98de04c5f1f6d1602b865a84dc8d4",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083519",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083519.htm",
+      "title": "关于印发《城乡义务教育补助经费管理办法》的通知",
+      "code": "财教〔2026〕195号",
+      "issuer": "财政部 教育部",
+      "published": "2026.10.17",
+      "sha256": "730a41b3c4beffaef56cac300fefbccbd2bde2f48774f3d5eb4c8ab542568c39",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202610/P020261017581787502199.pdf",
+          "file": "content_7083519-P020261017581787502199.pdf",
+          "sha256": "e6172f1ee4f326ecf3b84a4bf9686ba98e2c9d82c4d24fbe0c8effc3b9fbe177"
+        }
+      ]
+    },
+    {
+      "doc": "content_7083699",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083699.htm",
+      "title": "关于做好专业学位研究生以实践成果申请学位工作的意见",
+      "code": "学位办〔2026〕26号",
+      "issuer": "国务院学位委员会办公室",
+      "published": "2026.10.19",
+      "sha256": "93d058a93ff7fecf6b5250569e3d6e4fe3758a9c76c019a95c299699357caca1",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083721",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083721.htm",
+      "title": "商务部等9部门关于加快推进科技兴商的意见",
+      "code": "商建函〔2026〕551号",
+      "issuer": "商务部 中央网信办 国家发展改革委 教育部 科技部 工业和信息化部 文化和旅游部 中国人民银行 市场监管总局",
+      "published": "2026.10.19",
+      "sha256": "8a58558e1ad4cccafd9bde8334bebb2502b0a36c5d371491c1fe7d32a4c852a5",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083838",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083838.htm",
+      "title": "市场监管总局等七部门关于印发《广告产业发展“十五五”规划》的通知",
+      "code": "国市监广发〔2026〕120号",
+      "issuer": "市场监管总局 中央网信办 文化和旅游部 教育部 公安部 商务部 广电总局",
+      "published": "2026.10.20",
+      "sha256": "6f13e19fb4bc84a5558276b5c712c3e69c92e8307e524566968dec25a498bb70",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202610/P020261020719549784650.pdf",
+          "file": "content_7083838-P020261020719549784650.pdf",
+          "sha256": "0843a17c175706f48460281500865d8c9f7b1fb5d89b8998d2b831313f28acd7"
+        }
+      ]
+    },
+    {
+      "doc": "content_7083855",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083855.htm",
+      "title": "住房城乡建设部关于印发《历史文化名城（镇、村）与历史建筑保护传承“十五五”规划》的通知",
+      "code": "建科〔2026〕60号",
+      "issuer": "住房城乡建设部",
+      "published": "2026.10.20",
+      "sha256": "80a46cded01d4be0c9d64988226f9f1883c90e43dc934fb00d5f8f149c00c45e",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202610/P020261020791546390447.pdf",
+          "file": "content_7083855-P020261020791546390447.pdf",
+          "sha256": "304ceb45b1b19f6fd05f61cae729d81b2e40d00245948dddeef16b9d790f82f8"
+        }
+      ]
+    },
+    {
+      "doc": "content_7083901",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083901.htm",
+      "title": "国家知识产权局 海关总署关于强化知识产权协同保护的意见",
+      "code": "国知发保字〔2026〕30号",
+      "issuer": "国家知识产权局 海关总署",
+      "published": "2026.10.21",
+      "sha256": "bde9abe7da6c7bca3140763b5dd0823187ef20d7d34a8b7dba7a2297353decb3",
+      "attachments": []
+    },
+    {
+      "doc": "content_7083953",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7083953.htm",
+      "title": "工业和信息化部关于印发《加快构建工业和信息化领域碳排放双控工作体系实施方案（2026—2030年）》的通知",
+      "code": "工信部节函〔2026〕343号",
+      "issuer": "工业和信息化部",
+      "published": "2026.10.21",
+      "sha256": "be7de1287cd263f4d55e071b3292eef5b290b031bc5b29050a1cf6d7f4d59331",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202610/P020261021742407240853.pdf",
+          "file": "content_7083953-P020261021742407240853.pdf",
+          "sha256": "00d15e123274899ca2593a92fe515a24989f530ef411aafa4d741d955793bc8f"
+        }
+      ]
+    },
+    {
+      "doc": "content_7084022",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7084022.htm",
+      "title": "工业和信息化部等八部门关于印发《产业基础能力提升“十五五”规划》的通知",
+      "code": "工信部联规〔2026〕208号",
+      "issuer": "工业和信息化部 国家发展改革委 教育部 财政部 人力资源和社会保障部 国务院国资委 市场监管总局 国家国防科工局",
+      "published": "2026.10.22",
+      "sha256": "61d6add470c1b35b5b3fc8284ba5df20fbdfc7f6339af2b45c90e7e99e69a206",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202610/P020261022545646318917.pdf",
+          "file": "content_7084022-P020261022545646318917.pdf",
+          "sha256": "d097b7d682cb4eb937c140b0a2e5c78ef751c86efe34ea9788509639419ba7f5"
+        }
+      ]
+    },
+    {
+      "doc": "content_7084108",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7084108.htm",
+      "title": "国务院办公厅关于适应人工智能技术发展助力构建就业友好型发展方式的意见",
+      "code": "国办发〔2026〕29号",
+      "issuer": "国务院办公厅",
+      "published": "2026.10.23",
+      "sha256": "6e4d447f31bacfe1a2759c13c043293ecf55f67ccc55fc97545ed5923db66cd9",
+      "attachments": []
+    },
+    {
+      "doc": "content_7084174",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7084174.htm",
+      "title": "关于印发《综合交通枢纽发展“十五五”规划》的通知",
+      "code": "交规划发〔2026〕118号",
+      "issuer": "交通运输部 国家发展改革委 财政部 自然资源部 国家铁路局 中国民航局 国家邮政局 中国国家铁路集团有限公司",
+      "published": "2026.10.23",
+      "sha256": "f7e5a4ac432ef10da65006b2074ab2c914c976552fadf2438dadf80b1024689f",
+      "attachments": []
+    },
+    {
+      "doc": "content_7084280",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7084280.htm",
+      "title": "事业单位登记管理条例",
+      "code": "国令第849号",
+      "issuer": "国务院",
+      "published": "2026.10.26",
+      "sha256": "35c769505d786c706d058cd3388d1a7fd9fee014b83f3fb9193505f0d10c7892",
+      "attachments": []
+    },
+    {
+      "doc": "content_7084402",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7084402.htm",
+      "title": "农业农村部关于印发《全国农产品品质提升“十五五”规划》的通知",
+      "code": "农质发〔2026〕7号",
+      "issuer": "农业农村部",
+      "published": "2026.10.28",
+      "sha256": "27df4e537dbc089a9397e821f13c11a4cb2dd23458298cdfc2f63531727fff32",
+      "attachments": [
+        {
+          "url": "https://www.gov.cn/zhengce/zhengceku/202610/P020261028789757734982.pdf",
+          "file": "content_7084402-P020261028789757734982.pdf",
+          "sha256": "05802ab7ecb7ea9e04d11bb6bc595192b56c7b6c1c4100db470bdcf46f62251a"
+        }
+      ]
+    },
+    {
+      "doc": "content_7084476",
+      "url": "https://www.gov.cn/zhengce/zhengceku/202610/content_7084476.htm",
+      "title": "商务部 国家发展改革委 生态环境部 海关总署关于进一步提高海南自由贸易港贸易自由化便利化水平的通知",
+      "code": "商自贸发〔2026〕187号",
+      "issuer": "商务部 国家发展改革委 生态环境部 海关总署",
+      "published": "2026.10.29",
+      "sha256": "9244db12504ab45b9179360731815182d6ca22bd4d3d13906bdcd890c3863f4c",
+      "attachments": []
+    }
+  ],
+  "dialogues": {
+    "kdconv": {
+      "commit": "653db76432de09a004ba708a68f8bbd5500e6bec",
+      "license": "Apache-2.0",
+      "files": {
+        "film-test.json": {
+          "url": "https://raw.githubusercontent.com/thu-coai/KdConv/653db76432de09a004ba708a68f8bbd5500e6bec/data/film/test.json",
+          "sha256": "5ba2b79f9791bedbe5fe8a1bf5d7cbf277697743ee426ecd05459d9e28bcf21b"
+        },
+        "music-test.json": {
+          "url": "https://raw.githubusercontent.com/thu-coai/KdConv/653db76432de09a004ba708a68f8bbd5500e6bec/data/music/test.json",
+          "sha256": "46f048c5db9dde45127cf6630b2fa06b685be369b71c5bc2dc3022d3f4bbad65"
+        },
+        "travel-test.json": {
+          "url": "https://raw.githubusercontent.com/thu-coai/KdConv/653db76432de09a004ba708a68f8bbd5500e6bec/data/travel/test.json",
+          "sha256": "730426b0997b8375c8477c7e658c0ec645fced6ab8d546adda114b21cf30faac"
+        }
+      }
+    },
+    "crosswoz": {
+      "commit": "df82c9fdff91b9b130f2d6b89110d3870ba6260e",
+      "license": "Apache-2.0",
+      "files": {
+        "test.json.zip": {
+          "url": "https://raw.githubusercontent.com/thu-coai/CrossWOZ/df82c9fdff91b9b130f2d6b89110d3870ba6260e/data/crosswoz/test.json.zip",
+          "sha256": "e57703894995211bba8638f130dc7df81e8992b71f3c05c10022ad23d6ca5310"
+        }
+      }
+    },
+    "risawoz": {
+      "commit": "1e2d3be2b25a0540519db1664a172d85ddd62b29",
+      "license": "MIT",
+      "files": {
+        "source-data.zip": {
+          "url": "https://raw.githubusercontent.com/terryqj0107/RiSAWOZ/1e2d3be2b25a0540519db1664a172d85ddd62b29/RiSAWOZ-data/source-data.zip",
+          "sha256": "8f2396b96a5254df06ff7d856f78ff1f5438e1ce7d037e7a7f40152bb6e0c1cd"
+        }
+      }
+    }
+  }
+}

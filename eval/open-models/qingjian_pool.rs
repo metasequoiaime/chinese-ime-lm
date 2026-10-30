@@ -26,6 +26,20 @@
 //!   table as the case has, and when more than one split exists, the one whose syllables the
 //!   leader's characters can be read as (the model's own `readings` table) is taken.
 //!
+//! The context is what the Qingjian engine hands each model, at its default settings: the last
+//! `RESCORE_CONTEXT_CHARS` (64) characters for `zhiwei`, which is the rescoring context, and the last
+//! `ChoiceTier::default().context_chars(false)` (64, the default "balanced" tier) for `zhiyi`.
+//! `tongbian` reads none.
+//!
+//! A case typed as initials or mixed (`style` in the pool; full pinyin when absent) has no
+//! syllables of its own to split the letters into, so the leader's syllables are its characters'
+//! readings (the model's `readings` table) that `ChoiceModel::align` can match against the typed
+//! letters, the first such reading in the table's order where more than one gives different units.
+//! When no reading of the leader aligns (`align` is greedy: `shgg` spends `sh` on 社 of 社会公共),
+//! Qingjian does not rerank the page, and the case is reported as declined (the pool's first).
+//! `tongbian` is `log P(candidate | complete pinyin)` and is not given abbreviated cases (the
+//! adapter refuses them), since Qingjian never calls it with anything but full pinyin.
+//!
 //! In every case the pick is the model alone. The Qingjian engine adds its own terms (the lattice
 //! score, an n-gram, a rank prior); those belong to its candidate generation and are left out, as
 //! they are for every other scorer in the comparison.
@@ -41,7 +55,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::Instant;
 
-use qingjian_core::ChoiceModel;
+use qingjian_core::{ChoiceModel, ChoiceTier, RESCORE_CONTEXT_CHARS};
 use qingjian_core::sentence::SentenceScorer;
 use qingjian_neural::zhiyi::ChoiceScorer;
 use qingjian_neural::{CharScorer, P2cScorer};
@@ -55,7 +69,19 @@ struct Case {
     syllables: usize,
     #[serde(default)]
     context: String,
+    #[serde(default = "full_style")]
+    style: String,
     candidates: Vec<String>,
+}
+
+fn full_style() -> String {
+    "full".to_owned()
+}
+
+/// The last `count` characters of `text`, as the Qingjian engine's `take_last_chars` cuts them.
+fn take_last_chars(text: &str, count: usize) -> String {
+    let total = text.chars().count();
+    text.chars().skip(total.saturating_sub(count)).collect()
 }
 
 #[derive(Deserialize)]
@@ -95,12 +121,62 @@ fn splits(keys: &str, count: usize, table: &[String]) -> Vec<Vec<String>> {
     out
 }
 
+/// Readings of `characters` that consume `keys` the way `ChoiceModel::align` does (a syllable typed
+/// in full, else the longest common prefix), every solution in the readings table's order.
+fn abbreviated_readings(
+    keys: &str,
+    characters: &[String],
+    readings: &HashMap<String, Vec<String>>,
+    chosen: &mut Vec<String>,
+    out: &mut Vec<Vec<String>>,
+) {
+    if out.len() >= 64 {
+        return;
+    }
+    let Some(character) = characters.first() else {
+        if keys.is_empty() {
+            out.push(chosen.clone());
+        }
+        return;
+    };
+    if keys.is_empty() {
+        return;
+    }
+    for reading in readings.get(character).map(Vec::as_slice).unwrap_or_default() {
+        let consumed = if keys.starts_with(reading.as_str()) {
+            reading.len()
+        } else {
+            keys.bytes()
+                .zip(reading.bytes())
+                .take_while(|(a, b)| a == b)
+                .count()
+        };
+        if consumed == 0 {
+            continue;
+        }
+        chosen.push(reading.clone());
+        abbreviated_readings(&keys[consumed..], &characters[1..], readings, chosen, out);
+        chosen.pop();
+    }
+}
+
 /// The leading candidate's syllables, as described in the module comment.
 fn lead_syllables(
     case: &Case,
     table: &[String],
     readings: &HashMap<String, Vec<String>>,
 ) -> Result<Vec<String>, String> {
+    if case.style != "full" {
+        let lead: Vec<String> = case.candidates[0].chars().map(String::from).collect();
+        let mut found = Vec::new();
+        abbreviated_readings(&case.input, &lead, readings, &mut Vec::new(), &mut found);
+        return found.into_iter().next().ok_or_else(|| {
+            format!(
+                "{}: no reading of {} fits {}",
+                case.id, case.candidates[0], case.input
+            )
+        });
+    }
     let mut found = splits(&case.input, case.syllables, table);
     if found.len() > 1 {
         let lead: Vec<String> = case.candidates[0].chars().map(String::from).collect();
@@ -126,10 +202,19 @@ impl Scorer {
     fn score(&self, case: &Case, prepared: Option<&[u32]>) -> Vec<f64> {
         let texts: Vec<&str> = case.candidates.iter().map(String::as_str).collect();
         match self {
-            Scorer::Sentence(scorer) => scorer.score(&case.context, &case.input, &texts),
+            Scorer::Sentence(scorer) => {
+                let context = take_last_chars(&case.context, RESCORE_CONTEXT_CHARS);
+                scorer.score(&context, &case.input, &texts)
+            }
             Scorer::Choice { model, .. } => {
-                let typed = prepared.expect("units are prepared for the choice model");
-                ChoiceModel::score(model, &case.context, typed, &texts)
+                // No units: the leader's reading does not align with the letters, and the engine
+                // leaves the page in its own order.
+                let Some(typed) = prepared else {
+                    return Vec::new();
+                };
+                let context =
+                    take_last_chars(&case.context, ChoiceTier::default().context_chars(false));
+                ChoiceModel::score(model, &context, typed, &texts)
                     .into_iter()
                     .map(f64::from)
                     .collect()
@@ -148,6 +233,14 @@ impl Scorer {
         else {
             return Ok(None);
         };
+        if case.style != "full" {
+            // `align` takes the longest common prefix of each syllable, so `shgg` against 社会公共
+            // spends `sh` on 社 and has nothing left to match 会: no reading of the leader aligns,
+            // and Qingjian's `rerank_choices` leaves such a page alone. Reported as declined.
+            return Ok(lead_syllables(case, syllables, readings)
+                .ok()
+                .and_then(|lead| ChoiceModel::align(model, &case.input, &lead)));
+        }
         let lead = lead_syllables(case, syllables, readings)?;
         ChoiceModel::align(model, &case.input, &lead)
             .map(Some)
@@ -216,6 +309,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter(|line| !line.trim().is_empty())
         .map(serde_json::from_str)
         .collect::<Result<_, _>>()?;
+    if kind == "tongbian" {
+        if let Some(case) = cases.iter().find(|case| case.style != "full") {
+            return Err(format!(
+                "{}: tongbian scores complete pinyin only, and this case is typed {}",
+                case.id, case.style
+            )
+            .into());
+        }
+    }
     let prepared: Vec<Option<Vec<u32>>> = cases
         .iter()
         .map(|case| scorer.prepare(case))
