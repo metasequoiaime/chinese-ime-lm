@@ -20,7 +20,7 @@ from collections import Counter
 import numpy as np
 import torch
 
-from model import BOS, RESERVED, CharLM, Config
+from model import BOS, PAD, RESERVED, CharLM, Config
 
 
 def pick_device():
@@ -83,6 +83,24 @@ def batches(tokens, batch, context, device, generator):
         yield x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
 
+def context_batches(tokens, batch, context, device, generator):
+    """Windows shaped like what the model reads at inference: BOS, then text that starts anywhere in a document.
+
+    `reference/src/lib.rs` (`prefix_tokens`) always opens with BOS and follows it with the tail of the committed text, which usually starts in the middle of a document. `batches` gives BOS only where a line starts, so with one document per line (`teacher/build_corpus.py`) the model would almost never see BOS followed by mid-document text. Here every window gets a BOS in front of a random start. A BOS inside the window (the next document) stays as input, so the model still learns to restart there, but is never a target: nothing at inference scores it."""
+    while True:
+        starts = torch.randint(0, len(tokens) - context - 1, (batch,), generator=generator)
+        rows_x, rows_y = [], []
+        for s in starts.tolist():
+            if tokens[s] == BOS:
+                s += 1
+            body = torch.from_numpy(tokens[s : s + context].astype(np.int64))
+            rows_x.append(torch.cat([torch.tensor([BOS]), body[:-1]]))
+            target = body.clone()
+            target[target == BOS] = PAD
+            rows_y.append(target)
+        yield torch.stack(rows_x).to(device, non_blocking=True), torch.stack(rows_y).to(device, non_blocking=True)
+
+
 def learning_rate(step, total, peak, warmup):
     if step < warmup:
         return peak * (step + 1) / warmup
@@ -113,6 +131,12 @@ def main():
         help="save an exact-step checkpoint at this interval; 0 disables snapshots",
     )
     parser.add_argument("--seed", type=int, default=1234)
+    parser.add_argument(
+        "--windows",
+        choices=["line", "document"],
+        default="line",
+        help="line: windows start anywhere and BOS appears where a line starts (1.0); document: every window opens with BOS followed by text from anywhere in a document, as at inference (2.0, one document per line)",
+    )
     args = parser.parse_args()
     if args.snapshot_every < 0:
         parser.error("--snapshot-every must be non-negative")
@@ -161,6 +185,7 @@ def main():
                 "lr": args.lr,
                 "warmup": args.warmup,
                 "seed": args.seed,
+                "windows": args.windows,
             },
             handle,
         )
@@ -175,8 +200,9 @@ def main():
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(0.9, 0.95), weight_decay=0.1)
     generator = torch.Generator().manual_seed(args.seed)
-    train_stream = batches(train_tokens, args.batch, cfg.context, device, generator)
-    val_stream = batches(val_tokens, args.batch, cfg.context, device, torch.Generator().manual_seed(7))
+    sampler = context_batches if args.windows == "document" else batches
+    train_stream = sampler(train_tokens, args.batch, cfg.context, device, generator)
+    val_stream = sampler(val_tokens, args.batch, cfg.context, device, torch.Generator().manual_seed(7))
 
     best = float("inf")
     started = time.monotonic()
