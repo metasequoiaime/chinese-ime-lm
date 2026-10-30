@@ -1,0 +1,451 @@
+{
+  "pool": "~/worktrees/_lm-teacher-data/pools/dev.jsonl",
+  "pool_sha256": "8c5722b693efc183d88994eb87ec59662a3f3c9f36796e71a5570b7e47e591d4",
+  "cases": 7421,
+  "models": {
+    "ours-4m": {
+      "path": "~/Workspace/oss/ime/chinese-ime-lm/dist/sentence-model.safetensors",
+      "sha256": "86ac529510cb3b4968a5e6ade83ec8080f5b34a0a681e75c362accbbd387d1c1",
+      "picks": "~/worktrees/_lm-teacher-data/baselines/ours-4m.jsonl"
+    },
+    "ours-25m": {
+      "path": "~/Workspace/oss/ime/chinese-ime-lm/dist/sentence-model-desktop.safetensors",
+      "sha256": "0a6ecba69bf1d39c7eb49549c716477dd6c03fdf05757773e1f50435262fb469",
+      "picks": "~/worktrees/_lm-teacher-data/baselines/ours-25m.jsonl"
+    }
+  },
+  "subsets": {
+    "clause/full": {
+      "cases": 1842,
+      "engine": {
+        "hits": 1298,
+        "rate": 0.7047,
+        "wilson95": [
+          0.6834,
+          0.7251
+        ]
+      },
+      "ours-4m": {
+        "hits": 1475,
+        "rate": 0.8008,
+        "wilson95": [
+          0.7819,
+          0.8184
+        ]
+      },
+      "ours-25m": {
+        "hits": 1603,
+        "rate": 0.8702,
+        "wilson95": [
+          0.8541,
+          0.8848
+        ]
+      }
+    },
+    "clause/full/context": {
+      "cases": 940,
+      "engine": {
+        "hits": 639,
+        "rate": 0.6798,
+        "wilson95": [
+          0.6493,
+          0.7088
+        ]
+      },
+      "ours-4m": {
+        "hits": 724,
+        "rate": 0.7702,
+        "wilson95": [
+          0.7423,
+          0.796
+        ]
+      },
+      "ours-25m": {
+        "hits": 800,
+        "rate": 0.8511,
+        "wilson95": [
+          0.8269,
+          0.8724
+        ]
+      }
+    },
+    "clause/full/none": {
+      "cases": 902,
+      "engine": {
+        "hits": 659,
+        "rate": 0.7306,
+        "wilson95": [
+          0.7007,
+          0.7585
+        ]
+      },
+      "ours-4m": {
+        "hits": 751,
+        "rate": 0.8326,
+        "wilson95": [
+          0.8068,
+          0.8555
+        ]
+      },
+      "ours-25m": {
+        "hits": 803,
+        "rate": 0.8902,
+        "wilson95": [
+          0.8682,
+          0.909
+        ]
+      }
+    },
+    "word/full": {
+      "cases": 2783,
+      "engine": {
+        "hits": 2336,
+        "rate": 0.8394,
+        "wilson95": [
+          0.8253,
+          0.8526
+        ]
+      },
+      "ours-4m": {
+        "hits": 2352,
+        "rate": 0.8451,
+        "wilson95": [
+          0.8312,
+          0.8581
+        ]
+      },
+      "ours-25m": {
+        "hits": 2448,
+        "rate": 0.8796,
+        "wilson95": [
+          0.867,
+          0.8912
+        ]
+      }
+    },
+    "word/full/context": {
+      "cases": 2327,
+      "engine": {
+        "hits": 1953,
+        "rate": 0.8393,
+        "wilson95": [
+          0.8238,
+          0.8536
+        ]
+      },
+      "ours-4m": {
+        "hits": 1967,
+        "rate": 0.8453,
+        "wilson95": [
+          0.83,
+          0.8594
+        ]
+      },
+      "ours-25m": {
+        "hits": 2058,
+        "rate": 0.8844,
+        "wilson95": [
+          0.8708,
+          0.8968
+        ]
+      }
+    },
+    "word/full/none": {
+      "cases": 456,
+      "engine": {
+        "hits": 383,
+        "rate": 0.8399,
+        "wilson95": [
+          0.8034,
+          0.8707
+        ]
+      },
+      "ours-4m": {
+        "hits": 385,
+        "rate": 0.8443,
+        "wilson95": [
+          0.8082,
+          0.8747
+        ]
+      },
+      "ours-25m": {
+        "hits": 390,
+        "rate": 0.8553,
+        "wilson95": [
+          0.82,
+          0.8846
+        ]
+      }
+    },
+    "word/initials": {
+      "cases": 1208,
+      "engine": {
+        "hits": 531,
+        "rate": 0.4396,
+        "wilson95": [
+          0.4118,
+          0.4677
+        ]
+      },
+      "ours-4m": {
+        "hits": 777,
+        "rate": 0.6432,
+        "wilson95": [
+          0.6158,
+          0.6697
+        ]
+      },
+      "ours-25m": {
+        "hits": 857,
+        "rate": 0.7094,
+        "wilson95": [
+          0.6832,
+          0.7343
+        ]
+      }
+    },
+    "word/initials/context": {
+      "cases": 971,
+      "engine": {
+        "hits": 413,
+        "rate": 0.4253,
+        "wilson95": [
+          0.3946,
+          0.4567
+        ]
+      },
+      "ours-4m": {
+        "hits": 628,
+        "rate": 0.6468,
+        "wilson95": [
+          0.6162,
+          0.6762
+        ]
+      },
+      "ours-25m": {
+        "hits": 703,
+        "rate": 0.724,
+        "wilson95": [
+          0.695,
+          0.7512
+        ]
+      }
+    },
+    "word/initials/none": {
+      "cases": 237,
+      "engine": {
+        "hits": 118,
+        "rate": 0.4979,
+        "wilson95": [
+          0.4348,
+          0.5611
+        ]
+      },
+      "ours-4m": {
+        "hits": 149,
+        "rate": 0.6287,
+        "wilson95": [
+          0.5656,
+          0.6877
+        ]
+      },
+      "ours-25m": {
+        "hits": 154,
+        "rate": 0.6498,
+        "wilson95": [
+          0.5871,
+          0.7077
+        ]
+      }
+    },
+    "word/mixed": {
+      "cases": 1588,
+      "engine": {
+        "hits": 981,
+        "rate": 0.6178,
+        "wilson95": [
+          0.5936,
+          0.6413
+        ]
+      },
+      "ours-4m": {
+        "hits": 1178,
+        "rate": 0.7418,
+        "wilson95": [
+          0.7197,
+          0.7627
+        ]
+      },
+      "ours-25m": {
+        "hits": 1251,
+        "rate": 0.7878,
+        "wilson95": [
+          0.767,
+          0.8072
+        ]
+      }
+    },
+    "word/mixed/context": {
+      "cases": 1320,
+      "engine": {
+        "hits": 804,
+        "rate": 0.6091,
+        "wilson95": [
+          0.5825,
+          0.6351
+        ]
+      },
+      "ours-4m": {
+        "hits": 972,
+        "rate": 0.7364,
+        "wilson95": [
+          0.7119,
+          0.7594
+        ]
+      },
+      "ours-25m": {
+        "hits": 1047,
+        "rate": 0.7932,
+        "wilson95": [
+          0.7705,
+          0.8142
+        ]
+      }
+    },
+    "word/mixed/none": {
+      "cases": 268,
+      "engine": {
+        "hits": 177,
+        "rate": 0.6604,
+        "wilson95": [
+          0.6018,
+          0.7145
+        ]
+      },
+      "ours-4m": {
+        "hits": 206,
+        "rate": 0.7687,
+        "wilson95": [
+          0.7146,
+          0.8151
+        ]
+      },
+      "ours-25m": {
+        "hits": 204,
+        "rate": 0.7612,
+        "wilson95": [
+          0.7067,
+          0.8083
+        ]
+      }
+    },
+    "clause/full/c4/context": {
+      "cases": 629,
+      "engine": {
+        "hits": 417,
+        "rate": 0.663,
+        "wilson95": [
+          0.6251,
+          0.6988
+        ]
+      },
+      "ours-4m": {
+        "hits": 468,
+        "rate": 0.744,
+        "wilson95": [
+          0.7085,
+          0.7766
+        ]
+      },
+      "ours-25m": {
+        "hits": 531,
+        "rate": 0.8442,
+        "wilson95": [
+          0.8138,
+          0.8704
+        ]
+      }
+    },
+    "clause/full/c4/none": {
+      "cases": 55,
+      "engine": {
+        "hits": 33,
+        "rate": 0.6,
+        "wilson95": [
+          0.4681,
+          0.7188
+        ]
+      },
+      "ours-4m": {
+        "hits": 42,
+        "rate": 0.7636,
+        "wilson95": [
+          0.6365,
+          0.8563
+        ]
+      },
+      "ours-25m": {
+        "hits": 46,
+        "rate": 0.8364,
+        "wilson95": [
+          0.7174,
+          0.9114
+        ]
+      }
+    },
+    "clause/full/lccc/context": {
+      "cases": 311,
+      "engine": {
+        "hits": 222,
+        "rate": 0.7138,
+        "wilson95": [
+          0.6612,
+          0.7612
+        ]
+      },
+      "ours-4m": {
+        "hits": 256,
+        "rate": 0.8232,
+        "wilson95": [
+          0.7769,
+          0.8615
+        ]
+      },
+      "ours-25m": {
+        "hits": 269,
+        "rate": 0.865,
+        "wilson95": [
+          0.8225,
+          0.8985
+        ]
+      }
+    },
+    "clause/full/lccc/none": {
+      "cases": 847,
+      "engine": {
+        "hits": 626,
+        "rate": 0.7391,
+        "wilson95": [
+          0.7085,
+          0.7675
+        ]
+      },
+      "ours-4m": {
+        "hits": 709,
+        "rate": 0.8371,
+        "wilson95": [
+          0.8107,
+          0.8604
+        ]
+      },
+      "ours-25m": {
+        "hits": 757,
+        "rate": 0.8937,
+        "wilson95": [
+          0.8712,
+          0.9127
+        ]
+      }
+    }
+  }
+}
