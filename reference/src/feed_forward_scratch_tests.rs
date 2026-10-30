@@ -505,6 +505,7 @@ fn new_qkv_chain(model: &SentenceModel, x: &[f32]) -> Vec<f32> {
     let mut scratch = FeedForwardScratch {
         normalized: x.to_vec(),
         hidden: Vec::new(),
+        kernel: LinearScratch::default(),
     };
     for block in &model.blocks {
         model.qkv_into(block, &mut scratch);

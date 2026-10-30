@@ -195,6 +195,7 @@ struct Block {
 struct FeedForwardScratch {
     normalized: Vec<f32>,
     hidden: Vec<f32>,
+    kernel: LinearScratch,
 }
 
 pub struct SentenceModel {
@@ -262,6 +263,7 @@ struct Prefix<'a> {
 }
 
 // 一段已完成前向的位置；累计分仍由调用者按原顺序计算。
+#[cfg(test)]
 struct TailStates {
     keys: Vec<Vec<f32>>,
     values: Vec<Vec<f32>>,
@@ -290,6 +292,9 @@ struct TailRun {
     terminal: OnceLock<TerminalState>,
 }
 
+/// One candidate at a time: how runs were continued before a decision was planned and run as one
+/// batch. Kept as the reference the batched path is tested against bit for bit.
+#[cfg(test)]
 impl TailRun {
     /// 恢复前 taken 个 token 后的前缀；已有 KV 和按需补算的末行都只借用。
     fn resume(&self, taken: usize, model: &SentenceModel) -> (Prefix<'_>, f32) {
@@ -579,7 +584,64 @@ impl SentenceModel {
             .max()
             .unwrap_or(0);
         let prefix = self.run_prefix(&self.prefix_tokens(context, longest));
-        self.score_against(&prefix, candidates)
+        let limit = self.config.context.saturating_sub(prefix.length).max(1);
+        let tails: Vec<Vec<u32>> = candidates
+            .iter()
+            .map(|text| self.encode_limited(text, limit))
+            .collect();
+
+        // Candidates of one decision usually share their first characters, and a position's state
+        // depends only on the tokens up to it, so each distinct prefix of a candidate is run once.
+        // `steps[c][i]` is the batch row whose state predicts token `i + 1` of candidate `c`. The
+        // last token of a candidate predicts nothing and is never run.
+        let mut rows: Vec<BatchRow> = Vec::new();
+        let mut known: HashMap<(usize, u32), usize> = HashMap::new();
+        let steps: Vec<Vec<usize>> = tails
+            .iter()
+            .map(|tail| {
+                let mut parent = None;
+                let mut path = Vec::with_capacity(tail.len().saturating_sub(1));
+                for (depth, &token) in tail.iter().enumerate().take(tail.len().saturating_sub(1)) {
+                    let key = (parent.map_or(0, |row| row + 1), token);
+                    let row = *known.entry(key).or_insert_with(|| {
+                        rows.push(BatchRow {
+                            token,
+                            parent,
+                            depth,
+                            context: 0,
+                        });
+                        rows.len() - 1
+                    });
+                    path.push(row);
+                    parent = Some(row);
+                }
+                path
+            })
+            .collect();
+        let hidden = self.run_batch(&[BatchContext::of(&prefix)], &rows).hidden;
+        let mut normalizers = Vec::with_capacity(rows.len());
+        self.log_normalizers_into(&hidden, &mut normalizers);
+
+        let n_embd = self.config.n_embd;
+        tails
+            .iter()
+            .zip(&steps)
+            .map(|(tail, path)| {
+                let Some(&first) = tail.first() else {
+                    return f32::NEG_INFINITY;
+                };
+                // The same additions in the same order as `run_tail`, so the sum is the same f32.
+                let mut running = self.log_probability(&prefix.last_hidden, first);
+                for (&row, &next) in path.iter().zip(&tail[1..]) {
+                    let next = (next as usize).min(self.config.vocab - 1);
+                    running +=
+                        self.token
+                            .dot_row(&hidden[row * n_embd..(row + 1) * n_embd], next, n_embd)
+                            - normalizers[row];
+                }
+                running / tail.len() as f32
+            })
+            .collect()
     }
 
     /// The committed text as tokens, opened with `BOS` and trimmed to leave room for the longest
@@ -598,6 +660,9 @@ impl SentenceModel {
         tokens
     }
 
+    /// Scores each candidate on its own against the prefix: what `score` did before it ran shared
+    /// prefixes once, kept so the tests can hold the batched path to the same bits.
+    #[cfg(test)]
     fn score_against(&self, prefix: &Prefix<'_>, candidates: &[&str]) -> Vec<f32> {
         candidates
             .iter()
@@ -689,6 +754,7 @@ impl SentenceModel {
     }
 
     /// Runs a candidate against a cached prefix and returns its total log-probability.
+    #[cfg(test)]
     fn score_tail(&self, prefix: &Prefix<'_>, tail: &[u32]) -> f32 {
         let run = self.run_tail(prefix, tail);
         run.cumulative[run.cumulative.len() - 1]
@@ -697,6 +763,7 @@ impl SentenceModel {
     /// 完整累计分只需要前 length-1 个隐藏状态；末位置留给真正经过它的续跑。
     ///
     /// 分段累计仍沿用既有分组：carried + rest，不改变 token 的先后顺序。
+    #[cfg(test)]
     fn run_tail(&self, prefix: &Prefix<'_>, tail: &[u32]) -> TailRun {
         let states = self.run_tail_states(
             prefix.length,
@@ -724,6 +791,7 @@ impl SentenceModel {
     }
 
     /// 仅计算需要的因果位置；空段只保留上文 KV，单字评分无需前向。
+    #[cfg(test)]
     fn run_tail_states(
         &self,
         length: usize,
@@ -806,6 +874,199 @@ impl SentenceModel {
         }
     }
 
+    /// Runs a batch of positions that each continue `prefix` or an earlier row of the batch, and
+    /// returns every row's final normalized hidden state, `rows × n_embd`.
+    ///
+    /// This is `run_tail_states` for many candidates at once. A row attends to the prefix and then
+    /// to its own chain of parents, exactly the positions a single candidate's run would have
+    /// before it, so each row's state is bit-for-bit what that run computes; what changes is that
+    /// the matrix products see every row of the decision together and can use the blocked kernel.
+    fn run_batch(&self, contexts: &[BatchContext<'_>], rows: &[BatchRow]) -> BatchStates {
+        let n_embd = self.config.n_embd;
+        if rows.is_empty() {
+            return BatchStates {
+                keys: vec![Vec::new(); self.blocks.len()],
+                values: vec![Vec::new(); self.blocks.len()],
+                hidden: Vec::new(),
+                chains: Vec::new(),
+            };
+        }
+        #[cfg(test)]
+        FORWARD_POSITIONS.with(|count| count.set(count.get() + rows.len()));
+        // Every row's chain of batch rows, root first. Parents always come earlier in the batch.
+        let mut chains: Vec<Vec<usize>> = Vec::with_capacity(rows.len());
+        for (index, row) in rows.iter().enumerate() {
+            let mut chain = match row.parent {
+                Some(parent) => {
+                    debug_assert!(parent < index && rows[parent].depth + 1 == row.depth);
+                    debug_assert_eq!(rows[parent].context, row.context);
+                    chains[parent].clone()
+                }
+                None => {
+                    debug_assert_eq!(row.depth, 0);
+                    Vec::new()
+                }
+            };
+            chain.push(index);
+            chains.push(chain);
+        }
+
+        let mut x = vec![0.0; rows.len() * n_embd];
+        for (row, slot) in rows.iter().zip(x.chunks_exact_mut(n_embd)) {
+            let token = (row.token as usize).min(self.config.vocab - 1);
+            let position =
+                (contexts[row.context].length() + row.depth).min(self.config.context - 1);
+            let position_row = &self.position[position * n_embd..(position + 1) * n_embd];
+            self.token.embed_row(token, position_row, slot);
+        }
+
+        let mut feed_forward = FeedForwardScratch::default();
+        let mut keys = Vec::with_capacity(self.blocks.len());
+        let mut values = Vec::with_capacity(self.blocks.len());
+        let mut attended = vec![0.0; rows.len() * n_embd];
+        let longest = rows
+            .iter()
+            .map(|row| contexts[row.context].length() + row.depth + 1)
+            .max()
+            .unwrap_or(0);
+        let mut scores = vec![0.0; longest];
+        for (layer, block) in self.blocks.iter().enumerate() {
+            self.normalize_attention_into(&x, block, &mut feed_forward);
+            self.qkv_into(block, &mut feed_forward);
+            let mut layer_keys = Vec::with_capacity(rows.len() * n_embd);
+            let mut layer_values = Vec::with_capacity(rows.len() * n_embd);
+            for qkv in feed_forward.hidden.chunks_exact(3 * n_embd) {
+                layer_keys.extend_from_slice(&qkv[n_embd..2 * n_embd]);
+                layer_values.extend_from_slice(&qkv[2 * n_embd..]);
+            }
+            #[cfg(test)]
+            ATTENTION_POSITIONS.with(|count| count.set(count.get() + rows.len()));
+            attended.iter_mut().for_each(|slot| *slot = 0.0);
+            for (((index, row), chain), target) in rows
+                .iter()
+                .enumerate()
+                .zip(&chains)
+                .zip(attended.chunks_exact_mut(n_embd))
+            {
+                let context = contexts[row.context];
+                let length = context.length();
+                let terminal = context
+                    .terminal
+                    .map(|last| (last.keys[layer].as_slice(), last.values[layer].as_slice()));
+                let query = &feed_forward.hidden[index * 3 * n_embd..index * 3 * n_embd + n_embd];
+                let sequence = Sequence {
+                    stored: context.stored,
+                    length,
+                    chain,
+                    width: n_embd,
+                };
+                self.attend(
+                    query,
+                    length + row.depth + 1,
+                    |step| {
+                        sequence.row(
+                            step,
+                            &layer_keys,
+                            &context.keys[layer],
+                            terminal.map(|(key, _)| key),
+                        )
+                    },
+                    |step| {
+                        sequence.row(
+                            step,
+                            &layer_values,
+                            &context.values[layer],
+                            terminal.map(|(_, value)| value),
+                        )
+                    },
+                    &mut scores,
+                    target,
+                );
+            }
+            keys.push(layer_keys);
+            values.push(layer_values);
+            self.project_attention_into(&attended, block, &mut feed_forward);
+            for (slot, &value) in x.iter_mut().zip(&feed_forward.normalized) {
+                *slot += value;
+            }
+            self.feed_forward(&mut x, block, &mut feed_forward);
+        }
+        let mut hidden = vec![0.0; x.len()];
+        layer_norm_into(
+            &x,
+            &self.final_weight,
+            &self.final_bias,
+            n_embd,
+            &mut hidden,
+        );
+        BatchStates {
+            keys,
+            values,
+            hidden,
+            chains,
+        }
+    }
+
+    /// The log normalizer `project` computes, for every row of `hidden` (`rows × n_embd`).
+    ///
+    /// Rows are taken in the same blocks as `linear_into`, so each vocabulary row is widened once
+    /// per block instead of once per state, and the logits of a block are kept only until its
+    /// normalizers are summed. Each normalizer is computed from bit-identical logits, in the same
+    /// order, as `project` would.
+    fn log_normalizers_into(&self, hidden: &[f32], out: &mut Vec<f32>) {
+        let n_embd = self.config.n_embd;
+        let vocab = self.config.vocab;
+        let rows = hidden.len() / n_embd;
+        out.clear();
+        let mut transposed = Vec::new();
+        let mut widened = Vec::new();
+        let mut logits = Vec::new();
+        for (start, size) in row_blocks(rows) {
+            #[cfg(test)]
+            VOCABULARY_PROJECTIONS.with(|count| count.set(count.get() + size));
+            transposed.clear();
+            transposed.resize(size * n_embd, 0.0);
+            for row in 0..size {
+                let source = &hidden[(start + row) * n_embd..(start + row + 1) * n_embd];
+                for (input, &value) in source.iter().enumerate() {
+                    transposed[input * size + row] = value;
+                }
+            }
+            logits.clear();
+            logits.resize(size * vocab, 0.0);
+            for index in 0..vocab {
+                let span = index * n_embd..(index + 1) * n_embd;
+                let (weights, scale): (&[f32], Option<f32>) = match &self.token.inner {
+                    Tensor::Float(values) => (&values[span], None),
+                    Tensor::Quantized { values, scales } => {
+                        widened.clear();
+                        widened.extend(values[span].iter().map(|&value| f32::from(value)));
+                        (&widened, Some(scales[index]))
+                    }
+                };
+                let mut dots = [0.0f32; ROW_BLOCK];
+                match size {
+                    ROW_BLOCK => dots = dot_block::<ROW_BLOCK>(&transposed, weights),
+                    _ => dots[..HALF_BLOCK]
+                        .copy_from_slice(&dot_block::<HALF_BLOCK>(&transposed, weights)),
+                }
+                for (row, dot) in dots[..size].iter().enumerate() {
+                    logits[row * vocab + index] = match scale {
+                        Some(scale) => dot * scale,
+                        None => *dot,
+                    };
+                }
+            }
+            for row in logits.chunks_exact(vocab) {
+                out.push(log_normalizer(row));
+            }
+        }
+        let blocked = out.len();
+        for row in hidden.chunks_exact(n_embd).skip(blocked) {
+            out.push(self.project(row).1);
+        }
+    }
+
     fn project_attention_into(
         &self,
         attended: &[f32],
@@ -820,6 +1081,7 @@ impl SentenceModel {
             self.config.n_embd,
             self.config.n_embd,
             &mut scratch.normalized,
+            &mut scratch.kernel,
         );
     }
 
@@ -844,6 +1106,7 @@ impl SentenceModel {
             self.config.n_embd,
             3 * self.config.n_embd,
             &mut scratch.hidden,
+            &mut scratch.kernel,
         );
     }
 
@@ -865,6 +1128,7 @@ impl SentenceModel {
             n_embd,
             4 * n_embd,
             &mut scratch.hidden,
+            &mut scratch.kernel,
         );
         for value in &mut scratch.hidden {
             *value = gelu(*value);
@@ -877,6 +1141,7 @@ impl SentenceModel {
             4 * n_embd,
             n_embd,
             &mut scratch.normalized,
+            &mut scratch.kernel,
         );
         for (slot, &value) in x.iter_mut().zip(&scratch.normalized) {
             *slot += value;
@@ -958,40 +1223,61 @@ impl SentenceModel {
         #[cfg(test)]
         ATTENTION_POSITIONS.with(|count| count.set(count.get() + rows));
         let n_embd = self.config.n_embd;
-        let heads = self.config.n_head;
-        let width = n_embd / heads;
-        let scale = 1.0 / (width as f32).sqrt();
         let total = k.len() / n_embd;
         let mut out = vec![0.0; rows * n_embd];
         let mut scores = vec![0.0; total];
         for row in 0..rows {
             // Causal: a query at absolute position `offset + row` may attend to itself and earlier.
-            let visible = offset + row + 1;
-            for head in 0..heads {
-                let base = head * width;
-                let query = &q[row * n_embd + base..row * n_embd + base + width];
-                let mut highest = f32::NEG_INFINITY;
-                for (step, score) in scores[..visible].iter_mut().enumerate() {
-                    let key = &k[step * n_embd + base..step * n_embd + base + width];
-                    *score = dot(query, key) * scale;
-                    highest = highest.max(*score);
-                }
-                let mut sum = 0.0;
-                for score in &mut scores[..visible] {
-                    *score = (*score - highest).exp();
-                    sum += *score;
-                }
-                let target = &mut out[row * n_embd + base..row * n_embd + base + width];
-                for (step, &score) in scores[..visible].iter().enumerate() {
-                    let weight = score / sum;
-                    let value = &v[step * n_embd + base..step * n_embd + base + width];
-                    for (slot, &item) in target.iter_mut().zip(value) {
-                        *slot += weight * item;
-                    }
+            self.attend(
+                &q[row * n_embd..(row + 1) * n_embd],
+                offset + row + 1,
+                |step| &k[step * n_embd..(step + 1) * n_embd],
+                |step| &v[step * n_embd..(step + 1) * n_embd],
+                &mut scores,
+                &mut out[row * n_embd..(row + 1) * n_embd],
+            );
+        }
+        out
+    }
+
+    /// One query row against the first `visible` positions, every head, added into `target`.
+    ///
+    /// The positions are reached through `key` and `value` rather than as one contiguous buffer, so
+    /// that a batch of candidates can attend to the shared prefix and to its own earlier rows
+    /// without first copying them together. The arithmetic and its order are the same either way.
+    fn attend<'k>(
+        &self,
+        query: &[f32],
+        visible: usize,
+        key: impl Fn(usize) -> &'k [f32],
+        value: impl Fn(usize) -> &'k [f32],
+        scores: &mut [f32],
+        target: &mut [f32],
+    ) {
+        let heads = self.config.n_head;
+        let width = self.config.n_embd / heads;
+        let scale = 1.0 / (width as f32).sqrt();
+        for head in 0..heads {
+            let span = head * width..(head + 1) * width;
+            let query = &query[span.clone()];
+            let mut highest = f32::NEG_INFINITY;
+            for (step, score) in scores[..visible].iter_mut().enumerate() {
+                *score = dot(query, &key(step)[span.clone()]) * scale;
+                highest = highest.max(*score);
+            }
+            let mut sum = 0.0;
+            for score in &mut scores[..visible] {
+                *score = (*score - highest).exp();
+                sum += *score;
+            }
+            let target = &mut target[span.clone()];
+            for (step, &score) in scores[..visible].iter().enumerate() {
+                let weight = score / sum;
+                for (slot, &item) in target.iter_mut().zip(&value(step)[span.clone()]) {
+                    *slot += weight * item;
                 }
             }
         }
-        out
     }
 }
 
@@ -1158,50 +1444,269 @@ impl Reranker {
             .context
             .saturating_sub(prefix.length)
             .max(1);
+        // Plan first, with tokens alone: which earlier run each candidate borrows from and how far,
+        // by the same rules and the same tie-breaking as when every candidate was run on its own
+        // in turn. Then run every new position of the decision in one batch, and only then put the
+        // runs together. A position's state depends only on the tokens before it, so the states are
+        // the ones the one-at-a-time loop computed; the cumulative sums are rebuilt in the order it
+        // added them, so the scores are the same f32.
+        let mut planned: Vec<(Vec<u32>, Known)> = Vec::with_capacity(capacity);
+        let mut candidates_planned: Vec<bool> = Vec::with_capacity(capacity);
+        let mut runs: Vec<PlannedRun> = Vec::new();
         for index in indices {
             let tail = self.model.encode_limited(candidates[index], limit);
             if tail.is_empty() {
+                candidates_planned.push(false);
+                continue;
+            }
+            // An exact match keeps the previous decision's run first, then this decision's.
+            let exact = previous
+                .iter()
+                .enumerate()
+                .map(|(index, (tokens, _))| (tokens, Known::Previous(index)))
+                .chain(planned.iter().map(|(tokens, known)| (tokens, *known)))
+                .find(|(tokens, _)| **tokens == tail)
+                .map(|(_, known)| known);
+            let known = exact.unwrap_or_else(|| {
+                // The longest shared prefix across both decisions; `max_by_key` keeps the last of
+                // equal lengths, so the previous decision's runs win ties, as they always have.
+                let shared = planned
+                    .iter()
+                    .map(|(tokens, known)| (tokens, *known))
+                    .chain(
+                        previous
+                            .iter()
+                            .enumerate()
+                            .map(|(index, (tokens, _))| (tokens, Known::Previous(index))),
+                    )
+                    .map(|(tokens, known)| {
+                        let agreed = tokens
+                            .iter()
+                            .zip(&tail)
+                            .take_while(|(left, right)| left == right)
+                            .count();
+                        (known, agreed.min(tail.len() - 1))
+                    })
+                    .max_by_key(|(_, agreed)| *agreed);
+                runs.push(PlannedRun {
+                    entry: planned.len(),
+                    from: shared.filter(|(_, agreed)| *agreed > 0),
+                    anchor: (0, None, 0),
+                    rows: Vec::new(),
+                    terminal: None,
+                });
+                Known::Computed(runs.len() - 1)
+            });
+            candidates_planned.push(true);
+            planned.push((tail, known));
+        }
+
+        let model = &*self.model;
+        let mut batch = Batch {
+            contexts: vec![BatchContext::of(prefix)],
+            rows: Vec::new(),
+            runs,
+            previous_terminals: vec![None; previous.len()],
+        };
+        for run in 0..batch.runs.len() {
+            let (tail, _) = &planned[batch.runs[run].entry];
+            let (anchor, agreed) = match batch.runs[run].from {
+                Some((known, agreed)) => (batch.anchor(&previous, &planned, known, agreed), agreed),
+                None => ((0, None, 0), 0),
+            };
+            batch.runs[run].anchor = anchor;
+            let (context, mut parent, mut depth) = anchor;
+            for &token in &tail[agreed..tail.len() - 1] {
+                batch.rows.push(BatchRow {
+                    token,
+                    parent,
+                    depth,
+                    context,
+                });
+                parent = Some(batch.rows.len() - 1);
+                depth += 1;
+                batch.runs[run].rows.push(batch.rows.len() - 1);
+            }
+        }
+        let states = model.run_batch(&batch.contexts, &batch.rows);
+        let n_embd = model.config.n_embd;
+        let hidden: Vec<Arc<HiddenState>> = states
+            .hidden
+            .chunks_exact(n_embd)
+            .map(|row| Arc::new(HiddenState::new(row.to_vec())))
+            .collect();
+        let terminal_of = |row: usize| TerminalState {
+            keys: states
+                .keys
+                .iter()
+                .map(|layer| layer[row * n_embd..(row + 1) * n_embd].to_vec())
+                .collect(),
+            values: states
+                .values
+                .iter()
+                .map(|layer| layer[row * n_embd..(row + 1) * n_embd].to_vec())
+                .collect(),
+            hidden: Arc::clone(&hidden[row]),
+        };
+
+        // Every state a log-probability is about to be read from, normalized together.
+        let mut pending: Vec<&Arc<HiddenState>> = Vec::new();
+        let starts: Vec<Arc<HiddenState>> = batch
+            .runs
+            .iter()
+            .map(|run| match run.from {
+                Some((known, agreed)) => {
+                    batch.state(&previous, &planned, &hidden, prefix, known, agreed)
+                }
+                None => Arc::clone(&prefix.last_hidden),
+            })
+            .collect();
+        for state in hidden.iter().chain(&starts) {
+            if state.log_normalizer.get().is_none()
+                && !pending.iter().any(|seen| Arc::ptr_eq(seen, state))
+            {
+                pending.push(state);
+            }
+        }
+        if !pending.is_empty() {
+            let mut gathered = Vec::with_capacity(pending.len() * n_embd);
+            for state in &pending {
+                gathered.extend_from_slice(&state.values);
+            }
+            let mut normalizers = Vec::with_capacity(pending.len());
+            model.log_normalizers_into(&gathered, &mut normalizers);
+            for (state, normalizer) in pending.iter().zip(normalizers) {
+                // Unset a moment ago, and nothing else holds this decision's states.
+                let _ = state.log_normalizer.set(normalizer);
+            }
+        }
+
+        for (index, terminal) in batch.previous_terminals.iter().enumerate() {
+            if let Some(row) = *terminal {
+                let _ = previous[index].1.terminal.set(terminal_of(row));
+            }
+        }
+        let mut built: Vec<Arc<TailRun>> = Vec::with_capacity(batch.runs.len());
+        for (run, start) in batch.runs.iter().zip(&starts) {
+            let (tail, _) = &planned[run.entry];
+            let (context, parent, _) = run.anchor;
+            let context = batch.contexts[context];
+            let chain = match (run.rows.last(), parent) {
+                (Some(&last), _) | (None, Some(last)) => states.chains[last].as_slice(),
+                (None, None) => &[],
+            };
+            let width = (context.length() + chain.len()) * n_embd;
+            let copy = |stored: &[Vec<f32>], computed: &[Vec<f32>], last: Option<&[Vec<f32>]>| {
+                stored
+                    .iter()
+                    .zip(computed)
+                    .enumerate()
+                    .map(|(layer, (stored, computed))| {
+                        let mut out = Vec::with_capacity(width);
+                        out.extend_from_slice(&stored[..context.stored * n_embd]);
+                        if let Some(last) = last {
+                            out.extend_from_slice(&last[layer]);
+                        }
+                        for &row in chain {
+                            out.extend_from_slice(&computed[row * n_embd..(row + 1) * n_embd]);
+                        }
+                        out
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let keys = copy(
+                context.keys,
+                &states.keys,
+                context.terminal.map(|last| last.keys.as_slice()),
+            );
+            let values = copy(
+                context.values,
+                &states.values,
+                context.terminal.map(|last| last.values.as_slice()),
+            );
+            let own = run.rows.iter().map(|&row| &hidden[row]);
+            let (agreed, source) = match run.from {
+                Some((known, agreed)) => (
+                    agreed,
+                    Some(match known {
+                        Known::Previous(index) => Arc::clone(&previous[index].1),
+                        Known::Computed(earlier) => Arc::clone(&built[earlier]),
+                    }),
+                ),
+                None => (0, None),
+            };
+            // The same sums `run_tail` and `TailRun::joined` produced: a fresh running total over
+            // this run's own tokens, each added to the total it continues.
+            let mut running = model.log_probability(start, tail[agreed]);
+            let mut rest = Vec::with_capacity(tail.len() - agreed);
+            rest.push(running);
+            for (state, &next) in own.clone().zip(&tail[agreed + 1..]) {
+                running += model.log_probability(state, next);
+                rest.push(running);
+            }
+            let tail_run = match source {
+                None => TailRun {
+                    base: prefix.length,
+                    keys,
+                    values,
+                    hidden: own.cloned().collect(),
+                    cumulative: rest,
+                    pending: tail[tail.len() - 1],
+                    terminal: OnceLock::new(),
+                },
+                Some(source) => {
+                    let carried = source.cumulative[agreed - 1];
+                    let terminal = (agreed > source.hidden.len()).then(|| {
+                        Arc::clone(
+                            &source
+                                .terminal
+                                .get()
+                                .expect("a run continued past its last state has its terminal")
+                                .hidden,
+                        )
+                    });
+                    TailRun {
+                        base: source.base,
+                        keys,
+                        values,
+                        hidden: source
+                            .hidden
+                            .iter()
+                            .take(agreed)
+                            .cloned()
+                            .chain(terminal)
+                            .chain(own.cloned())
+                            .collect(),
+                        cumulative: source.cumulative[..agreed]
+                            .iter()
+                            .copied()
+                            .chain(rest.iter().map(|value| carried + value))
+                            .collect(),
+                        pending: tail[tail.len() - 1],
+                        terminal: OnceLock::new(),
+                    }
+                }
+            };
+            if let Some(row) = run.terminal {
+                let _ = tail_run.terminal.set(terminal_of(row));
+            }
+            built.push(Arc::new(tail_run));
+        }
+
+        let mut entries = planned.into_iter();
+        for scored in candidates_planned {
+            if !scored {
                 scores.push(f32::NEG_INFINITY);
                 continue;
             }
-            // 完全命中优先保留旧轮状态，再复用本轮已有结果；两组状态都供后续候选借用。
-            if let Some((_, run)) = previous
-                .iter()
-                .chain(&self.resume)
-                .find(|(tokens, _)| tokens == &tail)
-            {
-                let total = run.cumulative[tail.len() - 1];
-                scores.push(total / tail.len() as f32);
-                self.resume.push((tail, Arc::clone(run)));
-                continue;
-            }
-
-            // 选两轮的最长共享前缀；max_by_key 取最后一个同长项，旧轮顺序和优先级保持。
-            let shared = self
-                .resume
-                .iter()
-                .chain(&previous)
-                .map(|(tokens, run)| {
-                    let agreed = tokens
-                        .iter()
-                        .zip(&tail)
-                        .take_while(|(left, right)| left == right)
-                        .count();
-                    (run, agreed.min(tail.len() - 1))
-                })
-                .max_by_key(|(_, agreed)| *agreed);
-
-            let run = match shared {
-                Some((previous, agreed)) if agreed > 0 => {
-                    let (from, carried) = previous.resume(agreed, &self.model);
-                    let rest = self.model.run_tail(&from, &tail[agreed..]);
-                    previous.joined(agreed, carried, rest)
-                }
-                _ => self.model.run_tail(prefix, &tail),
+            let (tail, known) = entries.next().expect("one entry per scored candidate");
+            let run = match known {
+                Known::Previous(index) => Arc::clone(&previous[index].1),
+                Known::Computed(index) => Arc::clone(&built[index]),
             };
-            let total = run.cumulative[run.cumulative.len() - 1];
+            let total = run.cumulative[tail.len() - 1];
             scores.push(total / tail.len() as f32);
-            self.resume.push((tail, Arc::new(run)));
+            self.resume.push((tail, run));
         }
         previous.clear();
         self.resume_scratch = previous;
@@ -1280,10 +1785,39 @@ fn dot(a: &[f32], b: &[f32]) -> f32 {
 #[cfg(test)]
 fn linear(x: &[f32], w: &Matrix, bias: &[f32], inputs: usize, outputs: usize) -> Vec<f32> {
     let mut out = vec![0.0; x.len() / inputs * outputs];
-    linear_into(x, w, bias, inputs, outputs, &mut out);
+    linear_into(
+        x,
+        w,
+        bias,
+        inputs,
+        outputs,
+        &mut out,
+        &mut LinearScratch::default(),
+    );
     out
 }
 
+/// Buffers `linear_into` reuses between calls: the input rows regrouped for the blocked kernel, and
+/// one weight row widened to `f32`.
+#[derive(Default)]
+struct LinearScratch {
+    transposed: Vec<f32>,
+    row: Vec<f32>,
+}
+
+/// `out[m][o] = dot(x[m], w[o]) * scale[o] + bias[o]`, every element bit-for-bit what `dot_row`
+/// gives for that row and column.
+///
+/// Rows are taken eight (or four) at a time against each weight row. A single dot product is bound
+/// by the latency of its two accumulator chains and pays for widening every `i8` it reads; a block
+/// of rows gives the core eight or sixteen independent chains and widens each weight once for the
+/// whole block. That roughly doubles the throughput of the matrix products, which are nearly all of
+/// the time a decision takes. Each element still accumulates in the same eight lanes, in the same
+/// order, and is reduced the same way as `dot`, so the result does not change by a single bit; the
+/// unit tests compare it against the row-at-a-time loop on both quantized and float weights.
+///
+/// Rows left over after the blocks, fewer than four, go through `dot_row` one at a time, which is
+/// as fast as a block for so few rows.
 fn linear_into(
     x: &[f32],
     w: &Matrix,
@@ -1291,15 +1825,346 @@ fn linear_into(
     inputs: usize,
     outputs: usize,
     out: &mut [f32],
+    scratch: &mut LinearScratch,
 ) {
     let rows = x.len() / inputs;
-    for row in 0..rows {
+    let blocks = row_blocks(rows);
+    let blocked: usize = blocks.clone().map(|(_, size)| size).sum();
+    // Each block is stored input-major, `[input][row]`, so that one weight times the block's rows
+    // is a contiguous run.
+    scratch.transposed.clear();
+    scratch.transposed.resize(blocked * inputs, 0.0);
+    for (start, size) in blocks.clone() {
+        let target = &mut scratch.transposed[start * inputs..(start + size) * inputs];
+        for row in 0..size {
+            let source = &x[(start + row) * inputs..(start + row + 1) * inputs];
+            for (input, &value) in source.iter().enumerate() {
+                target[input * size + row] = value;
+            }
+        }
+    }
+    if blocked > 0 {
+        for index in 0..outputs {
+            let span = index * inputs..(index + 1) * inputs;
+            let (weights, scale): (&[f32], Option<f32>) = match &w.inner {
+                Tensor::Float(values) => (&values[span], None),
+                Tensor::Quantized { values, scales } => {
+                    scratch.row.clear();
+                    scratch
+                        .row
+                        .extend(values[span].iter().map(|&value| f32::from(value)));
+                    (&scratch.row, Some(scales[index]))
+                }
+            };
+            for (start, size) in blocks.clone() {
+                let block = &scratch.transposed[start * inputs..(start + size) * inputs];
+                let mut dots = [0.0f32; ROW_BLOCK];
+                match size {
+                    ROW_BLOCK => dots = dot_block::<ROW_BLOCK>(block, weights),
+                    _ => {
+                        dots[..HALF_BLOCK].copy_from_slice(&dot_block::<HALF_BLOCK>(block, weights))
+                    }
+                }
+                for (row, dot) in dots[..size].iter().enumerate() {
+                    let value = match scale {
+                        Some(scale) => dot * scale,
+                        None => *dot,
+                    };
+                    out[(start + row) * outputs + index] = value + bias[index];
+                }
+            }
+        }
+    }
+    for row in blocked..rows {
         let source = &x[row * inputs..(row + 1) * inputs];
         let target = &mut out[row * outputs..(row + 1) * outputs];
         for (index, slot) in target.iter_mut().enumerate() {
             *slot = w.dot_row(source, index, inputs) + bias[index];
         }
     }
+}
+
+/// `highest + ln Σ exp(logit − highest)` over a row of logits, with the maximum and the sum taken
+/// in the same order as `SentenceModel::project` takes them.
+fn log_normalizer(logits: &[f32]) -> f32 {
+    let mut highest = f32::NEG_INFINITY;
+    for &logit in logits {
+        highest = highest.max(logit);
+    }
+    let sum: f32 = logits.iter().map(|logit| (logit - highest).exp()).sum();
+    highest + sum.ln()
+}
+
+/// One position of a batched forward: the token at it, the batch row it follows (`None` for the
+/// first position after its context), how many positions after its context it sits, and which of
+/// the batch's contexts it continues.
+struct BatchRow {
+    token: u32,
+    parent: Option<usize>,
+    depth: usize,
+    context: usize,
+}
+
+/// What a batch row attends to before its own chain of rows: the first `stored` rows of a run's
+/// keys and values, then that run's terminal row when it has one.
+#[derive(Clone, Copy)]
+struct BatchContext<'a> {
+    keys: &'a [Vec<f32>],
+    values: &'a [Vec<f32>],
+    stored: usize,
+    terminal: Option<&'a TerminalState>,
+}
+
+impl<'a> BatchContext<'a> {
+    fn of(prefix: &'a Prefix<'_>) -> Self {
+        Self {
+            keys: &prefix.keys,
+            values: &prefix.values,
+            stored: prefix.length - usize::from(prefix.terminal.is_some()),
+            terminal: prefix.terminal,
+        }
+    }
+
+    fn length(&self) -> usize {
+        self.stored + usize::from(self.terminal.is_some())
+    }
+}
+
+/// The positions one batch row attends to, in order: its context's stored rows, the context's
+/// terminal row, then the row's own chain in the batch.
+struct Sequence<'c> {
+    stored: usize,
+    length: usize,
+    chain: &'c [usize],
+    width: usize,
+}
+
+impl Sequence<'_> {
+    fn row<'s>(
+        &self,
+        step: usize,
+        batch: &'s [f32],
+        stored: &'s [f32],
+        terminal: Option<&'s [f32]>,
+    ) -> &'s [f32] {
+        let width = self.width;
+        if step >= self.length {
+            let row = self.chain[step - self.length];
+            &batch[row * width..(row + 1) * width]
+        } else if step < self.stored {
+            &stored[step * width..(step + 1) * width]
+        } else {
+            terminal.expect("a terminal row follows the stored rows")
+        }
+    }
+}
+
+/// What `run_batch` computed: each layer's keys and values for every row (`rows × n_embd`), every
+/// row's final normalized state, and every row's chain of batch rows, root first.
+struct BatchStates {
+    keys: Vec<Vec<f32>>,
+    values: Vec<Vec<f32>>,
+    hidden: Vec<f32>,
+    chains: Vec<Vec<usize>>,
+}
+
+/// A run a candidate can be scored from: one the previous decision left, or one this decision
+/// computes.
+#[derive(Clone, Copy)]
+enum Known {
+    Previous(usize),
+    Computed(usize),
+}
+
+/// A candidate this decision runs: its entry among the decision's candidates, the run it continues
+/// and after how many tokens (`None` to start from the prefix), and where its rows went.
+struct PlannedRun {
+    entry: usize,
+    from: Option<(Known, usize)>,
+    /// The context, the batch row and the depth the run's first own row continues.
+    anchor: (usize, Option<usize>, usize),
+    rows: Vec<usize>,
+    /// The batch row that runs this candidate's last token, when a later candidate continues past it.
+    terminal: Option<usize>,
+}
+
+/// A decision's positions being laid out as one batch.
+struct Batch<'a> {
+    contexts: Vec<BatchContext<'a>>,
+    rows: Vec<BatchRow>,
+    runs: Vec<PlannedRun>,
+    /// The batch row that runs a previous run's last token, for previous runs continued past it.
+    previous_terminals: Vec<Option<usize>>,
+}
+
+impl<'a> Batch<'a> {
+    /// Where a row continuing `known` after `agreed` tokens hangs: its context, its parent row and
+    /// its depth. Adds the context, or the row that runs a terminal token, when it is not there yet.
+    fn anchor(
+        &mut self,
+        previous: &'a [(Vec<u32>, Arc<TailRun>)],
+        planned: &[(Vec<u32>, Known)],
+        known: Known,
+        agreed: usize,
+    ) -> (usize, Option<usize>, usize) {
+        match known {
+            Known::Previous(index) => {
+                let run = &*previous[index].1;
+                let context = |stored, terminal| BatchContext {
+                    keys: &run.keys,
+                    values: &run.values,
+                    stored,
+                    terminal,
+                };
+                if agreed <= run.hidden.len() {
+                    self.contexts.push(context(run.base + agreed, None));
+                    return (self.contexts.len() - 1, None, 0);
+                }
+                if let Some(terminal) = run.terminal.get() {
+                    self.contexts
+                        .push(context(run.base + run.hidden.len(), Some(terminal)));
+                    return (self.contexts.len() - 1, None, 0);
+                }
+                let row = match self.previous_terminals[index] {
+                    Some(row) => row,
+                    None => {
+                        self.contexts
+                            .push(context(run.base + run.hidden.len(), None));
+                        self.rows.push(BatchRow {
+                            token: run.pending,
+                            parent: None,
+                            depth: 0,
+                            context: self.contexts.len() - 1,
+                        });
+                        self.previous_terminals[index] = Some(self.rows.len() - 1);
+                        self.rows.len() - 1
+                    }
+                };
+                (self.rows[row].context, Some(row), 1)
+            }
+            Known::Computed(index) => {
+                let length = planned[self.runs[index].entry].0.len();
+                let start = self.runs[index].from.map_or(0, |(_, agreed)| agreed);
+                if agreed <= start {
+                    return match self.runs[index].from {
+                        Some((known, _)) => self.anchor(previous, planned, known, agreed),
+                        None => (0, None, 0),
+                    };
+                }
+                if agreed < length {
+                    let row = self.runs[index].rows[agreed - start - 1];
+                    return (self.rows[row].context, Some(row), self.rows[row].depth + 1);
+                }
+                let row = match self.runs[index].terminal {
+                    Some(row) => row,
+                    None => {
+                        let (context, parent, depth) =
+                            self.anchor(previous, planned, known, length - 1);
+                        self.rows.push(BatchRow {
+                            token: planned[self.runs[index].entry].0[length - 1],
+                            parent,
+                            depth,
+                            context,
+                        });
+                        self.runs[index].terminal = Some(self.rows.len() - 1);
+                        self.rows.len() - 1
+                    }
+                };
+                (self.rows[row].context, Some(row), self.rows[row].depth + 1)
+            }
+        }
+    }
+
+    /// The state that predicts token `agreed` of a candidate continuing `known`.
+    fn state(
+        &self,
+        previous: &[(Vec<u32>, Arc<TailRun>)],
+        planned: &[(Vec<u32>, Known)],
+        hidden: &[Arc<HiddenState>],
+        prefix: &Prefix<'_>,
+        known: Known,
+        agreed: usize,
+    ) -> Arc<HiddenState> {
+        match known {
+            Known::Previous(index) => {
+                let run = &previous[index].1;
+                if agreed <= run.hidden.len() {
+                    return Arc::clone(&run.hidden[agreed - 1]);
+                }
+                match run.terminal.get() {
+                    Some(terminal) => Arc::clone(&terminal.hidden),
+                    None => Arc::clone(
+                        &hidden[self.previous_terminals[index].expect("terminal row was planned")],
+                    ),
+                }
+            }
+            Known::Computed(index) => {
+                let run = &self.runs[index];
+                let length = planned[run.entry].0.len();
+                let start = run.from.map_or(0, |(_, agreed)| agreed);
+                if agreed <= start {
+                    return match run.from {
+                        Some((known, _)) => {
+                            self.state(previous, planned, hidden, prefix, known, agreed)
+                        }
+                        None => Arc::clone(&prefix.last_hidden),
+                    };
+                }
+                if agreed < length {
+                    return Arc::clone(&hidden[run.rows[agreed - start - 1]]);
+                }
+                Arc::clone(&hidden[run.terminal.expect("terminal row was planned")])
+            }
+        }
+    }
+}
+
+/// Rows of input that `linear_into` multiplies against each weight row together.
+const ROW_BLOCK: usize = 8;
+const HALF_BLOCK: usize = ROW_BLOCK / 2;
+
+/// `(first row, rows)` of each block: as many full blocks as fit, then one half block if four or
+/// more rows remain. Whatever is left is fewer than four rows and is not blocked.
+fn row_blocks(rows: usize) -> impl Iterator<Item = (usize, usize)> + Clone {
+    let full = rows / ROW_BLOCK;
+    let half = usize::from(rows % ROW_BLOCK >= HALF_BLOCK);
+    (0..full)
+        .map(|block| (block * ROW_BLOCK, ROW_BLOCK))
+        .chain((0..half).map(move |_| (full * ROW_BLOCK, HALF_BLOCK)))
+}
+
+/// `R` dot products of one weight row against `R` input rows stored input-major.
+///
+/// Row `r` accumulates exactly as `dot` would on its own: lane `l` of eight sums the products at
+/// inputs `l, l + 8, l + 16, …` in that order, the lanes are summed first to last, and the inputs
+/// past the last multiple of eight are added after that, one at a time. Only the interleaving of
+/// independent sums differs, and that interleaving is what lets them run in parallel.
+#[inline(never)]
+fn dot_block<const R: usize>(block: &[f32], weights: &[f32]) -> [f32; R] {
+    const LANES: usize = 8;
+    let mut partial = [[0.0f32; R]; LANES];
+    for (inputs, weights) in block
+        .chunks_exact(LANES * R)
+        .zip(weights.chunks_exact(LANES))
+    {
+        for lane in 0..LANES {
+            let weight = weights[lane];
+            for row in 0..R {
+                partial[lane][row] += inputs[lane * R + row] * weight;
+            }
+        }
+    }
+    let tail = weights.len() / LANES * LANES;
+    let mut dots = [0.0f32; R];
+    for (row, dot) in dots.iter_mut().enumerate() {
+        let lanes: [f32; LANES] = std::array::from_fn(|lane| partial[lane][row]);
+        let mut total = lanes.iter().sum::<f32>();
+        for (input, weight) in weights.iter().enumerate().skip(tail) {
+            total += block[input * R + row] * weight;
+        }
+        *dot = total;
+    }
+    dots
 }
 
 /// The quantized counterpart of `dot`, with the same eight independent accumulators and the same
@@ -2013,3 +2878,6 @@ mod terminal_prefix_tests;
 
 #[cfg(test)]
 mod embedding_tests;
+
+#[cfg(test)]
+mod batched_tests;
