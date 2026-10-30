@@ -303,6 +303,8 @@ def main():
     args = parser.parse_args()
 
     started = time.perf_counter()
+    # As in score_pool.py: with a different shape at every step mlx's buffer cache grows without bound (36 GB within minutes here); a bound keeps the reuse and frees the rest.
+    mx.set_cache_limit(2 << 30)
     mx.random.seed(args.seed)
     np.random.seed(args.seed)
     out = Path(args.out)
