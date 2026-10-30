@@ -33,7 +33,7 @@ Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metas
 | Cost per candidate-character | **0.33 ms** | 2.0 ms |
 | Worst keystroke, 15-character sentence, 9 candidates | **46 ms** | 268 ms |
 
-Take this one for anything latency-sensitive — a mobile keyboard extension, or any path that runs on a keystroke. The larger model is more accurate and reaches the ceiling of what reranking can do, but at the cost of a per-keystroke budget that does not fit inside a frame.
+Take this one for anything latency-sensitive — a mobile keyboard extension, or any path that runs on a keystroke. The larger model gets three more sentence cases right, which on 52 cases is not a significant difference (McNemar p = 0.250, see below), and it costs a per-keystroke budget that does not fit inside a frame.
 
 Both files are named `sentence-model.safetensors`, which is the name a host looks for.
 
@@ -101,7 +101,9 @@ That last row is the ceiling for any reranker: in the remaining 4 cases the corr
 
 **On the same 52 reachable cases, no pair of models that get 48 to 52 of them right reaches significance.** McNemar exact test on this model against the 25M is 0 wins to 3, p = 0.250; against Qwen3-0.6B it is 3 to 3, p = 1.000. Pairwise disagreement among them is at most 7 cases; only scorers well behind separate, such as the engine's own order (41 right; this model wins 10 cases to 2, p = 0.039). Detecting the 1 to 2pp differences that model iteration actually cares about would need roughly one thousand to ten thousand cases at this disagreement rate. Twelve of the 60 sentences also begin with `ta` and take 他 as gold, which is not decidable from pinyin at all — those should never have been collected. **Do not read the accuracy column as a ranking of quality.** Size and latency are deterministic measurements; the accuracy differences are not.
 
-Full analysis, including a comparison against four open Qwen models and the rerankers of two other open input methods on the same candidate pool, is in [`docs/measurements.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/measurements.md).
+**Against other open models on the same pool, what sets this model apart is size, not accuracy or speed.** Ten scorers were run on those 52 cases — the two models here, four Qwen models counted at whichever start token suits each best, Qingjian's Hanzhang Tongbian and Zhiwei, and Zhiyi's 1.4V2-Long-L12 and ML-pumpkin-1026 — and all of them get 49 to 52 right; this one is in the same band. At 4.5 MB it is the smallest by a wide margin: the other input methods' models are 46 to 162 MB (Zhiyi also needs a 34 MB tokenizer table) and the Qwen models 278 MB to 1.7 GB. It is not faster than the other input methods' models: one decision over a pool takes it 12 ms on a single CPU thread, theirs about 5 to 10 ms on a GPU or four CPU threads. None of the 52 cases has preceding text, so the models that read context, this one included, are not exercised on that here.
+
+Full analysis is in [`docs/measurements.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/measurements.md#与开源通用模型比较).
 
 ### Latency and memory
 
@@ -139,7 +141,7 @@ Resident memory is not the file size. The loader keeps quantized matrices as `i8
 | Validation loss | 4.274 |
 | Training steps | 11,500 |
 
-Six shapes were swept under the same corpus and step budget. Five of them in the 4–7M range differ by at most one case, so accuracy cannot separate them and cost decides; this is the cheapest of the five. Only the 24.9M shape crosses that plateau. There is no intermediate result for an intermediate size — a model is either on the plateau or at the ceiling.
+Six shapes were swept under the same corpus and step budget. Five of them in the 4–7M range differ by at most one case, so accuracy cannot separate them and cost decides; this is the cheapest of the five. Only the 24.9M shape scored above them, by three cases, which is not significant on this set. Nothing between 7M and 24.9M was trained.
 
 int8 and float16 pick the same candidate on all 2,105 cases where a decision is made, so int8 is what gets released.
 

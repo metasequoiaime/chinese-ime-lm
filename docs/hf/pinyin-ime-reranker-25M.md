@@ -25,7 +25,7 @@ Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metas
 
 ## Read this before choosing it
 
-This is the accurate one, and on the sentence evaluation set it reaches the ceiling of what any reranker can do. It is also **six times more expensive per decision** than its 4.25M sibling, measured directly on both.
+This is the larger of the two. On the sentence evaluation set it picks every case a reranker can reach, three more than its 4.25M sibling — a difference that is not significant on that set (McNemar p = 0.250, see below). It is also **six times more expensive per decision** than the 4.25M, measured directly on both.
 
 | | **this model** | [pinyin-ime-reranker-4M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) |
 |---|---|---|
@@ -97,7 +97,7 @@ A related trap costs you your measurements rather than your accuracy: a gate tha
 | **+ this model** | **52** | **0.929** |
 | Gold answer present in the candidate list | 52 | 0.929 |
 
-The last two rows being equal is the whole result. 52 is the ceiling for any reranker — in the other 4 cases the correct reading was never assembled, so nothing that reorders a list can reach it (gold 李明在北京工作, every candidate offers 利民). This model takes every reachable case, which means **there is no headroom left on this path**: the next improvement has to come from candidate generation, not from a better reranker.
+The last two rows being equal is the whole result. 52 is the ceiling for any reranker — in the other 4 cases the correct reading was never assembled, so nothing that reorders a list can reach it (gold 李明在北京工作, every candidate offers 利民). This model takes every reachable case, which means **this evaluation set has no headroom left to show a better reranker**: on it, the next measurable improvement has to come from candidate generation.
 
 It rescues 11 cases the engine got wrong and breaks 0 that the engine got right. The 4.25M model rescues 10 and breaks 2, so of the 3-case gap only 1 is a rescue it missed and 2 are cases it broke. Keeping those apart matters because a single total reads as "rescued fewer", while what a user experiences is "something that was already right became wrong".
 
@@ -105,7 +105,7 @@ It rescues 11 cases the engine got wrong and breaks 0 that the engine got right.
 
 Two things limit it, and both point the same way.
 
-**Among models that get 48 to 52 of these cases right, no pair reaches significance.** McNemar exact test, 52 reachable cases: this model against the 4.25M is 3 wins to 0, p = 0.250 — three same-direction calls, the same probability as three coin flips landing heads. Against Qwen3-0.6B, Qwen3.5-0.8B and Qwen3.5-2B it is 3–0, 3–0 and 2–0, p = 0.250, 0.250 and 0.500. Pairwise disagreement among them is at most 7 cases out of 52. Only the scorers 10 or more cases behind this model separate from it: the engine's own order (11–0, p = 0.001) and Qwen2.5-0.5B as originally measured (10–0, p = 0.002). At that disagreement rate, detecting the 1 to 2pp differences model iteration cares about needs roughly one thousand to ten thousand cases.
+**Among models that get 48 to 52 of these cases right, no pair reaches significance.** McNemar exact test, 52 reachable cases: this model against the 4.25M is 3 wins to 0, p = 0.250 — three same-direction calls, the same probability as three coin flips landing heads. Against Qwen3-0.6B, Qwen3.5-0.8B and Qwen3.5-2B it is 3–0, 3–0 and 2–0, p = 0.250, 0.250 and 0.500. Pairwise disagreement among them is at most 7 cases out of 52. Only the scorers 10 or more cases behind this model separate from it: the engine's own order (11–0, p = 0.001) and Qwen2.5-0.5B as originally measured (10–0, p = 0.002). At that disagreement rate, detecting the 1 to 2pp differences model iteration cares about needs roughly one thousand to ten thousand cases. The rerankers of two other open input methods land in the same band: Qingjian's Hanzhang Tongbian 50 and Zhiwei 49, Zhiyi's 1.4V2-Long-L12 51 and ML-pumpkin-1026 49, none significantly different from this model. They are 46 to 162 MB against this model's 25.5 MB, and faster per decision: about 5 to 10 ms on a GPU or four CPU threads, against 72 ms for this model on a single CPU thread. None of the 52 cases has preceding text.
 
 **Part of the score is corpus prior, not ranking ability.** Twelve of the 60 sentences begin with `ta` and take 他 as gold. 他, 她 and 它 are indistinguishable in pinyin, so with no prior context there is information-theoretically no correct answer — a model can only follow its training prior. This model gets them because 他 outranks 她 in C4 and LCCC, which happens to agree with whoever wrote the cases. By the project's own collection rule those 12 should never have been included, and removing them leaves 40 genuinely decidable cases.
 
@@ -146,7 +146,7 @@ Resident memory is not the file size. The loader keeps quantized matrices as `i8
 | Validation loss | 3.851 |
 | Training steps | 11,000 |
 
-This is the `desktop` preset in `neural/model.py`. Six shapes were swept under the same corpus and step budget; this is the only one that crossed the 4–7M plateau, and it paid for it in latency — the measured factor against the published 4.25M is in the section above. There is no intermediate result for an intermediate size: a model is either on the plateau or at the ceiling.
+This is the `desktop` preset in `neural/model.py`. Six shapes were swept under the same corpus and step budget; this is the only one that scored above the 4–7M plateau, by three cases that are not significant on this set, and it paid for it in latency — the measured factor against the published 4.25M is in the section above. Nothing between 7M and 24.9M was trained.
 
 **Capacity is the most effective lever available.** Under the same corpus, this shape's perplexity at 5,000 steps is already below what the 6×256 keyboard shape reaches at 50,000.
 
