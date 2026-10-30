@@ -51,9 +51,10 @@ WINDOW = 8
 # One unit in this many goes to the dev split.
 DEV_SHARE = 25
 
+# Clauses per split, source and stratum: half with context, half without, in both splits. The eval set's clauses without context all come from dialogues, and a C4 document seldom opens with a clause (a title or a navigation line has no punctuation to make its paragraph prose): about one document in nine of shard 0 does, so C4 gives few clauses to the `none` stratum and LCCC the rest.
 QUOTAS = {
-    "train": {"c4": {"none": 10000, "context": 35000}, "lccc": {"none": 40000, "context": 15000}},
-    "dev": {"c4": {"none": 300, "context": 1050}, "lccc": {"none": 1200, "context": 450}},
+    "train": {"c4": {"none": 3000, "context": 35000}, "lccc": {"none": 47000, "context": 15000}},
+    "dev": {"c4": {"none": 100, "context": 1050}, "lccc": {"none": 1400, "context": 450}},
 }
 # LCCC-large has twelve million dialogues; this many, picked at random, is more than the quotas need.
 LCCC_DIALOGUES = 600000
@@ -90,7 +91,15 @@ def tail(text, limit=CONTEXT_BYTES):
 def readings(text):
     from pypinyin import Style, lazy_pinyin
 
-    out = lazy_pinyin(text, style=Style.NORMAL, errors=lambda chars: [None] * len(chars))
+    try:
+        out = lazy_pinyin(text, style=Style.NORMAL, errors=lambda chars: [None] * len(chars))
+    except TypeError:
+        # pypinyin 0.55 runs the style conversion over what `errors` returned when the character is
+        # a CJK compatibility ideograph (U+F900 block, 年 as U+F98E), and fails on None. Those are not
+        # Chinese characters to this set (`HAN`), so a placeholder that converts cleanly stands in for
+        # them; text without them takes the path above and reads exactly as build_set.py reads it.
+        out = lazy_pinyin(text, style=Style.NORMAL, errors=lambda chars: ["?"] * len(chars))
+        out = [None if p == "?" else p for p in out]
     if len(out) != len(text):
         raise SystemExit(f"pinyin does not align with {text!r}")
     return out
