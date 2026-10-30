@@ -49,7 +49,7 @@ cargo run --release --example pool -- sentence-model.safetensors ../eval/open-mo
 cargo run --release --example pool -- sentence-model-desktop.safetensors ../eval/open-models/pool.jsonl --passes 5 > out/ours-25m.r1.jsonl
 ```
 
-挑每字平均对数概率最高的候选（并列取靠前的），与 `Reranker::best_where` 决定比较之后的做法相同。耗时是对整个池调用一次 `SentenceModel::score`，单线程、不续算。
+挑每字平均对数概率最高的候选（并列取靠前的），与 `Reranker::best_where` 决定比较之后的做法相同。耗时是对整个池调用一次 `SentenceModel::score`，单线程、不续算。`results.json` 里本项目两行的耗时是 2026-10-30 那次测量时的实现；之后参考实现把一次决策的候选当一批算（共享的开头只算一次，矩阵乘按 8 行一块），同一个池上的选择与分数逐位不变，耗时见 [`docs/measurements.md`](../../docs/measurements.md#一次决策当一批算)。加 `--typed` 量的是另一条路径：每条用例逐字打出来，每次按键经同一个 `Reranker` 续算，报按键的百分位。
 
 ### Qwen
 
