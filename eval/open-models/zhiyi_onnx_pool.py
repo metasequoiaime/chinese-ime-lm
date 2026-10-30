@@ -17,10 +17,18 @@ syllables of the model's unit table as the case has, and when more than one spli
 the leader's characters can be read as by the model's own `readings`. The pick is the highest logit,
 the first one on a tie (Zhiyi sorts stably).
 
+The context is what Zhiyi IME hands the model: the last `laya.context_chars` (128) characters before
+the caret (`laya::utf8_tail`), of which the sequence keeps the last `choice_context_tokens` tokens.
+
+A case typed as initials or mixed (`style` in the pool; full pinyin when absent) cannot be split into
+syllables of its own. Zhiyi takes the leading candidate's syllables from its engine; here they are
+recovered from the leader's characters: readings from the model's `readings` table that
+`slot_units` can match against the typed letters, the first in the table's order.
+
 Zhiyi IME itself does not call the model when there is no text before the caret unless its word n-gram
 is loaded (`laya.ngram_without_context`), and adds that n-gram, a rank prior and the composer's score to
-the model's log-probability. None of those are the model, so none are used here; every case in the pool
-has an empty context.
+the model's log-probability. None of those are the model, so none are used here, and the model is
+called with an empty context too.
 
 usage:
   python eval/open-models/zhiyi_onnx_pool.py --model-dir <zhiyi-onnx> --pool eval/open-models/pool.jsonl > picks.jsonl
@@ -67,7 +75,40 @@ def splits(keys, count, table):
     return out
 
 
+CONTEXT_CHARS = 128  # Zhiyi IME's laya.context_chars
+
+
+def abbreviated_lead(case, vocab):
+    """Readings of the leader's characters that `slot_units` matches against the typed letters."""
+    lead = case["candidates"][0]
+    code = case["input"]
+
+    def walk(i, pos, chosen):
+        if i == len(lead):
+            if pos == len(code):
+                yield list(chosen)
+            return
+        for reading in vocab.readings.get(lead[i], []):
+            last = i + 1 == len(lead)
+            steps = [len(reading)] if code.startswith(reading, pos) else []
+            for k in range(len(reading) - 1, 0, -1):
+                initial = k == 1 or (k == 2 and reading[1] == "h" and reading[0] in "zcs")
+                if (last or initial) and code[pos : pos + k] == reading[:k]:
+                    steps.append(k)
+            for step in steps:
+                chosen.append(reading)
+                yield from walk(i + 1, pos + step, chosen)
+                chosen.pop()
+
+    for syllables in walk(0, 0, []):
+        if slot_units(syllables, code):
+            return syllables
+    raise SystemExit(f"{case['id']}: no reading of {lead} fits {code}")
+
+
 def lead_syllables(case, vocab):
+    if case.get("style", "full") != "full":
+        return abbreviated_lead(case, vocab)
     found = splits(case["input"], case["syllables"], vocab.syllables)
     if len(found) > 1:
         lead = case["candidates"][0]
@@ -124,6 +165,7 @@ class Model:
 
     def sequence(self, context, candidates, units):
         ids = [self.cls]
+        context = context[-CONTEXT_CHARS:]
         ids += self.encode(context)[-self.vocab.context_tokens :] if context else []
         ids.append(self.sep)
         unit_ids = [0] * len(ids)
