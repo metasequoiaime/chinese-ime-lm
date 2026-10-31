@@ -1,13 +1,13 @@
 """P2 of `docs/choice-model.md`: train the choice model, in two phases.
 
 - `--phase lm`: pretrain the decoder as a character LM on a packed corpus (`neural/train.py`'s `tokens.u16` and `vocab.json`, so the 2.0 corpus is reused as it is), so it knows Chinese before it sees a pool.
-- `--phase pools`: train on candidate pools, `--init` from the LM phase. Each pool's candidates are scored and the page is ranked with a listwise loss: cross-entropy on the gold and, where the teacher scored the pool, `T^2 KL(teacher || student)` at temperature T. A little LM loss on corpus windows (`--lm-weight`) keeps the language from drifting.
+- `--phase pools`: train on candidate pools, `--init` from the LM phase. Each pool's candidates are scored and the page is ranked with a listwise loss: cross-entropy on the gold and, for each `--teacher` that scored the pool, `w T^2 KL(teacher || student)` at that teacher's weight and temperature (the 9B LoRA and Zhiyi, whose scores are on different scales). A little LM loss on corpus windows (`--lm-weight`) keeps the language from drifting.
 
 The context is the last `CONTEXT_CHARS` characters of the case's context, the letters are what was typed (`input`), as at inference. The dev pools pick the highest score, the first on a tie; the checkpoint with the most dev hits is kept.
 
 usage:
   python neural/choice/train.py --phase lm --tokens <run>/tokens.u16 --vocab <run>/vocab.json --shape 8x384 --steps 20000 --out <dir>
-  python neural/choice/train.py --phase pools --init <dir>/checkpoint.pt --tokens ... --vocab ... --pools <train.jsonl> --teacher <teacher.jsonl> --dev <dev-select.jsonl> --epochs 2 --out <dir2>
+  python neural/choice/train.py --phase pools --init <dir>/checkpoint.pt --tokens ... --vocab ... --pools <train.jsonl> --teacher 9b=<teacher.jsonl>:1 --teacher zhiyi=<zhiyi.jsonl>:0.5 --dev <dev-select.jsonl> --epochs 2 --out <dir2>
 """
 
 import argparse
@@ -96,18 +96,29 @@ def batch_rows(encoder, cases, device):
     return chars.to(device), lets.to(device), segs.to(device), ends.to(device), spans
 
 
-def page_loss(scores, spans, cases, teacher, args):
-    kd_terms, gold_terms = [], []
+def parse_teacher(spec):
+    """`name=path[:weight[:temperature]]`."""
+    name, rest = spec.split("=", 1)
+    parts = rest.split(":")
+    return {"name": name, "path": parts[0], "weight": float(parts[1]) if len(parts) > 1 else 1.0, "temperature": float(parts[2]) if len(parts) > 2 else 1.0}
+
+
+def page_loss(scores, spans, cases, teachers):
+    """Cross-entropy on the gold, and for each teacher that scored the pool `w T^2 KL(teacher || student)` at its own temperature, averaged over the pools it scored. Returns (gold, {teacher name: kd})."""
+    gold_terms = []
+    kd_terms = {t["name"]: [] for t in teachers}
     for case, (a, b) in zip(cases, spans):
         s = scores[a:b]
         gold_terms.append(-F.log_softmax(s, dim=0)[case["candidates"].index(case["gold"])])
-        t = teacher.get(case["id"])
-        if t is not None and args.kd_weight:
+        for teacher in teachers:
+            t = teacher["scores"].get(case["id"])
+            if t is None or len(t) != b - a:
+                continue
             t = torch.tensor(t, dtype=torch.float32, device=s.device)
-            temp = args.temperature
-            kd_terms.append(temp * temp * F.kl_div(F.log_softmax(s / temp, dim=0), F.log_softmax(t / temp, dim=0), log_target=True, reduction="sum"))
+            temp = teacher["temperature"]
+            kd_terms[teacher["name"]].append(temp * temp * F.kl_div(F.log_softmax(s / temp, dim=0), F.log_softmax(t / temp, dim=0), log_target=True, reduction="sum"))
     gold = torch.stack(gold_terms).mean()
-    kd = torch.stack(kd_terms).mean() if kd_terms else scores.new_zeros(())
+    kd = {name: torch.stack(terms).mean() if terms else scores.new_zeros(()) for name, terms in kd_terms.items()}
     return gold, kd
 
 
@@ -124,6 +135,22 @@ def evaluate(model, encoder, cases, device, batch=64):
             hits += case["candidates"][row.index(max(row))] == case["gold"]
     model.train()
     return hits
+
+
+def report(path, key, step, steps, elapsed, detail):
+    """One stage of the dashboard's progress file (`teacher/build_corpus.py`'s format), written atomically."""
+    if not path:
+        return
+    path = Path(path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        data = {}
+    per = elapsed / max(1, step)
+    data[key] = {"status": "running", "progress": step / steps, "detail": detail, "eta_s": (steps - step) * per, "live": {"last_it": step, "total": steps, "sec_per_it": per, "log_at": time.time()}}
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)
 
 
 def read_jsonl(path):
@@ -146,18 +173,18 @@ def main():
     parser.add_argument("--steps", type=int, default=20000, help="lm phase")
     parser.add_argument("--window", type=int, default=128, help="lm phase window")
     parser.add_argument("--pools")
-    parser.add_argument("--teacher", help="score_pool.py output over some of --pools")
+    parser.add_argument("--teacher", action="append", default=[], help="name=path[:weight[:temperature]], a scorer's output (id, scores) over some of --pools; repeat for several teachers")
     parser.add_argument("--dev", help="dev pools for picking the checkpoint")
     parser.add_argument("--epochs", type=float, default=2.0)
     parser.add_argument("--batch", type=int, default=64, help="lm: windows per step; pools: pools per step")
     parser.add_argument("--lm-batch", type=int, default=32)
     parser.add_argument("--lm-weight", type=float, default=0.1)
-    parser.add_argument("--kd-weight", type=float, default=1.0)
-    parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--lr", type=float, default=0.0)
     parser.add_argument("--warmup", type=int, default=500)
     parser.add_argument("--eval-every", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=20261031)
+    parser.add_argument("--progress", help="the dashboard's progress file")
+    parser.add_argument("--progress-key", default="")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -216,6 +243,7 @@ def main():
                 torch.mps.empty_cache()
             if (step + 1) % 100 == 0:
                 record({"kind": "train", "step": step + 1, "steps": args.steps, "loss": loss.item(), "wall_s": time.time() - started})
+                report(args.progress, args.progress_key, step + 1, args.steps, time.time() - started, f"{step + 1} / {args.steps} 步 · loss {loss.item():.3f}")
             if (step + 1) % args.eval_every == 0 or step + 1 == args.steps:
                 val = lm_val_loss()
                 print(f"step {step + 1}/{args.steps}  train {loss.item():.4f}  val {val:.4f}  {(time.time() - started) / 60:.1f} min", flush=True)
@@ -228,14 +256,14 @@ def main():
 
     encoder = Encoder(vocab)
     pools = read_jsonl(args.pools)
-    teacher = {}
-    if args.teacher:
-        for row in read_jsonl(args.teacher):
-            teacher[row["id"]] = row["scores"]
+    teachers = [parse_teacher(spec) for spec in args.teacher]
+    for teacher in teachers:
+        teacher["scores"] = {row["id"]: row["scores"] for row in read_jsonl(teacher["path"])}
     dev = read_jsonl(args.dev)
     pools = [p for p in pools if p["gold"] in p["candidates"]]
     steps = math.ceil(len(pools) * args.epochs / args.batch)
-    print(f"{len(pools)} pools ({sum(1 for p in pools if p['id'] in teacher)} with teacher scores), {len(dev)} dev pools, {steps} steps of {args.batch}", flush=True)
+    covered = ", ".join(f"{t['name']} {sum(1 for p in pools if p['id'] in t['scores'])}" for t in teachers) or "no teacher"
+    print(f"{len(pools)} pools (scored by: {covered}), {len(dev)} dev pools, {steps} steps of {args.batch}", flush=True)
     lr = args.lr or 3e-4
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95), weight_decay=0.1)
     best = evaluate(model, encoder, dev, device)
@@ -255,8 +283,8 @@ def main():
         cases = [pools[i] for i in order[cursor : cursor + args.batch]]
         cursor += args.batch
         chars, lets, segs, ends, spans = batch_rows(encoder, cases, device)
-        gold, kd = page_loss(model.rows(chars, lets, segs, ends), spans, cases, teacher, args)
-        loss = gold + args.kd_weight * kd
+        gold, kd = page_loss(model.rows(chars, lets, segs, ends), spans, cases, teachers)
+        loss = gold + sum(t["weight"] * kd[t["name"]] for t in teachers)
         lm = None
         if args.lm_weight:
             lm = model.lm_loss(*next(lm_train))
@@ -268,7 +296,8 @@ def main():
         if device == "mps" and (step + 1) % 50 == 0:
             torch.mps.empty_cache()
         if (step + 1) % 50 == 0:
-            record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "gold": gold.item(), "kd": kd.item(), "lm": lm.item() if lm is not None else None, "wall_s": time.time() - started})
+            record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "gold": gold.item(), "kd": {name: v.item() for name, v in kd.items()}, "lm": lm.item() if lm is not None else None, "wall_s": time.time() - started})
+            report(args.progress, args.progress_key, step + 1, steps, time.time() - started, f"{step + 1} / {steps} 步 · 开发集最好 {best} / {len(dev)}")
         if (step + 1) % args.eval_every == 0 or step + 1 == steps:
             hits = evaluate(model, encoder, dev, device)
             val = lm_val_loss()
