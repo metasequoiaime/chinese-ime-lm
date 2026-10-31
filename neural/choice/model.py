@@ -133,6 +133,26 @@ class ChoiceModel(nn.Module):
         return self.head(h).squeeze(-1)
 
 
+    def rows(self, chars, letters, segments, ends):
+        """Training form of `score`: one row per candidate holding its own copy of the context and letters, `[context][letters][candidate][END]`, right-padded. chars / letters / segments: [R, N]; a position takes its embedding from `letters` where segments is 1 and from `chars` elsewhere. Attention is causal, so each row computes exactly what `encode_context` + `score` compute for that candidate. Returns [R] scores."""
+        r, n = chars.shape
+        pos = torch.arange(n, device=chars.device)
+        x = torch.where((segments == SEGMENTS["letters"]).unsqueeze(-1), self.letters(letters), self.chars(chars))
+        x = x + self.segments(segments) + self.positions(pos)
+        for block in self.blocks:
+            x, _, _ = block(x, self.empty(r, x.device), self.empty(r, x.device))
+        h = self.ln_f(x[torch.arange(r, device=x.device), ends])
+        return self.head(h).squeeze(-1)
+
+    def lm_loss(self, x, y):
+        """Pretraining as a character LM over context-segment text, through the character table (tied); the table is discarded from the keystroke path, so this costs nothing at inference."""
+        h = self.embed(x, self.chars, "context", 0)
+        for block in self.blocks:
+            h, _, _ = block(h, self.empty(x.shape[0], h.device), self.empty(x.shape[0], h.device))
+        logits = self.ln_f(h) @ self.chars.weight.t()
+        return F.cross_entropy(logits.view(-1, logits.shape[-1]), y.reshape(-1), ignore_index=PAD)
+
+
 class ContextGraph(nn.Module):
     def __init__(self, model):
         super().__init__()
