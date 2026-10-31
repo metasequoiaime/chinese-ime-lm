@@ -1,11 +1,11 @@
 """P0 of `docs/choice-model.md`: how large a choice model fits the keystroke budget (p95 <= 10 ms) on ONNX Runtime.
 
-For each shape, a randomly initialised `ChoiceModel` is exported as its two graphs, quantized to int8 the way ONNX Runtime's dynamic quantization does it, and timed on real pages: the cases of a pool file give the context (its last 64 characters), the letters typed and the candidates, so sequence lengths and page sizes are the real ones. The keystroke graph is timed with the context already encoded (it is encoded when text is committed); the context graph is timed on its own. Two thread settings: 4 intra-op threads (desktop) and 1 (a conservative stand-in for a phone until it is measured on one).
+For each shape, a randomly initialised `ChoiceModel` is exported as its two graphs, quantized to int8 the way ONNX Runtime's dynamic quantization does it, and timed on real pages: the cases of a pool file give the context (its last 64 characters), the letters typed and the candidates, so sequence lengths and page sizes are the real ones. The keystroke graph is timed with the context already encoded (it is encoded when text is committed); the context graph is timed on its own. Every timed run is kept as its own sample, not a median of repeats, because the budget is on the tail (p95, p99 and the slowest run): an input method that is fast on average and stalls now and then is a slow input method. Thread counts are given with `--threads` (intra-op threads, ONNX Runtime's default spin-waiting).
 
 Weights are random, so this measures time and size only; accuracy comes from P2.
 
 usage:
-  python neural/choice/latency.py --pool <pools/ctx-v1.jsonl> --out <dir> [--shape 6x256 --shape 8x384 ...] [--cases 600]
+  python neural/choice/latency.py --pool <pools/ctx-v1.jsonl> --out <dir> [--shape 6x256 --shape 8x384 ...] [--threads 1 2 4] [--cases 600]
 """
 
 import argparse
@@ -104,17 +104,12 @@ def bench(out, pages, threads, repeats):
             k, v = lc_empty
         feed = {"past_k": k, "past_v": v, "letters": letters, "candidates": candidates, "ends": ends}
         key.run(None, feed)  # warm
-        runs = []
         for _ in range(repeats):
             t = time.perf_counter()
             key.run(None, feed)
-            runs.append((time.perf_counter() - t) * 1000)
-        keystroke.append(statistics.median(runs))
-    return {
-        "threads": threads,
-        "keystroke_ms": {"p50": percentile(keystroke, 0.5), "p95": percentile(keystroke, 0.95), "max": max(keystroke)},
-        "context_ms": {"p50": percentile(context_ms, 0.5), "p95": percentile(context_ms, 0.95)} if context_ms else None,
-    }
+            keystroke.append((time.perf_counter() - t) * 1000)
+    tail = lambda xs: {"p50": percentile(xs, 0.5), "p95": percentile(xs, 0.95), "p99": percentile(xs, 0.99), "max": max(xs)}
+    return {"threads": threads, "samples": len(keystroke), "keystroke_ms": tail(keystroke), "context_ms": tail(context_ms) if context_ms else None}
 
 
 def main():
@@ -126,9 +121,10 @@ def main():
     parser.add_argument("--vocab", type=int, default=12288)
     parser.add_argument("--cases", type=int, default=600)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--threads", type=int, nargs="+", default=[1, 2, 4])
     parser.add_argument("--seed", type=int, default=20261031)
     args = parser.parse_args()
-    shapes = args.shape or ["6x256", "8x384", "12x384", "12x512"]
+    shapes = args.shape or ["4x256", "6x256", "6x384", "8x384", "12x384", "12x512"]
 
     rng = random.Random(args.seed)
     with open(args.pool, encoding="utf-8") as handle:
@@ -158,7 +154,7 @@ def main():
         worst, same = check(model, out, pages)
         size_mb = sum((out / f"{n}.int8.onnx").stat().st_size for n in ("context", "keystroke")) / 1e6
         row = {"shape": shape, "params": sum(p.numel() for p in model.parameters()), "non_embedding": model.non_embedding_parameters(), "int8_mb": round(size_mb, 1), "check": {"max_abs_diff": worst, "same_pick_of_20": same}}
-        for threads in (4, 1):
+        for threads in args.threads:
             row[f"t{threads}"] = bench(out, pages, threads, args.repeats)
         print(json.dumps(row), flush=True)
         results.append(row)
