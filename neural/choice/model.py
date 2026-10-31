@@ -32,6 +32,8 @@ class ChoiceConfig:
     dropout: float = 0.0
     # Add each candidate's own character log-likelihood, read off the tied character table, to the END score. Training keeps the table's log normaliser near zero (`lm_loss(z=...)`), so the keystroke path sums one dot product per character instead of a softmax over the vocabulary.
     lm_term: bool = False
+    # Hashed character bigram and trigram tables, this many rows each (0 = none), added to every character's embedding: capacity that costs two lookups per character and no compute. The n-grams run within a segment, so a candidate's first character sees padding before it in both entry points.
+    ngram_buckets: int = 0
 
 
 def letter_ids(text):
@@ -81,6 +83,9 @@ class ChoiceModel(nn.Module):
         self.blocks = nn.ModuleList(Block(cfg) for _ in range(cfg.n_layer))
         self.ln_f = nn.LayerNorm(cfg.n_embd)
         self.head = nn.Linear(cfg.n_embd, 1)
+        if cfg.ngram_buckets:
+            self.bigrams = nn.Embedding(cfg.ngram_buckets, cfg.n_embd)
+            self.trigrams = nn.Embedding(cfg.ngram_buckets, cfg.n_embd)
         self.apply(self._init)
         if cfg.lm_term:
             self.lm_scale = nn.Parameter(torch.ones(()))
@@ -93,12 +98,27 @@ class ChoiceModel(nn.Module):
             nn.init.zeros_(module.bias)
 
     def non_embedding_parameters(self):
-        return sum(p.numel() for name, p in self.named_parameters() if not name.split(".")[0] in ("chars", "letters", "segments", "positions"))
+        return sum(p.numel() for name, p in self.named_parameters() if not name.split(".")[0] in ("chars", "letters", "segments", "positions", "bigrams", "trigrams"))
+
+    def ngrams(self, chars, segments=None):
+        """chars: [..., N] character ids of one segment, or of several with `segments` [..., N] saying which, so no n-gram crosses into another segment. Returns the hashed bigram and trigram embeddings ending at each position, [..., N, C]."""
+        v = self.cfg.vocab
+        prev = F.pad(chars, (1, 0), value=PAD)[..., :-1]
+        prev2 = F.pad(chars, (2, 0), value=PAD)[..., :-2]
+        if segments is not None:
+            prev = torch.where(F.pad(segments, (1, 0), value=-1)[..., :-1] == segments, prev, PAD)
+            prev2 = torch.where(F.pad(segments, (2, 0), value=-1)[..., :-2] == segments, prev2, PAD)
+        bi = (prev * v + chars) % self.cfg.ngram_buckets
+        tri = ((prev2 * v + prev) * v + chars) % self.cfg.ngram_buckets
+        return self.bigrams(bi) + self.trigrams(tri)
 
     def embed(self, tokens, table, segment, start):
         n = tokens.shape[-1]
         pos = torch.arange(start, start + n, device=tokens.device)
-        return table(tokens) + self.segments.weight[SEGMENTS[segment]] + self.positions(pos)
+        x = table(tokens) + self.segments.weight[SEGMENTS[segment]] + self.positions(pos)
+        if self.cfg.ngram_buckets and table is self.chars:
+            x = x + self.ngrams(tokens)
+        return x
 
     def empty(self, b, device):
         h = self.cfg.n_head
@@ -148,7 +168,10 @@ class ChoiceModel(nn.Module):
         """Training form of `score`: one row per candidate holding its own copy of the context and letters, `[context][letters][candidate][END]`, right-padded. chars / letters / segments: [R, N]; a position takes its embedding from `letters` where segments is 1 and from `chars` elsewhere. Attention is causal, so each row computes exactly what `encode_context` + `score` compute for that candidate. Returns [R] scores, and with `hidden` the final hidden states [R, N, C] too."""
         r, n = chars.shape
         pos = torch.arange(n, device=chars.device)
-        x = torch.where((segments == SEGMENTS["letters"]).unsqueeze(-1), self.letters(letters), self.chars(chars))
+        is_letter = (segments == SEGMENTS["letters"]).unsqueeze(-1)
+        x = torch.where(is_letter, self.letters(letters), self.chars(chars))
+        if self.cfg.ngram_buckets:
+            x = x + torch.where(is_letter, 0.0, self.ngrams(chars, segments))
         x = x + self.segments(segments) + self.positions(pos)
         for block in self.blocks:
             x, _, _ = block(x, self.empty(r, x.device), self.empty(r, x.device))

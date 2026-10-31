@@ -170,6 +170,7 @@ def main():
     parser.add_argument("--vocab", required=True, help="the vocab.json that goes with --tokens")
     parser.add_argument("--out", required=True)
     parser.add_argument("--shape", default="8x384", help="LAYERSxWIDTH (lm phase; pools takes it from --init)")
+    parser.add_argument("--ngram-buckets", type=int, default=0, help="lm phase: rows in each hashed n-gram table (ChoiceConfig.ngram_buckets), 0 for none")
     parser.add_argument("--init", help="checkpoint to start from (pools phase)")
     parser.add_argument("--steps", type=int, default=20000, help="lm phase")
     parser.add_argument("--window", type=int, default=128, help="lm phase window")
@@ -214,7 +215,7 @@ def main():
             model.load_state_dict(start["model"])
     else:
         layers, width = (int(x) for x in args.shape.split("x"))
-        cfg = ChoiceConfig(vocab=len(vocab), n_layer=layers, n_embd=width, n_head=width // 64)
+        cfg = ChoiceConfig(vocab=len(vocab), n_layer=layers, n_embd=width, n_head=width // 64, ngram_buckets=args.ngram_buckets)
         model = ChoiceModel(cfg)
     model.to(device)
     (out / "config.json").write_text(json.dumps({"choice": dataclasses.asdict(cfg), "args": vars(args)}, ensure_ascii=False, indent=2), encoding="utf-8")
