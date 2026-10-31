@@ -2,6 +2,7 @@
 
 - `--phase lm`: pretrain the decoder as a character LM on a packed corpus (`neural/train.py`'s `tokens.u16` and `vocab.json`, so the 2.0 corpus is reused as it is), so it knows Chinese before it sees a pool.
 - `--phase pools`: train on candidate pools, `--init` from the LM phase. Each pool's candidates are scored and the page is ranked with a listwise loss: cross-entropy on the gold and, for each `--teacher` that scored the pool, `w T^2 KL(teacher || student)` at that teacher's weight and temperature (the 9B LoRA and Zhiyi, whose scores are on different scales). A little LM loss on corpus windows (`--lm-weight`) keeps the language from drifting.
+- `--lm-term` (pools phase) turns on the model's `lm_term`: each candidate's score also sums its characters' log-likelihood through the tied table, the gold candidate's characters are trained as a conditioned LM (`--candidate-lm-weight`), and every LM loss carries the self-normalisation penalty `--z` so the keystroke path can skip the softmax.
 
 The context is the last `CONTEXT_CHARS` characters of the case's context, the letters are what was typed (`input`), as at inference. The dev pools pick the highest score, the first on a tie; the checkpoint with the most dev hits is kept.
 
@@ -179,6 +180,9 @@ def main():
     parser.add_argument("--batch", type=int, default=64, help="lm: windows per step; pools: pools per step")
     parser.add_argument("--lm-batch", type=int, default=32)
     parser.add_argument("--lm-weight", type=float, default=0.1)
+    parser.add_argument("--lm-term", action="store_true", help="pools phase: score with the candidate's character log-likelihood too (ChoiceConfig.lm_term)")
+    parser.add_argument("--candidate-lm-weight", type=float, default=1.0, help="with --lm-term: weight of the gold candidates' conditioned LM loss")
+    parser.add_argument("--z", type=float, default=0.1, help="with --lm-term: self-normalisation penalty on every LM loss")
     parser.add_argument("--lr", type=float, default=0.0)
     parser.add_argument("--warmup", type=int, default=500)
     parser.add_argument("--eval-every", type=int, default=1000)
@@ -200,8 +204,14 @@ def main():
     if args.init:
         start = torch.load(args.init, map_location="cpu", weights_only=True)
         cfg = ChoiceConfig(**start["config"])
-        model = ChoiceModel(cfg)
-        model.load_state_dict(start["model"])
+        if args.lm_term and not cfg.lm_term:
+            cfg.lm_term = True
+            model = ChoiceModel(cfg)
+            loaded = model.load_state_dict(start["model"], strict=False)
+            assert loaded.missing_keys == ["lm_scale"] and not loaded.unexpected_keys, loaded
+        else:
+            model = ChoiceModel(cfg)
+            model.load_state_dict(start["model"])
     else:
         layers, width = (int(x) for x in args.shape.split("x"))
         cfg = ChoiceConfig(vocab=len(vocab), n_layer=layers, n_embd=width, n_head=width // 64)
@@ -283,11 +293,21 @@ def main():
         cases = [pools[i] for i in order[cursor : cursor + args.batch]]
         cursor += args.batch
         chars, lets, segs, ends, spans = batch_rows(encoder, cases, device)
-        gold, kd = page_loss(model.rows(chars, lets, segs, ends), spans, cases, teachers)
+        z = args.z if cfg.lm_term else 0.0
+        if cfg.lm_term:
+            scores, hidden = model.rows(chars, lets, segs, ends, hidden=True)
+        else:
+            scores = model.rows(chars, lets, segs, ends)
+        gold, kd = page_loss(scores, spans, cases, teachers)
         loss = gold + sum(t["weight"] * kd[t["name"]] for t in teachers)
+        cand_lm = None
+        if cfg.lm_term and args.candidate_lm_weight:
+            gold_rows = torch.tensor([a + case["candidates"].index(case["gold"]) for case, (a, _) in zip(cases, spans)], device=device)
+            cand_lm = model.candidate_lm_loss(hidden, chars, segs, gold_rows, z)
+            loss = loss + args.candidate_lm_weight * cand_lm
         lm = None
         if args.lm_weight:
-            lm = model.lm_loss(*next(lm_train))
+            lm = model.lm_loss(*next(lm_train), z=z)
             loss = loss + args.lm_weight * lm
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -296,7 +316,7 @@ def main():
         if device == "mps" and (step + 1) % 50 == 0:
             torch.mps.empty_cache()
         if (step + 1) % 50 == 0:
-            record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "gold": gold.item(), "kd": {name: v.item() for name, v in kd.items()}, "lm": lm.item() if lm is not None else None, "wall_s": time.time() - started})
+            record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "gold": gold.item(), "kd": {name: v.item() for name, v in kd.items()}, "lm": lm.item() if lm is not None else None, "candidate_lm": cand_lm.item() if cand_lm is not None else None, "wall_s": time.time() - started})
             report(args.progress, args.progress_key, step + 1, steps, time.time() - started, f"{step + 1} / {steps} 步 · 开发集最好 {best} / {len(dev)}")
         if (step + 1) % args.eval_every == 0 or step + 1 == steps:
             hits = evaluate(model, encoder, dev, device)
