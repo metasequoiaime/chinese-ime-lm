@@ -74,7 +74,8 @@ def candidate_scores(model, encoder, cases, device):
         spans.append((len(rows), len(rows) + len(made)))
         rows.extend(made)
         starts.extend([start] * len(made))
-    width = max(len(r) for r in rows)
+    # Widths rounded up to a multiple of 32: on MPS each new shape keeps its own cached buffers, and a run of exact widths grew the cache until it ran out of memory.
+    width = min(encoder.window, -(-max(len(r) for r in rows) // 32) * 32)
     x = torch.full((len(rows), width - 1), PAD, dtype=torch.long)
     y = torch.full((len(rows), width - 1), PAD, dtype=torch.long)
     mask = torch.zeros((len(rows), width - 1), dtype=torch.bool)
@@ -148,7 +149,8 @@ def main():
     parser.add_argument("--epochs", type=float, default=2.0)
     parser.add_argument("--batch", type=int, default=32, help="pools per step")
     parser.add_argument("--lm-batch", type=int, default=32, help="corpus windows per step for the LM loss")
-    parser.add_argument("--lr", type=float, default=1e-4)
+    # The pretraining ends at a tenth of its 3e-4 peak; 1e-4 shook the pretrained model (dev hits 1300 -> 1260 and LM loss 3.85 -> 4.05 by step 500), so the fine-tuning starts from where it left off.
+    parser.add_argument("--lr", type=float, default=3e-5)
     parser.add_argument("--warmup", type=int, default=200)
     parser.add_argument("--eval-every", type=int, default=500)
     parser.add_argument("--seed", type=int, default=20261031)
@@ -230,6 +232,8 @@ def main():
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
+        if device == "mps" and (step + 1) % 50 == 0:
+            torch.mps.empty_cache()
         if (step + 1) % 50 == 0:
             elapsed = time.time() - started
             record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "kd": kd.item(), "gold": gold.item(), "lm": lm.item() if lm is not None else None, "wall_s": elapsed, "t": time.time()})
