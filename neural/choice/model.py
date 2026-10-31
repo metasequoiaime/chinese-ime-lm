@@ -211,6 +211,50 @@ class ChoiceModel(nn.Module):
         return self.tied_loss(h[keep], y[keep], z)
 
 
+    def lm_context(self, context):
+        """The LM-only path (the decoder scored as a character LM, the way `reference/examples/pool.rs` scores the 2.0 models): context: [L] character ids opened with BOS (`END`). Returns past_k, past_v as `encode_context`, and the log-probabilities [V] of the character after the context, all computed when text is committed."""
+        x = self.embed(context.unsqueeze(0), self.chars, "context", 0)
+        ks, vs = [], []
+        for block in self.blocks:
+            x, k, v = block(x, self.empty(1, x.device), self.empty(1, x.device))
+            ks.append(k[0])
+            vs.append(v[0])
+        first = F.log_softmax(self.ln_f(x[0, -1]) @ self.chars.weight.t(), dim=-1)
+        return torch.stack(ks), torch.stack(vs), first
+
+    def lm_score(self, past_k, past_v, first, candidates, lengths):
+        """past_k / past_v / first from `lm_context`; candidates: [B, Lb] character ids, padded; lengths: [B]. Returns each candidate's mean log-probability per character [B], read as continuing the context in the context segment."""
+        lc = past_k.shape[2]
+        b, n = candidates.shape
+        y = self.embed(candidates, self.chars, "context", lc)
+        for i, block in enumerate(self.blocks):
+            y, _, _ = block(y, past_k[i].unsqueeze(0).expand(b, -1, -1, -1), past_v[i].unsqueeze(0).expand(b, -1, -1, -1))
+        # Each candidate character after the first is predicted by the one before it.
+        logp = F.log_softmax(self.ln_f(y[:, :-1]) @ self.chars.weight.t(), dim=-1)
+        rest = logp.gather(-1, candidates[:, 1:].unsqueeze(-1)).squeeze(-1)
+        mask = torch.arange(1, n, device=y.device).unsqueeze(0) < lengths.unsqueeze(1)
+        total = first[candidates[:, 0]] + (rest * mask).sum(-1)
+        return total / lengths.to(total.dtype)
+
+
+class LmContextGraph(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, context):
+        return self.model.lm_context(context)
+
+
+class LmKeystrokeGraph(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, past_k, past_v, first, candidates, lengths):
+        return self.model.lm_score(past_k, past_v, first, candidates, lengths)
+
+
 class ContextGraph(nn.Module):
     def __init__(self, model):
         super().__init__()
