@@ -204,6 +204,8 @@ def main():
         log.write(json.dumps(row) + "\n")
         log.flush()
 
+    if args.progress:
+        note_progress(args.progress, args.progress_key, f"{args.progress_label}准备中：先测起点")
     best = evaluate(model, encoder, val, device, 64)
     print(f"start: {best}/{len(val)} validation hits", flush=True)
     record({"kind": "val", "step": 0, "hits": best, "n": len(val), "t": time.time()})
@@ -252,6 +254,21 @@ def main():
                 torch.save({"config": dataclasses.asdict(cfg), "model": model.state_dict(), "val": lm_loss, "step": start["step"] + step + 1, "dev_hits": hits}, out / "checkpoint.pt")
     print(f"best {best}/{len(val)} validation hits", flush=True)
     record({"kind": "end", "best": best, "n": len(val), "minutes": round((time.time() - started) / 60, 1)})
+    if args.progress:
+        note_progress(args.progress, args.progress_key, f"{args.progress_label}跑完，验证集最好 {best} / {len(val)}")
+
+
+def note_progress(path, key, detail):
+    """A running stage between step reports (the start evaluation, the gap before the next run), so the dashboard does not keep the last run's step count."""
+    path = Path(path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        data = {}
+    data[key] = {**data.get(key, {}), "status": "running", "detail": detail, "eta_s": None, "live": None}
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)
 
 
 def update_progress(path, key, step, steps, elapsed, label=""):
