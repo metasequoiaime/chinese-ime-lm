@@ -69,5 +69,5 @@ P0 先做，是因为结构选对了、延迟却不达标，后面全白做。
 
 ## 还没落实的风险
 
-- ONNX Runtime 在 HarmonyOS 上能不能用、怎么编，还没查；P0 期间先查清，查不通的平台退回现在的语言模型重排。
+- MSIME 已经在六个平台上带着 ONNX Runtime：本地语音识别用的 sherpa-onnx 1.13.8（`resources/voice-runtime.lock.json`）自带它，HarmonyOS 也有（ohpm 的 `sherpa_onnx` 包）。所以 HarmonyOS 能跑 ONNX Runtime 已有先例。但它不能直接复用：苹果平台上 ONNX Runtime 静态链接在 sherpa-onnx 的库里面，macOS 的语音识别还跑在单独的进程里（`msime-voice-local`）。选词模型要在输入法进程里跑，得自己带一份 ONNX Runtime，安装包会变大，移动端键盘扩展的内存也要把它算进去。
 - 前文缓存和跨按键续算要靠把每层的 K/V 作为图的输入输出来实现，ORT 能做，但 P0 先只量"前文已缓存、候选每次重算"的保守口径。
