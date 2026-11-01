@@ -1,6 +1,6 @@
 """P3 of `docs/choice-model.md`: export a trained choice model to int8 ONNX and pick on a pool file with ONNX Runtime, the way the input method will run it.
 
-With `--lm-only` the decoder is scored as a character LM instead (`ChoiceModel.lm_context` / `lm_score`, the way `reference/examples/pool.rs` scores the 2.0 models): the context graph reads BOS and the tail of the committed text, the keystroke graph the candidates alone, and a pick is the highest mean log-probability per character. `--run` can then be an LM-phase run.
+With `--lm-only` the decoder is scored as a character LM instead (`ChoiceModel.lm_context` / `lm_score`, the way `reference/examples/pool.rs` scores the 2.0 models): the context graph reads BOS and the tail of the committed text, the keystroke graph the candidates alone, and a pick is the highest mean log-probability per character. The page is scored through its prefix tree (`lm_score_tree`, the `lm_tree` graph), which gives `lm_score`'s scores while running each shared prefix once and no candidate's last character; `ms` then includes building the tree. `--run` can then be an LM-phase run.
 
 Writes one line per case, `{id, pick, scores, ms}` like `reference/examples/pool.rs`, so `neural/teacher/compare.py` takes it as a picker. The context graph runs once per case (at inference it runs when text is committed) and the keystroke graph scores the page; `ms` is the keystroke graph alone. The pick is the highest score, the first on a tie.
 
@@ -20,7 +20,7 @@ from onnxruntime.quantization import QuantType, quantize_dynamic
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from latency import export, session  # noqa: E402
-from model import END, ChoiceConfig, ChoiceModel, LmContextGraph, LmKeystrokeGraph, letter_ids  # noqa: E402
+from model import END, ChoiceConfig, ChoiceModel, LmContextGraph, LmKeystrokeGraph, LmTreeGraph, letter_ids, tree_inputs  # noqa: E402
 from train import CONTEXT_CHARS, LETTERS_MAX, Encoder  # noqa: E402
 
 
@@ -42,7 +42,13 @@ def export_lm(model, out):
     torch.onnx.export(LmKeystrokeGraph(model), (past_k, past_v, first, candidates, lengths), out / "lm_keystroke.onnx",
                       input_names=["past_k", "past_v", "first", "candidates", "lengths"], output_names=["scores"],
                       dynamic_axes={"past_k": {2: "lc"}, "past_v": {2: "lc"}, "candidates": {0: "b", 1: "lb"}, "lengths": {0: "b"}, "scores": {0: "b"}}, opset_version=17, dynamo=False)
-    for name in ("lm_context", "lm_keystroke"):
+    nodes, depths, visible, steps = (torch.tensor(t) for t in tree_inputs([[3, 4, 5], [3, 6]]))
+    names = ["nodes", "depths", "visible", "candidates", "steps", "lengths"]
+    torch.onnx.export(LmTreeGraph(model), (past_k, past_v, first, nodes, depths, visible, torch.tensor([[3, 4, 5], [3, 6, 0]]), steps, lengths), out / "lm_tree.onnx",
+                      input_names=["past_k", "past_v", "first", *names], output_names=["scores"],
+                      dynamic_axes={"past_k": {2: "lc"}, "past_v": {2: "lc"}, "nodes": {0: "n"}, "depths": {0: "n"}, "visible": {0: "n", 1: "n"}, "candidates": {0: "b", 1: "lb"}, "steps": {0: "b", 1: "lb1"}, "lengths": {0: "b"}, "scores": {0: "b"}},
+                      opset_version=17, dynamo=False)
+    for name in ("lm_context", "lm_keystroke", "lm_tree"):
         quantize_dynamic(out / f"{name}.onnx", out / f"{name}.int8.onnx", weight_type=QuantType.QInt8)
 
 
@@ -60,11 +66,12 @@ def main():
     model, vocab, ckpt = load(run)
     onnx_dir = run / "onnx"
     prefix = "lm_" if args.lm_only else ""
-    if not (onnx_dir / f"{prefix}keystroke.int8.onnx").exists():
+    keystroke = "lm_tree" if args.lm_only else "keystroke"
+    if not (onnx_dir / f"{keystroke}.int8.onnx").exists():
         onnx_dir.mkdir(exist_ok=True)
         with torch.no_grad():
             (export_lm if args.lm_only else export)(model, onnx_dir)
-    ctx, key = session(onnx_dir / f"{prefix}context.int8.onnx", args.threads), session(onnx_dir / f"{prefix}keystroke.int8.onnx", args.threads)
+    ctx, key = session(onnx_dir / f"{prefix}context.int8.onnx", args.threads), session(onnx_dir / f"{keystroke}.int8.onnx", args.threads)
     encoder = Encoder(vocab)
 
     empty = None
@@ -83,10 +90,6 @@ def main():
             if args.lm_only:
                 k, v, first = ctx.run(None, {"context": np.concatenate([[END], context]).astype(np.int64)})
                 bodies = [encoder.chars(c) for c in case["candidates"]]
-                candidates = np.zeros((len(bodies), max(len(b) for b in bodies)), dtype=np.int64)
-                for i, b in enumerate(bodies):
-                    candidates[i, : len(b)] = b
-                feed = {"past_k": k, "past_v": v, "first": first, "candidates": candidates, "lengths": np.array([len(b) for b in bodies], dtype=np.int64)}
             elif len(context):
                 k, v = ctx.run(None, {"context": context})
             else:
@@ -104,7 +107,21 @@ def main():
                 ends = np.array([len(b) - 1 for b in bodies], dtype=np.int64)
                 feed = {"past_k": k, "past_v": v, "letters": letters, "candidates": candidates, "ends": ends}
             started = time.perf_counter()
-            scores = key.run(None, feed)[0]
+            if args.lm_only:
+                width = max(len(b) for b in bodies)
+                candidates = np.zeros((len(bodies), width), dtype=np.int64)
+                for i, b in enumerate(bodies):
+                    candidates[i, : len(b)] = b
+                nodes, depths, visible, steps = tree_inputs(bodies)
+                if nodes:
+                    feed = {"past_k": k, "past_v": v, "first": first, "nodes": np.array(nodes, dtype=np.int64), "depths": np.array(depths, dtype=np.int64),
+                            "visible": np.array(visible, dtype=bool), "candidates": candidates, "steps": np.array(steps, dtype=np.int64).reshape(len(bodies), width - 1),
+                            "lengths": np.array([len(b) for b in bodies], dtype=np.int64)}
+                    scores = key.run(None, feed)[0]
+                else:
+                    scores = first[candidates[:, 0]]
+            else:
+                scores = key.run(None, feed)[0]
             ms = (time.perf_counter() - started) * 1000
             pick = int(np.argmax(scores))
             n += 1

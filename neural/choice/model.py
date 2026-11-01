@@ -56,18 +56,21 @@ class Block(nn.Module):
         b, n, c = t.shape
         return t.view(b, n, self.n_head, c // self.n_head).transpose(1, 2)
 
-    def forward(self, x, prefix_k, prefix_v):
-        """x: [B, N, C] new tokens; prefix_k / prefix_v: [B, H, P, D] keys and values they may all see. Returns the new tokens' output and their own keys and values."""
+    def forward(self, x, prefix_k, prefix_v, visible=None):
+        """x: [B, N, C] new tokens; prefix_k / prefix_v: [B, H, P, D] keys and values they may all see. visible: [N, N] bool, which new tokens each new token sees (default: itself and those before it). Returns the new tokens' output and their own keys and values."""
         b, n, c = x.shape
         q, k, v = self.qkv(self.ln1(x)).split(c, dim=-1)
         q, k, v = self.heads(q), self.heads(k), self.heads(v)
         keys = torch.cat([prefix_k, k], dim=2)
         values = torch.cat([prefix_v, v], dim=2)
         p = prefix_k.shape[2]
-        # Every new token sees the whole prefix and the new tokens up to itself.
-        rows = torch.arange(n, device=x.device).unsqueeze(1)
-        cols = torch.arange(p + n, device=x.device).unsqueeze(0)
-        mask = cols <= rows + p
+        if visible is None:
+            # Every new token sees the whole prefix and the new tokens up to itself.
+            rows = torch.arange(n, device=x.device).unsqueeze(1)
+            cols = torch.arange(p + n, device=x.device).unsqueeze(0)
+            mask = cols <= rows + p
+        else:
+            mask = torch.cat([torch.ones(n, p, dtype=torch.bool, device=x.device), visible], dim=1)
         y = F.scaled_dot_product_attention(q, keys, values, attn_mask=mask)
         x = x + self.proj(y.transpose(1, 2).reshape(b, n, c))
         x = x + self.mlp(self.ln2(x))
@@ -238,6 +241,34 @@ class ChoiceModel(nn.Module):
         total = first[candidates[:, 0]] + (rest * mask).sum(-1)
         return total / lengths.to(total.dtype)
 
+    def lm_score_tree(self, past_k, past_v, first, nodes, depths, visible, candidates, steps, lengths):
+        """`lm_score` over the page's prefix tree: the same scores, but each shared prefix runs once, and a candidate's last character never runs, since nothing reads its output. nodes: [N] the last character of each prefix that some candidate extends (N >= 1; a page of one-character candidates needs no run, its scores are `first`); depths: [N] that prefix's length minus one; visible: [N, N] bool, node i sees node j when j's prefix is i's or a prefix of it. candidates: [B, Lb] padded as in `lm_score`; steps: [B, Lb - 1] the node holding each candidate's prefix of length t + 1, which predicts its character t + 1 (any node past the candidate's length). See `tree_inputs`."""
+        assert not self.cfg.ngram_buckets, "n-grams would need each node's parent characters"
+        lc = past_k.shape[2]
+        x = (self.chars(nodes) + self.segments.weight[SEGMENTS["context"]] + self.positions(depths + lc)).unsqueeze(0)
+        for i, block in enumerate(self.blocks):
+            x, _, _ = block(x, past_k[i].unsqueeze(0), past_v[i].unsqueeze(0), visible)
+        logp = F.log_softmax(self.ln_f(x[0]) @ self.chars.weight.t(), dim=-1)
+        rest = logp.reshape(-1)[steps * logp.shape[-1] + candidates[:, 1:]]
+        mask = torch.arange(1, candidates.shape[1], device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
+        total = first[candidates[:, 0]] + (rest * mask).sum(-1)
+        return total / lengths.to(total.dtype)
+
+
+def tree_inputs(bodies):
+    """The prefix-tree inputs of `lm_score_tree` for candidates given as lists of character ids, as the input method builds them on each keystroke: (nodes, depths, visible, steps) as Python lists, nodes empty when every candidate is one character long."""
+    index = {}
+    for body in bodies:
+        for t in range(1, len(body)):
+            index.setdefault(tuple(body[:t]), len(index))
+    prefixes = list(index)
+    nodes = [p[-1] for p in prefixes]
+    depths = [len(p) - 1 for p in prefixes]
+    visible = [[len(q) <= len(p) and p[:len(q)] == q for q in prefixes] for p in prefixes]
+    width = max(map(len, bodies)) - 1
+    steps = [[index[tuple(body[:t + 1])] if t + 1 < len(body) else 0 for t in range(width)] for body in bodies]
+    return nodes, depths, visible, steps
+
 
 def from_char_lm(state, config, max_positions=256):
     """A `ChoiceModel` holding a `neural/model.py` CharLM checkpoint (its `model` state and `config`): the same blocks, the token table as the character table (BOS is `END`, id 2, in both), its positions for the first `context` rows and its last position repeated after them. Segment and letter embeddings start at zero, so the context segment reads exactly as the CharLM did."""
@@ -275,6 +306,15 @@ class LmKeystrokeGraph(nn.Module):
 
     def forward(self, past_k, past_v, first, candidates, lengths):
         return self.model.lm_score(past_k, past_v, first, candidates, lengths)
+
+
+class LmTreeGraph(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, past_k, past_v, first, nodes, depths, visible, candidates, steps, lengths):
+        return self.model.lm_score_tree(past_k, past_v, first, nodes, depths, visible, candidates, steps, lengths)
 
 
 class ContextGraph(nn.Module):
