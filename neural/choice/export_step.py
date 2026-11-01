@@ -11,8 +11,10 @@ With `--golden POOL`, also types the first `--golden-cases` cases of a pool file
 
 With `--random-shape LAYERSxWIDTH --random-chars TEXT` it exports a randomly initialised model over just those characters instead of `--run`, small enough to commit as a test fixture.
 
+A trained model needs `--corpus-dir`, the directories whose `*.source.json` records describe every corpus the model learned from (directly, through its initialisation, or through a teacher it distilled). The attribution is built from those records as `neural/export.py` builds it, refused if any source is share-alike, and written both into the graph's metadata (`attribution`, `license`), which the ORT file keeps, and into `model.json`: the corpora's licences require the attribution to travel with the weights.
+
 usage:
-  python neural/choice/export_step.py --run <lm run dir> --out <dir>
+  python neural/choice/export_step.py --run <lm run dir> --corpus-dir <dir with *.source.json> --out <dir>
   python neural/choice/export_step.py --random-shape 2x32 --random-chars 今天我们去北京背景玩 --out <dir> --golden <pool.jsonl> --golden-cases 40
 """
 
@@ -89,7 +91,41 @@ def pages(candidates):
     return out
 
 
-def export(model, out):
+LICENSE = "Apache-2.0"
+
+
+def attribution(directories):
+    """The attribution for the corpora recorded in `directories`, in `neural/export.py`'s wording; stops on a share-alike source."""
+    records = []
+    for directory in directories:
+        for path in sorted(Path(directory).glob("*.source.json")):
+            records.append(json.loads(path.read_text(encoding="utf-8")))
+    if not records:
+        raise SystemExit(
+            f"no *.source.json in {', '.join(directories)}: the corpus is unrecorded, so the attribution cannot be derived"
+        )
+    if any(r["share_alike"] for r in records):
+        raise SystemExit(
+            "a corpus imposes a share-alike obligation; these weights are not eligible for release under this project's policy"
+        )
+    named = list(dict.fromkeys(f"{r['name']} ({r['license']}, {r['url']})" for r in records))
+    listed = ", ".join(named[:-1]) + " and " + named[-1] if len(named) > 1 else named[0]
+    return f"Trained on {listed}."
+
+
+def stamp(path, text):
+    """Write the attribution and licence into an ONNX file's metadata, which quantization and the ORT conversion keep."""
+    import onnx
+
+    graph = onnx.load(str(path))
+    del graph.metadata_props[:]
+    for key, value in (("attribution", text), ("license", LICENSE)):
+        entry = graph.metadata_props.add()
+        entry.key, entry.value = key, value
+    onnx.save(graph, str(path))
+
+
+def export(model, out, credit=None):
     cfg = model.cfg
     torch.manual_seed(0)
     context = [END, 3, 4, 5]
@@ -129,6 +165,8 @@ def export(model, out):
             opset_version=17,
             dynamo=False,
         )
+    if credit:
+        stamp(out / "lm_step.onnx", credit)
     from onnxruntime.quantization import QuantType, quantize_dynamic
 
     quantized = out / "ort-work"
@@ -192,6 +230,12 @@ def main():
     parser.add_argument(
         "--self-normalized", action="store_true", help="with --random-shape: mark the model self_normalized"
     )
+    parser.add_argument(
+        "--corpus-dir",
+        action="append",
+        default=[],
+        help="with --run: a directory of *.source.json records of the corpora the model learned from; repeat for several",
+    )
     parser.add_argument("--out", required=True)
     parser.add_argument("--golden", help="a pool file whose first cases to replay through the exported model")
     parser.add_argument("--golden-cases", type=int, default=40)
@@ -223,7 +267,8 @@ def main():
         model = ChoiceModel(cfg).eval()
         model.load_state_dict(state["model"])
         tokens = json.loads((run / "vocab.json").read_text(encoding="utf-8"))["tokens"]
-    export(model, out)
+    credit = None if args.random_shape else attribution(args.corpus_dir)
+    export(model, out, credit)
     (out / "vocab.json").write_text(json.dumps({"tokens": tokens}, ensure_ascii=False), encoding="utf-8")
     meta = {
         "layers": cfg.n_layer,
@@ -235,6 +280,8 @@ def main():
         "bos": END,
         "unk": 1,
         "self_normalized": cfg.self_normalized,
+        "attribution": credit,
+        "license": None if credit is None else LICENSE,
         "config": dataclasses.asdict(cfg),
     }
     (out / "model.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
