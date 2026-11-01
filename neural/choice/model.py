@@ -36,6 +36,8 @@ class ChoiceConfig:
     ngram_buckets: int = 0
     # GELU's tanh approximation; False for exact GELU, as `neural/model.py`'s CharLM uses, so a 2.0 checkpoint converted by `from_char_lm` computes what it did.
     gelu_tanh: bool = True
+    # Trained with `z * logZ^2` on its LM loss so the character table's log normaliser stays near zero: `lm_score_tree` then reads a candidate character's log-probability as its bare dot product with the predicting node, skipping the softmax over the vocabulary (on a phone that softmax is 40% of a 6x256 keystroke).
+    self_normalized: bool = False
 
 
 def letter_ids(text):
@@ -216,6 +218,13 @@ class ChoiceModel(nn.Module):
         ce = lse - logits.gather(-1, y.unsqueeze(-1)).squeeze(-1).float()
         return ce.mean() + z * (lse * lse).mean() if z else ce.mean()
 
+    def lm_logits(self, x):
+        """Next-character logits [B, T, V] over context-segment windows, as `lm_loss` computes them."""
+        h = self.embed(x, self.chars, "context", 0)
+        for block in self.blocks:
+            h, _, _ = block(h, self.empty(x.shape[0], h.device), self.empty(x.shape[0], h.device))
+        return self.ln_f(h) @ self.chars.weight.t()
+
     def lm_loss(self, x, y, z=0.0):
         """Pretraining as a character LM over context-segment text, through the character table (tied); without `lm_term` the table is discarded from the keystroke path, so this costs nothing at inference. `z` adds the self-normalisation penalty of `tied_loss`."""
         h = self.embed(x, self.chars, "context", 0)
@@ -278,11 +287,54 @@ class ChoiceModel(nn.Module):
         bias = torch.zeros(seen.shape, dtype=x.dtype, device=x.device).masked_fill(~seen, float("-inf"))
         for i, block in enumerate(self.blocks):
             x, _, _ = block.forward_one(x, past_k[i : i + 1], past_v[i : i + 1], bias)
-        logp = F.log_softmax(self.ln_f(x[0]) @ self.chars.weight.t(), dim=-1)
-        rest = logp.reshape(-1)[steps * logp.shape[-1] + candidates[:, 1:]]
+        h = self.ln_f(x[0])
+        if self.cfg.self_normalized:
+            rest = (h[steps] * self.chars(candidates[:, 1:])).sum(-1)
+        else:
+            logp = F.log_softmax(h @ self.chars.weight.t(), dim=-1)
+            rest = logp.reshape(-1)[steps * logp.shape[-1] + candidates[:, 1:]]
         mask = torch.arange(1, candidates.shape[1], device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
         total = first[candidates[:, 0]] + (rest * mask).sum(-1)
         return total / lengths.to(total.dtype)
+
+    def lm_score_cached(self, past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths):
+        """`lm_score_tree` across keystrokes: prefixes run on earlier keystrokes since the last commit are passed back in and not run again, so while a long input grows only its new prefixes run. cache_k / cache_v: [layers, H, M, D] the cached prefixes' keys and values (M may be 0), cache_h: [M, C] their final hidden states, cache_z: [M] their log normalisers (zero when `self_normalized`). nodes / depths: [N] the prefixes not in the cache (N >= 1); visible: [N, M + N] which cached and new prefixes each new one sees (itself and its own prefixes); steps index the M + N prefixes, cached first. Returns the scores and the cache with the new prefixes appended, to pass back on the next keystroke. See `cache_inputs`."""
+        assert not self.cfg.ngram_buckets, "n-grams would need each node's parent characters"
+        lc = past_k.shape[2]
+        x = (self.chars(nodes) + self.segments.weight[SEGMENTS["context"]] + self.positions(depths + lc)).unsqueeze(0)
+        seen = torch.cat([torch.ones_like(visible[:, :1]).expand(-1, lc), visible], dim=1)
+        bias = torch.zeros(seen.shape, dtype=x.dtype, device=x.device).masked_fill(~seen, float("-inf"))
+        ks, vs = [], []
+        for i, block in enumerate(self.blocks):
+            x, k, v = block.forward_one(x, torch.cat([past_k[i], cache_k[i]], dim=1).unsqueeze(0), torch.cat([past_v[i], cache_v[i]], dim=1).unsqueeze(0), bias)
+            ks.append(k[0])
+            vs.append(v[0])
+        h = self.ln_f(x[0])
+        z = torch.zeros_like(h[:, 0]) if self.cfg.self_normalized else torch.logsumexp(h @ self.chars.weight.t(), dim=-1)
+        h_all, z_all = torch.cat([cache_h, h]), torch.cat([cache_z, z])
+        rest = (h_all[steps] * self.chars(candidates[:, 1:])).sum(-1) - z_all[steps]
+        mask = torch.arange(1, candidates.shape[1], device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
+        total = first[candidates[:, 0]] + (rest * mask).sum(-1)
+        return total / lengths.to(total.dtype), torch.cat([cache_k, torch.stack(ks)], dim=2), torch.cat([cache_v, torch.stack(vs)], dim=2), h_all, z_all
+
+
+def cache_inputs(bodies, cached):
+    """The inputs of `lm_score_cached` for one keystroke: bodies as lists of character ids, cached the prefixes (tuples) already in the cache, in cache order. Returns (nodes, depths, visible, steps, cached) as Python lists, cached extended with the new prefixes for the next keystroke; nodes is empty when nothing new needs to run."""
+    index = {p: i for i, p in enumerate(cached)}
+    fresh = []
+    for body in bodies:
+        for t in range(1, len(body)):
+            prefix = tuple(body[:t])
+            if prefix not in index:
+                index[prefix] = len(index)
+                fresh.append(prefix)
+    every = list(cached) + fresh
+    nodes = [p[-1] for p in fresh]
+    depths = [len(p) - 1 for p in fresh]
+    visible = [[len(q) <= len(p) and p[:len(q)] == q for q in every] for p in fresh]
+    width = max(map(len, bodies)) - 1
+    steps = [[index[tuple(body[:t + 1])] if t + 1 < len(body) else 0 for t in range(width)] for body in bodies]
+    return nodes, depths, visible, steps, every
 
 
 def tree_inputs(bodies):
@@ -345,6 +397,15 @@ class LmTreeGraph(nn.Module):
 
     def forward(self, past_k, past_v, first, nodes, depths, visible, candidates, steps, lengths):
         return self.model.lm_score_tree(past_k, past_v, first, nodes, depths, visible, candidates, steps, lengths)
+
+
+class LmCachedGraph(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths):
+        return self.model.lm_score_cached(past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths)
 
 
 class ContextGraph(nn.Module):

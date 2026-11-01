@@ -1,6 +1,7 @@
 """P2 of `docs/choice-model.md`: train the choice model, in two phases.
 
 - `--phase lm`: pretrain the decoder as a character LM on a packed corpus (`neural/train.py`'s `tokens.u16` and `vocab.json`, so the 2.0 corpus is reused as it is), so it knows Chinese before it sees a pool.
+- `--teacher-lm` (lm phase): distil a larger choice-model LM (same vocabulary) character by character, `(1 - a) CE + a KL(teacher || student)` with `a = --kd-weight`; `--self-normalize Z` adds `Z * logZ^2` and marks the model `self_normalized`, so its keystroke graph skips the softmax (`ChoiceConfig.self_normalized`). This is how the phone model is made.
 - `--phase pools`: train on candidate pools, `--init` from the LM phase. Each pool's candidates are scored and the page is ranked with a listwise loss: cross-entropy on the gold and, for each `--teacher` that scored the pool, `w T^2 KL(teacher || student)` at that teacher's weight and temperature (the 9B LoRA and Zhiyi, whose scores are on different scales). A little LM loss on corpus windows (`--lm-weight`) keeps the language from drifting.
 - `--lm-only` (pools phase) trains the decoder as the LM-only path scores it (`ChoiceModel.lm_rows`, the same as `lm_context` + `lm_score`): a candidate's score is its mean character log-probability after BOS and the context, with no letters and no END head, so what the input method runs is exactly what the listwise loss trained. The page logits are those scores times the candidate's length (its total log-probability; a pool's candidates share a length), on the scale of the teachers' scores.
 - `--lm-term` (pools phase) turns on the model's `lm_term`: each candidate's score also sums its characters' log-likelihood through the tied table, the gold candidate's characters are trained as a conditioned LM (`--candidate-lm-weight`), and every LM loss carries the self-normalisation penalty `--z` so the keystroke path can skip the softmax.
@@ -117,6 +118,32 @@ def batch_lm_rows(encoder, cases, device):
     return chars.to(device), starts.to(device), lengths.to(device), spans
 
 
+def distil_loss(model, teacher, x, y, kd_weight, z):
+    """The lm phase's loss with `--teacher-lm` and/or `--self-normalize`: corpus cross-entropy, `kd_weight` of it replaced by KL(teacher || student) when there is a teacher, plus `z * logZ^2`. Returns the loss and the mean logZ."""
+    keep = y != PAD
+    logits = model.lm_logits(x)[keep].float()
+    lse = torch.logsumexp(logits, dim=-1)
+    ce = (lse - logits.gather(-1, y[keep].unsqueeze(-1)).squeeze(-1)).mean()
+    loss = ce
+    if teacher is not None:
+        with torch.no_grad():
+            target = F.log_softmax(teacher.lm_logits(x)[keep].float(), dim=-1)
+        kd = F.kl_div(logits - lse.unsqueeze(-1), target, log_target=True, reduction="batchmean")
+        loss = (1 - kd_weight) * ce + kd_weight * kd
+    if z:
+        loss = loss + z * (lse * lse).mean()
+    return loss, lse.mean().item()
+
+
+@torch.no_grad()
+def lse_stats(model, x, y):
+    """Mean and standard deviation of the log normaliser over a batch's predicting positions, which `self_normalized` scoring takes to be zero."""
+    model.eval()
+    lse = torch.logsumexp(model.lm_logits(x)[y != PAD].float(), dim=-1)
+    model.train()
+    return lse.mean().item(), lse.std().item()
+
+
 def parse_teacher(spec):
     """`name=path[:weight[:temperature]]`."""
     name, rest = spec.split("=", 1)
@@ -200,6 +227,9 @@ def main():
     parser.add_argument("--steps", type=int, default=20000, help="lm phase")
     parser.add_argument("--window", type=int, default=128, help="lm phase window")
     parser.add_argument("--bos-windows", action="store_true", help="open every LM window with BOS (see lm_windows)")
+    parser.add_argument("--teacher-lm", help="lm phase: a choice-model LM checkpoint to distil, character by character")
+    parser.add_argument("--kd-weight", type=float, default=0.5, help="with --teacher-lm: weight of KL(teacher || student) against the corpus cross-entropy")
+    parser.add_argument("--self-normalize", type=float, default=0.0, help="lm phase: weight of logZ^2 on the LM loss; > 0 marks the model self_normalized")
     parser.add_argument("--pools")
     parser.add_argument("--teacher", action="append", default=[], help="name=path[:weight[:temperature]], a scorer's output (id, scores) over some of --pools; repeat for several teachers")
     parser.add_argument("--dev", help="dev pools for picking the checkpoint")
@@ -248,7 +278,15 @@ def main():
         layers, width = (int(x) for x in args.shape.split("x"))
         cfg = ChoiceConfig(vocab=len(vocab), n_layer=layers, n_embd=width, n_head=width // 64, ngram_buckets=args.ngram_buckets)
         model = ChoiceModel(cfg)
+    if args.phase == "lm" and args.self_normalize:
+        cfg.self_normalized = True
     model.to(device)
+    teacher_lm = None
+    if args.teacher_lm:
+        state = torch.load(args.teacher_lm, map_location="cpu", weights_only=True)
+        teacher_lm = ChoiceModel(ChoiceConfig(**state["config"]))
+        teacher_lm.load_state_dict(state["model"])
+        teacher_lm.to(device).eval().requires_grad_(False)
     (out / "config.json").write_text(json.dumps({"choice": dataclasses.asdict(cfg), "args": vars(args)}, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "vocab.json").write_text(json.dumps({"tokens": vocab}, ensure_ascii=False), encoding="utf-8")
     print(f"{sum(p.numel() for p in model.parameters()):,} parameters ({model.non_embedding_parameters():,} outside the embeddings) on {device}", flush=True)
@@ -276,7 +314,10 @@ def main():
         for step in range(args.steps):
             for group in optimizer.param_groups:
                 group["lr"] = learning_rate(step, args.steps, lr, args.warmup)
-            loss = model.lm_loss(*next(lm_train))
+            if teacher_lm is None and not args.self_normalize:
+                loss = model.lm_loss(*next(lm_train))
+            else:
+                loss, _ = distil_loss(model, teacher_lm, *next(lm_train), args.kd_weight, args.self_normalize)
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -288,8 +329,10 @@ def main():
                 report(args.progress, args.progress_key, step + 1, args.steps, time.time() - started, f"{step + 1} / {args.steps} 步 · loss {loss.item():.3f}")
             if (step + 1) % args.eval_every == 0 or step + 1 == args.steps:
                 val = lm_val_loss()
-                print(f"step {step + 1}/{args.steps}  train {loss.item():.4f}  val {val:.4f}  {(time.time() - started) / 60:.1f} min", flush=True)
-                record({"kind": "val", "step": step + 1, "lm_val": val})
+                lse = lse_stats(model, *next(lm_val)) if args.self_normalize else None
+                shown = f"  logZ {lse[0]:+.3f} ± {lse[1]:.3f}" if lse else ""
+                print(f"step {step + 1}/{args.steps}  train {loss.item():.4f}  val {val:.4f}{shown}  {(time.time() - started) / 60:.1f} min", flush=True)
+                record({"kind": "val", "step": step + 1, "lm_val": val, "log_z": lse})
                 if val < best:
                     best = val
                     save(out / "checkpoint.pt", model, step + 1, {"lm_val": val})
