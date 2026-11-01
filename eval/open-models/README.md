@@ -49,7 +49,7 @@ cargo run --release --example pool -- sentence-model.safetensors ../eval/open-mo
 cargo run --release --example pool -- sentence-model-desktop.safetensors ../eval/open-models/pool.jsonl --passes 5 > out/ours-25m.r1.jsonl
 ```
 
-挑每字平均对数概率最高的候选（并列取靠前的），与 `Reranker::best_where` 决定比较之后的做法相同。耗时是对整个池调用一次 `SentenceModel::score`，单线程、不续算。
+挑每字平均对数概率最高的候选（并列取靠前的），与 `Reranker::best_where` 决定比较之后的做法相同。耗时是对整个池调用一次 `SentenceModel::score`，单线程、不续算。上文照 MSIME 交给重排器的样子给（`rerank_context`：放不进窗口时按 16 字一档截掉开头），这个池里上文都是空的，所以不起作用；带上文的池见 [`eval/sentences-ctx-v1/`](../sentences-ctx-v1/)。
 
 ### Qwen
 
@@ -58,6 +58,8 @@ python eval/open-models/mlx_lm_pool.py --model mlx-community/Qwen3-0.6B-8bit --p
 ```
 
 `--start` 决定候选前面接什么：`none` 什么也不接，第一个 token 不计分，这是 2026-09-19 原表的口径；`endoftext` 接 `<|endoftext|>`；`eos` 接分词器的 `eos_token`（这几个版本是 `<|im_end|>`）。结果对这一项很敏感，`docs/measurements.md` 里有数字。原来的打分脚本没有留下，这一个是重写的，按 `none` 复测时 0.5B、0.6B、2B 的命中数与原表相同，0.8B 少一条。模型的 Hugging Face 修订号记在 `models.json` 里。
+
+2026-10-30 之后脚本把一个池的候选放进一个批次一次前向（右侧补齐，因果模型补齐的位置影响不到计分的位置），并在候选前面接上上文；在这个池上 0.5B 三种起始的命中数（42、51、52）和 `none` 的逐例选择与之前逐候选前向时相同，耗时因此从逐候选相加变成一次批量前向，这张表的耗时列是改之前量的。脚本还把 mlx 的缓冲缓存限在 2 GB：每条用例的形状都不同，不设上限时缓存只涨不收，在 `eval/sentences-ctx-v1/` 的前 100 条里就涨到 30 GB 以上，macOS 会杀掉进程；设上限前后 200 条抽样用例的选择逐条相同。
 
 ### 青简：含章·通变、含章·知微、知意 safetensors
 
@@ -72,7 +74,7 @@ target/release/examples/ime_lm_pool zhiwei <hanzhang-zhiwei-small.qjm> pool.json
 target/release/examples/ime_lm_pool zhiyi <zhiyi 目录> pool.jsonl > out/zhiyi-candle.r1.jsonl
 ```
 
-各个模型拿到的就是青简引擎给它的：
+各个模型拿到的就是青简引擎给它的（上文按青简默认设置截：知微最后 64 字，知意默认档最后 64 字；只打声母或混打的用例见 [`eval/sentences-ctx-v1/`](../sentences-ctx-v1/)）：
 
 - **含章·通变**：`P2cScorer` 的 `SentenceScorer::score`，即 `log P(候选 | 敲的字母)`，不读前文。候选里有字表外的字时它不打分、引擎保持原序；适配器照做（选池里第一个、记为 declined），这个池里没有发生。
 - **含章·知微**：`CharScorer` 的 `SentenceScorer::score`，即 `log P(候选 | 前文)`，不看字母。
@@ -87,7 +89,7 @@ python eval/open-models/zhiyi_onnx_pool.py --model-dir <含 laya.int8g.onnx 的�
 python eval/open-models/zhiyi_onnx_pool.py --model-dir <含 laya.int8g.onnx 的目录> --pool eval/open-models/pool.jsonl > out/zhiyi-onnx.r1.jsonl
 ```
 
-序列照知意输入法 `laya::Reranker::build` 的 `ctx-first` 分支拼，输入单元照 `slot_units`，会话设置照它的 CPU 会话（4 个 intra-op 线程、1 个 inter-op 线程、全部图优化），ONNX Runtime 用它锁定的 1.24.4。`--check` 读上游 safetensors 包（知意 Release `model-zhen-long-l12` 的 `laya-zhen-long-l12-safetensors.zip`）里的 `test_vectors.safetensors`：四条中文选词用例从明文拼出的 token、单元和候选标记位置与测试向量逐个相同，int8 图与 fp32 图的首选一致（logit 最大差 0.16）。
+序列照知意输入法 `laya::Reranker::build` 的 `ctx-first` 分支拼，上文先照 `laya.context_chars` 取最后 128 字，输入单元照 `slot_units`，会话设置照它的 CPU 会话（4 个 intra-op 线程、1 个 inter-op 线程、全部图优化），ONNX Runtime 用它锁定的 1.24.4。`--check` 读上游 safetensors 包（知意 Release `model-zhen-long-l12` 的 `laya-zhen-long-l12-safetensors.zip`）里的 `test_vectors.safetensors`：四条中文选词用例从明文拼出的 token、单元和候选标记位置与测试向量逐个相同，int8 图与 fp32 图的首选一致（logit 最大差 0.16）。
 
 知意输入法在没有前文时不调用模型，除非装了它的词级 n-gram；它还把模型分与 n-gram、位置先验和组句分相加。这些都不是模型本身，这里不用。
 
