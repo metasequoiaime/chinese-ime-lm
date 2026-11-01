@@ -34,6 +34,8 @@ class ChoiceConfig:
     lm_term: bool = False
     # Hashed character bigram and trigram tables, this many rows each (0 = none), added to every character's embedding: capacity that costs two lookups per character and no compute. The n-grams run within a segment, so a candidate's first character sees padding before it in both entry points.
     ngram_buckets: int = 0
+    # GELU's tanh approximation; False for exact GELU, as `neural/model.py`'s CharLM uses, so a 2.0 checkpoint converted by `from_char_lm` computes what it did.
+    gelu_tanh: bool = True
 
 
 def letter_ids(text):
@@ -48,7 +50,7 @@ class Block(nn.Module):
         self.qkv = nn.Linear(cfg.n_embd, 3 * cfg.n_embd)
         self.proj = nn.Linear(cfg.n_embd, cfg.n_embd)
         self.ln2 = nn.LayerNorm(cfg.n_embd)
-        self.mlp = nn.Sequential(nn.Linear(cfg.n_embd, 4 * cfg.n_embd), nn.GELU(approximate="tanh"), nn.Linear(4 * cfg.n_embd, cfg.n_embd))
+        self.mlp = nn.Sequential(nn.Linear(cfg.n_embd, 4 * cfg.n_embd), nn.GELU(approximate="tanh" if cfg.gelu_tanh else "none"), nn.Linear(4 * cfg.n_embd, cfg.n_embd))
 
     def heads(self, t):
         b, n, c = t.shape
@@ -235,6 +237,26 @@ class ChoiceModel(nn.Module):
         mask = torch.arange(1, n, device=y.device).unsqueeze(0) < lengths.unsqueeze(1)
         total = first[candidates[:, 0]] + (rest * mask).sum(-1)
         return total / lengths.to(total.dtype)
+
+
+def from_char_lm(state, config, max_positions=256):
+    """A `ChoiceModel` holding a `neural/model.py` CharLM checkpoint (its `model` state and `config`): the same blocks, the token table as the character table (BOS is `END`, id 2, in both), its positions for the first `context` rows and its last position repeated after them. Segment and letter embeddings start at zero, so the context segment reads exactly as the CharLM did."""
+    cfg = ChoiceConfig(vocab=config["vocab"], n_layer=config["n_layer"], n_head=config["n_head"], n_embd=config["n_embd"], max_positions=max_positions, gelu_tanh=False)
+    model = ChoiceModel(cfg)
+    dst = model.state_dict()
+    for key, value in state.items():
+        if key.startswith("blocks."):
+            dst[key.replace(".fc.", ".mlp.0.").replace(".out.", ".mlp.2.")].copy_(value)
+    dst["chars.weight"].copy_(state["tok.weight"])
+    n = min(config["context"], max_positions)
+    dst["positions.weight"][:n].copy_(state["pos.weight"][:n])
+    dst["positions.weight"][n:] = state["pos.weight"][n - 1]
+    dst["ln_f.weight"].copy_(state["ln_f.weight"])
+    dst["ln_f.bias"].copy_(state["ln_f.bias"])
+    dst["segments.weight"].zero_()
+    dst["letters.weight"].zero_()
+    model.load_state_dict(dst)
+    return model
 
 
 class LmContextGraph(nn.Module):

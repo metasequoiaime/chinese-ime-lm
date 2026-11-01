@@ -25,7 +25,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from model import END, PAD, SEGMENTS, UNK, ChoiceConfig, ChoiceModel, letter_ids  # noqa: E402
+from model import END, PAD, SEGMENTS, UNK, ChoiceConfig, ChoiceModel, from_char_lm, letter_ids  # noqa: E402
 
 CONTEXT_CHARS = 64
 LETTERS_MAX = 96
@@ -175,6 +175,7 @@ def main():
     parser.add_argument("--shape", default="8x384", help="LAYERSxWIDTH (lm phase; pools takes it from --init)")
     parser.add_argument("--ngram-buckets", type=int, default=0, help="lm phase: rows in each hashed n-gram table (ChoiceConfig.ngram_buckets), 0 for none")
     parser.add_argument("--init", help="checkpoint to start from (pools phase)")
+    parser.add_argument("--init-char-lm", help="lm phase: start from a neural/train.py CharLM checkpoint (model.from_char_lm)")
     parser.add_argument("--steps", type=int, default=20000, help="lm phase")
     parser.add_argument("--window", type=int, default=128, help="lm phase window")
     parser.add_argument("--bos-windows", action="store_true", help="open every LM window with BOS (see lm_windows)")
@@ -206,7 +207,11 @@ def main():
     split = int(len(tokens) * 0.999)
     gen = torch.Generator().manual_seed(args.seed)
 
-    if args.init:
+    if args.init_char_lm:
+        start = torch.load(args.init_char_lm, map_location="cpu", weights_only=False)
+        model = from_char_lm(start["model"], start["config"])
+        cfg = model.cfg
+    elif args.init:
         start = torch.load(args.init, map_location="cpu", weights_only=True)
         cfg = ChoiceConfig(**start["config"])
         if args.lm_term and not cfg.lm_term:
