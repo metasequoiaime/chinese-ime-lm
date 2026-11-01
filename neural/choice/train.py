@@ -2,6 +2,7 @@
 
 - `--phase lm`: pretrain the decoder as a character LM on a packed corpus (`neural/train.py`'s `tokens.u16` and `vocab.json`, so the 2.0 corpus is reused as it is), so it knows Chinese before it sees a pool.
 - `--phase pools`: train on candidate pools, `--init` from the LM phase. Each pool's candidates are scored and the page is ranked with a listwise loss: cross-entropy on the gold and, for each `--teacher` that scored the pool, `w T^2 KL(teacher || student)` at that teacher's weight and temperature (the 9B LoRA and Zhiyi, whose scores are on different scales). A little LM loss on corpus windows (`--lm-weight`) keeps the language from drifting.
+- `--lm-only` (pools phase) trains the decoder as the LM-only path scores it (`ChoiceModel.lm_rows`, the same as `lm_context` + `lm_score`): a candidate's score is its mean character log-probability after BOS and the context, with no letters and no END head, so what the input method runs is exactly what the listwise loss trained. The page logits are those scores times the candidate's length (its total log-probability; a pool's candidates share a length), on the scale of the teachers' scores.
 - `--lm-term` (pools phase) turns on the model's `lm_term`: each candidate's score also sums its characters' log-likelihood through the tied table, the gold candidate's characters are trained as a conditioned LM (`--candidate-lm-weight`), and every LM loss carries the self-normalisation penalty `--z` so the keystroke path can skip the softmax.
 
 The context is the last `CONTEXT_CHARS` characters of the case's context, the letters are what was typed (`input`), as at inference. The dev pools pick the highest score, the first on a tie; the checkpoint with the most dev hits is kept.
@@ -100,6 +101,22 @@ def batch_rows(encoder, cases, device):
     return chars.to(device), lets.to(device), segs.to(device), ends.to(device), spans
 
 
+def batch_lm_rows(encoder, cases, device):
+    """`--lm-only` rows: BOS, the context's tail and one candidate per row, as `lm_context` + `lm_score` read them. Returns chars, starts, lengths and the pools' spans."""
+    rows, spans = [], []
+    for case in cases:
+        context = [END] + encoder.chars(case.get("context", "")[-CONTEXT_CHARS:])
+        spans.append((len(rows), len(rows) + len(case["candidates"])))
+        rows.extend((context + encoder.chars(c), len(context), len(c)) for c in case["candidates"])
+    width = -(-max(len(r[0]) for r in rows) // 32) * 32
+    chars = torch.full((len(rows), width), PAD, dtype=torch.long)
+    for i, (c, _, _) in enumerate(rows):
+        chars[i, : len(c)] = torch.tensor(c)
+    starts = torch.tensor([r[1] for r in rows], dtype=torch.long)
+    lengths = torch.tensor([r[2] for r in rows], dtype=torch.long)
+    return chars.to(device), starts.to(device), lengths.to(device), spans
+
+
 def parse_teacher(spec):
     """`name=path[:weight[:temperature]]`."""
     name, rest = spec.split("=", 1)
@@ -127,13 +144,17 @@ def page_loss(scores, spans, cases, teachers):
 
 
 @torch.no_grad()
-def evaluate(model, encoder, cases, device, batch=64):
+def evaluate(model, encoder, cases, device, batch=64, lm_only=False):
     model.eval()
     hits = 0
     for i in range(0, len(cases), batch):
         chunk = cases[i : i + batch]
-        chars, lets, segs, ends, spans = batch_rows(encoder, chunk, device)
-        scores = model.rows(chars, lets, segs, ends).float().cpu().tolist()
+        if lm_only:
+            chars, starts, lengths, spans = batch_lm_rows(encoder, chunk, device)
+            scores = model.lm_rows(chars, starts, lengths).cpu().tolist()
+        else:
+            chars, lets, segs, ends, spans = batch_rows(encoder, chunk, device)
+            scores = model.rows(chars, lets, segs, ends).float().cpu().tolist()
         for case, (a, b) in zip(chunk, spans):
             row = scores[a:b]
             hits += case["candidates"][row.index(max(row))] == case["gold"]
@@ -186,6 +207,7 @@ def main():
     parser.add_argument("--batch", type=int, default=64, help="lm: windows per step; pools: pools per step")
     parser.add_argument("--lm-batch", type=int, default=32)
     parser.add_argument("--lm-weight", type=float, default=0.1)
+    parser.add_argument("--lm-only", action="store_true", help="pools phase: score candidates as the LM-only path does (ChoiceModel.lm_rows)")
     parser.add_argument("--lm-term", action="store_true", help="pools phase: score with the candidate's character log-likelihood too (ChoiceConfig.lm_term)")
     parser.add_argument("--candidate-lm-weight", type=float, default=1.0, help="with --lm-term: weight of the gold candidates' conditioned LM loss")
     parser.add_argument("--z", type=float, default=0.1, help="with --lm-term: self-normalisation penalty on every LM loss")
@@ -286,7 +308,7 @@ def main():
     print(f"{len(pools)} pools (scored by: {covered}), {len(dev)} dev pools, {steps} steps of {args.batch}", flush=True)
     lr = args.lr or 3e-4
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95), weight_decay=0.1)
-    best = evaluate(model, encoder, dev, device)
+    best = evaluate(model, encoder, dev, device, lm_only=args.lm_only)
     print(f"start: {best}/{len(dev)} dev hits", flush=True)
     record({"kind": "val", "step": 0, "hits": best, "n": len(dev)})
     save(out / "checkpoint.pt", model, 0, {"dev_hits": best})
@@ -302,11 +324,15 @@ def main():
             cursor = 0
         cases = [pools[i] for i in order[cursor : cursor + args.batch]]
         cursor += args.batch
-        chars, lets, segs, ends, spans = batch_rows(encoder, cases, device)
         z = args.z if cfg.lm_term else 0.0
-        if cfg.lm_term:
+        if args.lm_only:
+            chars, starts, lengths, spans = batch_lm_rows(encoder, cases, device)
+            scores = model.lm_rows(chars, starts, lengths) * lengths
+        elif cfg.lm_term:
+            chars, lets, segs, ends, spans = batch_rows(encoder, cases, device)
             scores, hidden = model.rows(chars, lets, segs, ends, hidden=True)
         else:
+            chars, lets, segs, ends, spans = batch_rows(encoder, cases, device)
             scores = model.rows(chars, lets, segs, ends)
         gold, kd = page_loss(scores, spans, cases, teachers)
         loss = gold + sum(t["weight"] * kd[t["name"]] for t in teachers)
@@ -329,7 +355,7 @@ def main():
             record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "gold": gold.item(), "kd": {name: v.item() for name, v in kd.items()}, "lm": lm.item() if lm is not None else None, "candidate_lm": cand_lm.item() if cand_lm is not None else None, "wall_s": time.time() - started})
             report(args.progress, args.progress_key, step + 1, steps, time.time() - started, f"{step + 1} / {steps} 步 · 开发集最好 {best} / {len(dev)}")
         if (step + 1) % args.eval_every == 0 or step + 1 == steps:
-            hits = evaluate(model, encoder, dev, device)
+            hits = evaluate(model, encoder, dev, device, lm_only=args.lm_only)
             val = lm_val_loss()
             print(f"step {step + 1}/{steps}  loss {loss.item():.4f}  dev {hits}/{len(dev)}  lm {val:.4f}  {(time.time() - started) / 60:.1f} min", flush=True)
             record({"kind": "val", "step": step + 1, "hits": hits, "n": len(dev), "lm_val": val})

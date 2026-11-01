@@ -76,6 +76,19 @@ class Block(nn.Module):
         x = x + self.mlp(self.ln2(x))
         return x, k, v
 
+    def forward_one(self, x, prefix_k, prefix_v, bias):
+        """`forward` for a single sequence with an additive attention bias [N, P + N] built once by the caller (0 where visible, -inf elsewhere). Returns what `forward` does. Every reshape has constant dimensions and the attention is written out, so the exported graph carries none of the shape arithmetic and masking that `forward` exports into on every layer; on a phone those small operators cost about as much as the matrix products."""
+        c = x.shape[-1]
+        h = self.n_head
+        q, k, v = self.qkv(self.ln1(x)).split(c, dim=-1)
+        q, k, v = (t.reshape(1, -1, h, c // h).transpose(1, 2) for t in (q, k, v))
+        keys = torch.cat([prefix_k, k], dim=2)
+        values = torch.cat([prefix_v, v], dim=2)
+        att = torch.softmax(q @ keys.transpose(2, 3) * (1.0 / math.sqrt(c // h)) + bias, dim=-1)
+        x = x + self.proj((att @ values).transpose(1, 2).reshape(1, -1, c))
+        x = x + self.mlp(self.ln2(x))
+        return x, k, v
+
 
 class ChoiceModel(nn.Module):
     def __init__(self, cfg):
@@ -219,9 +232,11 @@ class ChoiceModel(nn.Module):
     def lm_context(self, context):
         """The LM-only path (the decoder scored as a character LM, the way `reference/examples/pool.rs` scores the 2.0 models): context: [L] character ids opened with BOS (`END`). Returns past_k, past_v as `encode_context`, and the log-probabilities [V] of the character after the context, all computed when text is committed."""
         x = self.embed(context.unsqueeze(0), self.chars, "context", 0)
+        n = context.shape[0]
+        bias = torch.full((n, n), float("-inf"), dtype=x.dtype, device=x.device).triu(1)
         ks, vs = [], []
         for block in self.blocks:
-            x, k, v = block(x, self.empty(1, x.device), self.empty(1, x.device))
+            x, k, v = block.forward_one(x, self.empty(1, x.device), self.empty(1, x.device), bias)
             ks.append(k[0])
             vs.append(v[0])
         first = F.log_softmax(self.ln_f(x[0, -1]) @ self.chars.weight.t(), dim=-1)
@@ -241,13 +256,28 @@ class ChoiceModel(nn.Module):
         total = first[candidates[:, 0]] + (rest * mask).sum(-1)
         return total / lengths.to(total.dtype)
 
+    def lm_rows(self, chars, starts, lengths):
+        """`lm_context` + `lm_score` in one differentiable pass, for training on pools: chars: [R, W] one row per candidate, a BOS-opened context followed by the candidate, padded; starts: [R] where the candidate begins; lengths: [R]. Returns each candidate's mean log-probability per character [R]. Only the positions that predict a candidate character go through the character table."""
+        h = self.embed(chars, self.chars, "context", 0)
+        for block in self.blocks:
+            h, _, _ = block(h, self.empty(chars.shape[0], h.device), self.empty(chars.shape[0], h.device))
+        pos = torch.arange(chars.shape[1], device=chars.device).unsqueeze(0)
+        predicts = (pos >= starts.unsqueeze(1) - 1) & (pos < (starts + lengths - 1).unsqueeze(1))
+        rows, cols = predicts.nonzero(as_tuple=True)
+        logp = F.log_softmax((self.ln_f(h[rows, cols]) @ self.chars.weight.t()).float(), dim=-1)
+        picked = logp.gather(-1, chars[rows, cols + 1].unsqueeze(-1)).squeeze(-1)
+        total = torch.zeros(chars.shape[0], device=chars.device).index_add(0, rows, picked)
+        return total / lengths.to(total.dtype)
+
     def lm_score_tree(self, past_k, past_v, first, nodes, depths, visible, candidates, steps, lengths):
         """`lm_score` over the page's prefix tree: the same scores, but each shared prefix runs once, and a candidate's last character never runs, since nothing reads its output. nodes: [N] the last character of each prefix that some candidate extends (N >= 1; a page of one-character candidates needs no run, its scores are `first`); depths: [N] that prefix's length minus one; visible: [N, N] bool, node i sees node j when j's prefix is i's or a prefix of it. candidates: [B, Lb] padded as in `lm_score`; steps: [B, Lb - 1] the node holding each candidate's prefix of length t + 1, which predicts its character t + 1 (any node past the candidate's length). See `tree_inputs`."""
         assert not self.cfg.ngram_buckets, "n-grams would need each node's parent characters"
         lc = past_k.shape[2]
         x = (self.chars(nodes) + self.segments.weight[SEGMENTS["context"]] + self.positions(depths + lc)).unsqueeze(0)
+        seen = torch.cat([torch.ones_like(visible[:, :1]).expand(-1, lc), visible], dim=1)
+        bias = torch.zeros(seen.shape, dtype=x.dtype, device=x.device).masked_fill(~seen, float("-inf"))
         for i, block in enumerate(self.blocks):
-            x, _, _ = block(x, past_k[i].unsqueeze(0), past_v[i].unsqueeze(0), visible)
+            x, _, _ = block.forward_one(x, past_k[i : i + 1], past_v[i : i + 1], bias)
         logp = F.log_softmax(self.ln_f(x[0]) @ self.chars.weight.t(), dim=-1)
         rest = logp.reshape(-1)[steps * logp.shape[-1] + candidates[:, 1:]]
         mask = torch.arange(1, candidates.shape[1], device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
