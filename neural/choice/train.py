@@ -27,7 +27,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from model import END, PAD, SEGMENTS, UNK, ChoiceConfig, ChoiceModel, from_char_lm, letter_ids  # noqa: E402
+from model import END, PAD, SEGMENTS, UNK, ChoiceConfig, ChoiceModel, from_char_lm, letter_ids
 
 CONTEXT_CHARS = 64
 LETTERS_MAX = 96
@@ -75,10 +75,14 @@ class Encoder:
         letters = letter_ids(case["input"])[:LETTERS_MAX]
         out = []
         for candidate in case["candidates"]:
-            body = self.chars(candidate) + [END]
+            body = [*self.chars(candidate), END]
             chars = context + [PAD] * len(letters) + body
             lets = [0] * len(context) + letters + [0] * len(body)
-            segs = [SEGMENTS["context"]] * len(context) + [SEGMENTS["letters"]] * len(letters) + [SEGMENTS["candidate"]] * len(body)
+            segs = (
+                [SEGMENTS["context"]] * len(context)
+                + [SEGMENTS["letters"]] * len(letters)
+                + [SEGMENTS["candidate"]] * len(body)
+            )
             out.append((chars, lets, segs, len(chars) - 1))
         return out
 
@@ -95,9 +99,9 @@ def batch_rows(encoder, cases, device):
     lets = torch.zeros((len(rows), width), dtype=torch.long)
     segs = torch.full((len(rows), width), SEGMENTS["candidate"], dtype=torch.long)
     ends = torch.tensor([r[3] for r in rows], dtype=torch.long)
-    for i, (c, l, s, _) in enumerate(rows):
+    for i, (c, lt, s, _) in enumerate(rows):
         chars[i, : len(c)] = torch.tensor(c)
-        lets[i, : len(l)] = torch.tensor(l)
+        lets[i, : len(lt)] = torch.tensor(lt)
         segs[i, : len(s)] = torch.tensor(s)
     return chars.to(device), lets.to(device), segs.to(device), ends.to(device), spans
 
@@ -106,7 +110,7 @@ def batch_lm_rows(encoder, cases, device):
     """`--lm-only` rows: BOS, the context's tail and one candidate per row, as `lm_context` + `lm_score` read them. Returns chars, starts, lengths and the pools' spans."""
     rows, spans = [], []
     for case in cases:
-        context = [END] + encoder.chars(case.get("context", "")[-CONTEXT_CHARS:])
+        context = [END, *encoder.chars(case.get("context", "")[-CONTEXT_CHARS:])]
         spans.append((len(rows), len(rows) + len(case["candidates"])))
         rows.extend((context + encoder.chars(c), len(context), len(c)) for c in case["candidates"])
     width = -(-max(len(r[0]) for r in rows) // 32) * 32
@@ -148,14 +152,19 @@ def parse_teacher(spec):
     """`name=path[:weight[:temperature]]`."""
     name, rest = spec.split("=", 1)
     parts = rest.split(":")
-    return {"name": name, "path": parts[0], "weight": float(parts[1]) if len(parts) > 1 else 1.0, "temperature": float(parts[2]) if len(parts) > 2 else 1.0}
+    return {
+        "name": name,
+        "path": parts[0],
+        "weight": float(parts[1]) if len(parts) > 1 else 1.0,
+        "temperature": float(parts[2]) if len(parts) > 2 else 1.0,
+    }
 
 
 def page_loss(scores, spans, cases, teachers):
     """Cross-entropy on the gold, and for each teacher that scored the pool `w T^2 KL(teacher || student)` at its own temperature, averaged over the pools it scored. Returns (gold, {teacher name: kd})."""
     gold_terms = []
     kd_terms = {t["name"]: [] for t in teachers}
-    for case, (a, b) in zip(cases, spans):
+    for case, (a, b) in zip(cases, spans, strict=True):
         s = scores[a:b]
         gold_terms.append(-F.log_softmax(s, dim=0)[case["candidates"].index(case["gold"])])
         for teacher in teachers:
@@ -164,7 +173,13 @@ def page_loss(scores, spans, cases, teachers):
                 continue
             t = torch.tensor(t, dtype=torch.float32, device=s.device)
             temp = teacher["temperature"]
-            kd_terms[teacher["name"]].append(temp * temp * F.kl_div(F.log_softmax(s / temp, dim=0), F.log_softmax(t / temp, dim=0), log_target=True, reduction="sum"))
+            kd_terms[teacher["name"]].append(
+                temp
+                * temp
+                * F.kl_div(
+                    F.log_softmax(s / temp, dim=0), F.log_softmax(t / temp, dim=0), log_target=True, reduction="sum"
+                )
+            )
     gold = torch.stack(gold_terms).mean()
     kd = {name: torch.stack(terms).mean() if terms else scores.new_zeros(()) for name, terms in kd_terms.items()}
     return gold, kd
@@ -182,7 +197,7 @@ def evaluate(model, encoder, cases, device, batch=64, lm_only=False):
         else:
             chars, lets, segs, ends, spans = batch_rows(encoder, chunk, device)
             scores = model.rows(chars, lets, segs, ends).float().cpu().tolist()
-        for case, (a, b) in zip(chunk, spans):
+        for case, (a, b) in zip(chunk, spans, strict=True):
             row = scores[a:b]
             hits += case["candidates"][row.index(max(row))] == case["gold"]
     model.train()
@@ -199,7 +214,13 @@ def report(path, key, step, steps, elapsed, detail):
     except (FileNotFoundError, ValueError):
         data = {}
     per = elapsed / max(1, step)
-    data[key] = {"status": "running", "progress": step / steps, "detail": detail, "eta_s": (steps - step) * per, "live": {"last_it": step, "total": steps, "sec_per_it": per, "log_at": time.time()}}
+    data[key] = {
+        "status": "running",
+        "progress": step / steps,
+        "detail": detail,
+        "eta_s": (steps - step) * per,
+        "live": {"last_it": step, "total": steps, "sec_per_it": per, "log_at": time.time()},
+    }
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     tmp.replace(path)
@@ -221,26 +242,63 @@ def main():
     parser.add_argument("--vocab", required=True, help="the vocab.json that goes with --tokens")
     parser.add_argument("--out", required=True)
     parser.add_argument("--shape", default="8x384", help="LAYERSxWIDTH (lm phase; pools takes it from --init)")
-    parser.add_argument("--ngram-buckets", type=int, default=0, help="lm phase: rows in each hashed n-gram table (ChoiceConfig.ngram_buckets), 0 for none")
+    parser.add_argument(
+        "--ngram-buckets",
+        type=int,
+        default=0,
+        help="lm phase: rows in each hashed n-gram table (ChoiceConfig.ngram_buckets), 0 for none",
+    )
     parser.add_argument("--init", help="checkpoint to start from (pools phase)")
-    parser.add_argument("--init-char-lm", help="lm phase: start from a neural/train.py CharLM checkpoint (model.from_char_lm)")
+    parser.add_argument(
+        "--init-char-lm", help="lm phase: start from a neural/train.py CharLM checkpoint (model.from_char_lm)"
+    )
     parser.add_argument("--steps", type=int, default=20000, help="lm phase")
     parser.add_argument("--window", type=int, default=128, help="lm phase window")
     parser.add_argument("--bos-windows", action="store_true", help="open every LM window with BOS (see lm_windows)")
     parser.add_argument("--teacher-lm", help="lm phase: a choice-model LM checkpoint to distil, character by character")
-    parser.add_argument("--kd-weight", type=float, default=0.5, help="with --teacher-lm: weight of KL(teacher || student) against the corpus cross-entropy")
-    parser.add_argument("--self-normalize", type=float, default=0.0, help="lm phase: weight of logZ^2 on the LM loss; > 0 marks the model self_normalized")
+    parser.add_argument(
+        "--kd-weight",
+        type=float,
+        default=0.5,
+        help="with --teacher-lm: weight of KL(teacher || student) against the corpus cross-entropy",
+    )
+    parser.add_argument(
+        "--self-normalize",
+        type=float,
+        default=0.0,
+        help="lm phase: weight of logZ^2 on the LM loss; > 0 marks the model self_normalized",
+    )
     parser.add_argument("--pools")
-    parser.add_argument("--teacher", action="append", default=[], help="name=path[:weight[:temperature]], a scorer's output (id, scores) over some of --pools; repeat for several teachers")
+    parser.add_argument(
+        "--teacher",
+        action="append",
+        default=[],
+        help="name=path[:weight[:temperature]], a scorer's output (id, scores) over some of --pools; repeat for several teachers",
+    )
     parser.add_argument("--dev", help="dev pools for picking the checkpoint")
     parser.add_argument("--epochs", type=float, default=2.0)
     parser.add_argument("--batch", type=int, default=64, help="lm: windows per step; pools: pools per step")
     parser.add_argument("--lm-batch", type=int, default=32)
     parser.add_argument("--lm-weight", type=float, default=0.1)
-    parser.add_argument("--lm-only", action="store_true", help="pools phase: score candidates as the LM-only path does (ChoiceModel.lm_rows)")
-    parser.add_argument("--lm-term", action="store_true", help="pools phase: score with the candidate's character log-likelihood too (ChoiceConfig.lm_term)")
-    parser.add_argument("--candidate-lm-weight", type=float, default=1.0, help="with --lm-term: weight of the gold candidates' conditioned LM loss")
-    parser.add_argument("--z", type=float, default=0.1, help="with --lm-term: self-normalisation penalty on every LM loss")
+    parser.add_argument(
+        "--lm-only",
+        action="store_true",
+        help="pools phase: score candidates as the LM-only path does (ChoiceModel.lm_rows)",
+    )
+    parser.add_argument(
+        "--lm-term",
+        action="store_true",
+        help="pools phase: score with the candidate's character log-likelihood too (ChoiceConfig.lm_term)",
+    )
+    parser.add_argument(
+        "--candidate-lm-weight",
+        type=float,
+        default=1.0,
+        help="with --lm-term: weight of the gold candidates' conditioned LM loss",
+    )
+    parser.add_argument(
+        "--z", type=float, default=0.1, help="with --lm-term: self-normalisation penalty on every LM loss"
+    )
     parser.add_argument("--lr", type=float, default=0.0)
     parser.add_argument("--warmup", type=int, default=500)
     parser.add_argument("--eval-every", type=int, default=1000)
@@ -276,7 +334,9 @@ def main():
             model.load_state_dict(start["model"])
     else:
         layers, width = (int(x) for x in args.shape.split("x"))
-        cfg = ChoiceConfig(vocab=len(vocab), n_layer=layers, n_embd=width, n_head=width // 64, ngram_buckets=args.ngram_buckets)
+        cfg = ChoiceConfig(
+            vocab=len(vocab), n_layer=layers, n_embd=width, n_head=width // 64, ngram_buckets=args.ngram_buckets
+        )
         model = ChoiceModel(cfg)
     if args.phase == "lm" and args.self_normalize:
         cfg.self_normalized = True
@@ -287,16 +347,28 @@ def main():
         teacher_lm = ChoiceModel(ChoiceConfig(**state["config"]))
         teacher_lm.load_state_dict(state["model"])
         teacher_lm.to(device).eval().requires_grad_(False)
-    (out / "config.json").write_text(json.dumps({"choice": dataclasses.asdict(cfg), "args": vars(args)}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / "config.json").write_text(
+        json.dumps({"choice": dataclasses.asdict(cfg), "args": vars(args)}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     (out / "vocab.json").write_text(json.dumps({"tokens": vocab}, ensure_ascii=False), encoding="utf-8")
-    print(f"{sum(p.numel() for p in model.parameters()):,} parameters ({model.non_embedding_parameters():,} outside the embeddings) on {device}", flush=True)
-    log = open(out / "log.jsonl", "a", encoding="utf-8")
+    print(
+        f"{sum(p.numel() for p in model.parameters()):,} parameters ({model.non_embedding_parameters():,} outside the embeddings) on {device}",
+        flush=True,
+    )
 
     def record(row):
-        log.write(json.dumps({**row, "t": time.time()}) + "\n")
-        log.flush()
+        with open(out / "log.jsonl", "a", encoding="utf-8") as log:
+            log.write(json.dumps({**row, "t": time.time()}) + "\n")
 
-    lm_train = lm_windows(tokens[:split], args.lm_batch if args.phase == "pools" else args.batch, args.window, device, gen, args.bos_windows)
+    lm_train = lm_windows(
+        tokens[:split],
+        args.lm_batch if args.phase == "pools" else args.batch,
+        args.window,
+        device,
+        gen,
+        args.bos_windows,
+    )
     lm_val = lm_windows(tokens[split:], 64, args.window, device, torch.Generator().manual_seed(7), args.bos_windows)
 
     def lm_val_loss():
@@ -325,13 +397,31 @@ def main():
             if device == "mps" and (step + 1) % 50 == 0:
                 torch.mps.empty_cache()
             if (step + 1) % 100 == 0:
-                record({"kind": "train", "step": step + 1, "steps": args.steps, "loss": loss.item(), "wall_s": time.time() - started})
-                report(args.progress, args.progress_key, step + 1, args.steps, time.time() - started, f"{step + 1} / {args.steps} 步 · loss {loss.item():.3f}")
+                record(
+                    {
+                        "kind": "train",
+                        "step": step + 1,
+                        "steps": args.steps,
+                        "loss": loss.item(),
+                        "wall_s": time.time() - started,
+                    }
+                )
+                report(
+                    args.progress,
+                    args.progress_key,
+                    step + 1,
+                    args.steps,
+                    time.time() - started,
+                    f"{step + 1} / {args.steps} 步 · loss {loss.item():.3f}",
+                )
             if (step + 1) % args.eval_every == 0 or step + 1 == args.steps:
                 val = lm_val_loss()
                 lse = lse_stats(model, *next(lm_val)) if args.self_normalize else None
                 shown = f"  logZ {lse[0]:+.3f} ± {lse[1]:.3f}" if lse else ""
-                print(f"step {step + 1}/{args.steps}  train {loss.item():.4f}  val {val:.4f}{shown}  {(time.time() - started) / 60:.1f} min", flush=True)
+                print(
+                    f"step {step + 1}/{args.steps}  train {loss.item():.4f}  val {val:.4f}{shown}  {(time.time() - started) / 60:.1f} min",
+                    flush=True,
+                )
                 record({"kind": "val", "step": step + 1, "lm_val": val, "log_z": lse})
                 if val < best:
                     best = val
@@ -347,7 +437,9 @@ def main():
     dev = read_jsonl(args.dev)
     pools = [p for p in pools if p["gold"] in p["candidates"]]
     steps = math.ceil(len(pools) * args.epochs / args.batch)
-    covered = ", ".join(f"{t['name']} {sum(1 for p in pools if p['id'] in t['scores'])}" for t in teachers) or "no teacher"
+    covered = (
+        ", ".join(f"{t['name']} {sum(1 for p in pools if p['id'] in t['scores'])}" for t in teachers) or "no teacher"
+    )
     print(f"{len(pools)} pools (scored by: {covered}), {len(dev)} dev pools, {steps} steps of {args.batch}", flush=True)
     lr = args.lr or 3e-4
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95), weight_decay=0.1)
@@ -381,7 +473,10 @@ def main():
         loss = gold + sum(t["weight"] * kd[t["name"]] for t in teachers)
         cand_lm = None
         if cfg.lm_term and args.candidate_lm_weight:
-            gold_rows = torch.tensor([a + case["candidates"].index(case["gold"]) for case, (a, _) in zip(cases, spans)], device=device)
+            gold_rows = torch.tensor(
+                [a + case["candidates"].index(case["gold"]) for case, (a, _) in zip(cases, spans, strict=True)],
+                device=device,
+            )
             cand_lm = model.candidate_lm_loss(hidden, chars, segs, gold_rows, z)
             loss = loss + args.candidate_lm_weight * cand_lm
         lm = None
@@ -395,12 +490,34 @@ def main():
         if device == "mps" and (step + 1) % 50 == 0:
             torch.mps.empty_cache()
         if (step + 1) % 50 == 0:
-            record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "gold": gold.item(), "kd": {name: v.item() for name, v in kd.items()}, "lm": lm.item() if lm is not None else None, "candidate_lm": cand_lm.item() if cand_lm is not None else None, "wall_s": time.time() - started})
-            report(args.progress, args.progress_key, step + 1, steps, time.time() - started, f"{step + 1} / {steps} 步 · 开发集最好 {best} / {len(dev)}")
+            record(
+                {
+                    "kind": "train",
+                    "step": step + 1,
+                    "steps": steps,
+                    "loss": loss.item(),
+                    "gold": gold.item(),
+                    "kd": {name: v.item() for name, v in kd.items()},
+                    "lm": lm.item() if lm is not None else None,
+                    "candidate_lm": cand_lm.item() if cand_lm is not None else None,
+                    "wall_s": time.time() - started,
+                }
+            )
+            report(
+                args.progress,
+                args.progress_key,
+                step + 1,
+                steps,
+                time.time() - started,
+                f"{step + 1} / {steps} 步 · 开发集最好 {best} / {len(dev)}",
+            )
         if (step + 1) % args.eval_every == 0 or step + 1 == steps:
             hits = evaluate(model, encoder, dev, device, lm_only=args.lm_only)
             val = lm_val_loss()
-            print(f"step {step + 1}/{steps}  loss {loss.item():.4f}  dev {hits}/{len(dev)}  lm {val:.4f}  {(time.time() - started) / 60:.1f} min", flush=True)
+            print(
+                f"step {step + 1}/{steps}  loss {loss.item():.4f}  dev {hits}/{len(dev)}  lm {val:.4f}  {(time.time() - started) / 60:.1f} min",
+                flush=True,
+            )
             record({"kind": "val", "step": step + 1, "hits": hits, "n": len(dev), "lm_val": val})
             if hits > best:
                 best = hits

@@ -18,7 +18,6 @@ import argparse
 import dataclasses
 import json
 import math
-import os
 import random
 import shutil
 import sys
@@ -30,8 +29,8 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from model import BOS, PAD, UNK, CharLM, Config  # noqa: E402
-from train import context_batches, learning_rate, pick_device  # noqa: E402
+from model import BOS, PAD, UNK, CharLM, Config
+from train import context_batches, learning_rate, pick_device
 
 # MSIME's `RERANK_CONTEXT_STEP` (crates/engine/src/ordering.rs).
 RERANK_CONTEXT_STEP = 16
@@ -61,7 +60,7 @@ class Encoder:
         context = rerank_context(case.get("context", ""), self.window, longest)
         room = max(0, self.window - (longest + 1))
         encoded = self.encode(context)
-        prefix = [BOS] + encoded[len(encoded) - room :] if room else [BOS]
+        prefix = [BOS, *encoded[len(encoded) - room :]] if room else [BOS]
         limit = max(1, self.window - len(prefix))
         return [prefix + self.encode(c)[:limit] for c in candidates], len(prefix)
 
@@ -79,7 +78,7 @@ def candidate_scores(model, encoder, cases, device):
     x = torch.full((len(rows), width - 1), PAD, dtype=torch.long)
     y = torch.full((len(rows), width - 1), PAD, dtype=torch.long)
     mask = torch.zeros((len(rows), width - 1), dtype=torch.bool)
-    for i, (row, start) in enumerate(zip(rows, starts)):
+    for i, (row, start) in enumerate(zip(rows, starts, strict=True)):
         t = torch.tensor(row)
         x[i, : len(row) - 1] = t[:-1]
         y[i, : len(row) - 1] = t[1:]
@@ -97,12 +96,18 @@ def candidate_scores(model, encoder, cases, device):
 
 def pool_loss(sums, spans, cases, teacher, args):
     kd_terms, gold_terms = [], []
-    for case, (a, b) in zip(cases, spans):
+    for case, (a, b) in zip(cases, spans, strict=True):
         s = sums[a:b]
         if args.kd_weight:
             t = torch.tensor(teacher[case["id"]], dtype=torch.float32, device=s.device)
             temp = args.temperature
-            kd_terms.append(temp * temp * F.kl_div(F.log_softmax(s / temp, dim=0), F.log_softmax(t / temp, dim=0), log_target=True, reduction="sum"))
+            kd_terms.append(
+                temp
+                * temp
+                * F.kl_div(
+                    F.log_softmax(s / temp, dim=0), F.log_softmax(t / temp, dim=0), log_target=True, reduction="sum"
+                )
+            )
         if args.gold_weight:
             gold = case["candidates"].index(case["gold"])
             gold_terms.append(-F.log_softmax(s, dim=0)[gold])
@@ -121,7 +126,7 @@ def evaluate(model, encoder, cases, device, batch):
         chunk = cases[i : i + batch]
         sums, lengths, spans = candidate_scores(model, encoder, chunk, device)
         means = (sums / lengths.clamp(min=1)).cpu().tolist()
-        for case, (a, b) in zip(chunk, spans):
+        for case, (a, b) in zip(chunk, spans, strict=True):
             row = means[a:b]
             pick = row.index(max(row))
             hits += case["candidates"][pick] == case["gold"]
@@ -145,7 +150,9 @@ def main():
     parser.add_argument("--gold-weight", type=float, default=0.0)
     parser.add_argument("--lm-weight", type=float, default=0.2)
     parser.add_argument("--temperature", type=float, default=1.0)
-    parser.add_argument("--max-pools", type=int, default=0, help="use only the first N pools (0: all; with --teacher, all it scored)")
+    parser.add_argument(
+        "--max-pools", type=int, default=0, help="use only the first N pools (0: all; with --teacher, all it scored)"
+    )
     parser.add_argument("--epochs", type=float, default=2.0)
     parser.add_argument("--batch", type=int, default=32, help="pools per step")
     parser.add_argument("--lm-batch", type=int, default=32, help="corpus windows per step for the LM loss")
@@ -156,7 +163,9 @@ def main():
     parser.add_argument("--seed", type=int, default=20261031)
     parser.add_argument("--progress", help="the dashboard's progress file")
     parser.add_argument("--progress-key", default="distill")
-    parser.add_argument("--progress-label", default="", help="shown before the step count, to tell runs that share a stage apart")
+    parser.add_argument(
+        "--progress-label", default="", help="shown before the step count, to tell runs that share a stage apart"
+    )
     args = parser.parse_args()
     if args.kd_weight and not args.teacher:
         parser.error("--kd-weight needs --teacher")
@@ -194,18 +203,19 @@ def main():
 
     lm_tokens = np.memmap(run / "tokens.u16", dtype=np.uint16, mode="r")
     split = int(len(lm_tokens) * 0.999)
-    lm_stream = context_batches(lm_tokens[:split], args.lm_batch, cfg.context, device, torch.Generator().manual_seed(args.seed))
+    lm_stream = context_batches(
+        lm_tokens[:split], args.lm_batch, cfg.context, device, torch.Generator().manual_seed(args.seed)
+    )
     lm_val = context_batches(lm_tokens[split:], 64, cfg.context, device, torch.Generator().manual_seed(7))
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(0.9, 0.95), weight_decay=0.1)
-    log = open(out / "distill-log.jsonl", "a", encoding="utf-8")
 
     def record(row):
-        log.write(json.dumps(row) + "\n")
-        log.flush()
+        with open(out / "distill-log.jsonl", "a", encoding="utf-8") as log:
+            log.write(json.dumps(row) + "\n")
 
     if args.progress:
-        note_progress(args.progress, args.progress_key, f"{args.progress_label}准备中：先测起点")
+        note_progress(args.progress, args.progress_key, f"{args.progress_label}准备中：先测起点")  # noqa: RUF001 (Chinese punctuation)
     best = evaluate(model, encoder, val, device, 64)
     print(f"start: {best}/{len(val)} validation hits", flush=True)
     record({"kind": "val", "step": 0, "hits": best, "n": len(val), "t": time.time()})
@@ -238,7 +248,19 @@ def main():
             torch.mps.empty_cache()
         if (step + 1) % 50 == 0:
             elapsed = time.time() - started
-            record({"kind": "train", "step": step + 1, "steps": steps, "loss": loss.item(), "kd": kd.item(), "gold": gold.item(), "lm": lm.item() if lm is not None else None, "wall_s": elapsed, "t": time.time()})
+            record(
+                {
+                    "kind": "train",
+                    "step": step + 1,
+                    "steps": steps,
+                    "loss": loss.item(),
+                    "kd": kd.item(),
+                    "gold": gold.item(),
+                    "lm": lm.item() if lm is not None else None,
+                    "wall_s": elapsed,
+                    "t": time.time(),
+                }
+            )
             if args.progress:
                 update_progress(args.progress, args.progress_key, step + 1, steps, elapsed, args.progress_label)
         if (step + 1) % args.eval_every == 0 or step + 1 == steps:
@@ -247,15 +269,27 @@ def main():
             with torch.no_grad():
                 lm_loss = sum(model(*next(lm_val))[1].item() for _ in range(10)) / 10
             model.train()
-            print(f"step {step + 1}/{steps}  loss {loss.item():.4f}  val {hits}/{len(val)}  lm {lm_loss:.4f}  {(time.time() - started) / 60:.1f} min", flush=True)
+            print(
+                f"step {step + 1}/{steps}  loss {loss.item():.4f}  val {hits}/{len(val)}  lm {lm_loss:.4f}  {(time.time() - started) / 60:.1f} min",
+                flush=True,
+            )
             record({"kind": "val", "step": step + 1, "hits": hits, "n": len(val), "lm_val": lm_loss, "t": time.time()})
             if hits > best:
                 best = hits
-                torch.save({"config": dataclasses.asdict(cfg), "model": model.state_dict(), "val": lm_loss, "step": start["step"] + step + 1, "dev_hits": hits}, out / "checkpoint.pt")
+                torch.save(
+                    {
+                        "config": dataclasses.asdict(cfg),
+                        "model": model.state_dict(),
+                        "val": lm_loss,
+                        "step": start["step"] + step + 1,
+                        "dev_hits": hits,
+                    },
+                    out / "checkpoint.pt",
+                )
     print(f"best {best}/{len(val)} validation hits", flush=True)
     record({"kind": "end", "best": best, "n": len(val), "minutes": round((time.time() - started) / 60, 1)})
     if args.progress:
-        note_progress(args.progress, args.progress_key, f"{args.progress_label}跑完，验证集最好 {best} / {len(val)}")
+        note_progress(args.progress, args.progress_key, f"{args.progress_label}跑完，验证集最好 {best} / {len(val)}")  # noqa: RUF001 (Chinese punctuation)
 
 
 def note_progress(path, key, detail):
@@ -279,7 +313,15 @@ def update_progress(path, key, step, steps, elapsed, label=""):
         data = {}
     per = elapsed / step
     entry = data.get(key, {})
-    entry.update({"status": "running", "progress": step / steps, "detail": f"{label}{step} / {steps} 步", "eta_s": (steps - step) * per, "live": {"last_it": step, "total": steps, "sec_per_it": per, "log_at": time.time()}})
+    entry.update(
+        {
+            "status": "running",
+            "progress": step / steps,
+            "detail": f"{label}{step} / {steps} 步",
+            "eta_s": (steps - step) * per,
+            "live": {"last_it": step, "total": steps, "sec_per_it": per, "log_at": time.time()},
+        }
+    )
     data[key] = entry
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")

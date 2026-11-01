@@ -19,9 +19,10 @@ import torch
 from onnxruntime.quantization import QuantType, quantize_dynamic
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from latency import export, session  # noqa: E402
-from model import END, ChoiceConfig, ChoiceModel, LmContextGraph, LmKeystrokeGraph, LmTreeGraph, letter_ids, tree_inputs  # noqa: E402
-from train import CONTEXT_CHARS, LETTERS_MAX, Encoder  # noqa: E402
+from latency import export, session
+
+from model import END, ChoiceConfig, ChoiceModel, LmContextGraph, LmKeystrokeGraph, LmTreeGraph, letter_ids, tree_inputs
+from train import CONTEXT_CHARS, LETTERS_MAX, Encoder
 
 
 def load(run):
@@ -37,17 +38,54 @@ def export_lm(model, out):
     past_k, past_v, first = model.lm_context(context)
     candidates = torch.tensor([[3, 4, 5], [6, 7, 0]])
     lengths = torch.tensor([3, 2])
-    torch.onnx.export(LmContextGraph(model), (context,), out / "lm_context.onnx", input_names=["context"], output_names=["past_k", "past_v", "first"],
-                      dynamic_axes={"context": {0: "lc"}, "past_k": {2: "lc"}, "past_v": {2: "lc"}}, opset_version=17, dynamo=False)
-    torch.onnx.export(LmKeystrokeGraph(model), (past_k, past_v, first, candidates, lengths), out / "lm_keystroke.onnx",
-                      input_names=["past_k", "past_v", "first", "candidates", "lengths"], output_names=["scores"],
-                      dynamic_axes={"past_k": {2: "lc"}, "past_v": {2: "lc"}, "candidates": {0: "b", 1: "lb"}, "lengths": {0: "b"}, "scores": {0: "b"}}, opset_version=17, dynamo=False)
+    torch.onnx.export(
+        LmContextGraph(model),
+        (context,),
+        out / "lm_context.onnx",
+        input_names=["context"],
+        output_names=["past_k", "past_v", "first"],
+        dynamic_axes={"context": {0: "lc"}, "past_k": {2: "lc"}, "past_v": {2: "lc"}},
+        opset_version=17,
+        dynamo=False,
+    )
+    torch.onnx.export(
+        LmKeystrokeGraph(model),
+        (past_k, past_v, first, candidates, lengths),
+        out / "lm_keystroke.onnx",
+        input_names=["past_k", "past_v", "first", "candidates", "lengths"],
+        output_names=["scores"],
+        dynamic_axes={
+            "past_k": {2: "lc"},
+            "past_v": {2: "lc"},
+            "candidates": {0: "b", 1: "lb"},
+            "lengths": {0: "b"},
+            "scores": {0: "b"},
+        },
+        opset_version=17,
+        dynamo=False,
+    )
     nodes, depths, visible, steps = (torch.tensor(t) for t in tree_inputs([[3, 4, 5], [3, 6]]))
     names = ["nodes", "depths", "visible", "candidates", "steps", "lengths"]
-    torch.onnx.export(LmTreeGraph(model), (past_k, past_v, first, nodes, depths, visible, torch.tensor([[3, 4, 5], [3, 6, 0]]), steps, lengths), out / "lm_tree.onnx",
-                      input_names=["past_k", "past_v", "first", *names], output_names=["scores"],
-                      dynamic_axes={"past_k": {2: "lc"}, "past_v": {2: "lc"}, "nodes": {0: "n"}, "depths": {0: "n"}, "visible": {0: "n", 1: "n"}, "candidates": {0: "b", 1: "lb"}, "steps": {0: "b", 1: "lb1"}, "lengths": {0: "b"}, "scores": {0: "b"}},
-                      opset_version=17, dynamo=False)
+    torch.onnx.export(
+        LmTreeGraph(model),
+        (past_k, past_v, first, nodes, depths, visible, torch.tensor([[3, 4, 5], [3, 6, 0]]), steps, lengths),
+        out / "lm_tree.onnx",
+        input_names=["past_k", "past_v", "first", *names],
+        output_names=["scores"],
+        dynamic_axes={
+            "past_k": {2: "lc"},
+            "past_v": {2: "lc"},
+            "nodes": {0: "n"},
+            "depths": {0: "n"},
+            "visible": {0: "n", 1: "n"},
+            "candidates": {0: "b", 1: "lb"},
+            "steps": {0: "b", 1: "lb1"},
+            "lengths": {0: "b"},
+            "scores": {0: "b"},
+        },
+        opset_version=17,
+        dynamo=False,
+    )
     for name in ("lm_context", "lm_keystroke", "lm_tree"):
         quantize_dynamic(out / f"{name}.onnx", out / f"{name}.int8.onnx", weight_type=QuantType.QInt8)
 
@@ -58,7 +96,11 @@ def main():
     parser.add_argument("--pool", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--threads", type=int, default=2)
-    parser.add_argument("--strip-context", action="store_true", help="score only the cases that have a context, without it (the eval set's context-stripped subset)")
+    parser.add_argument(
+        "--strip-context",
+        action="store_true",
+        help="score only the cases that have a context, without it (the eval set's context-stripped subset)",
+    )
     parser.add_argument("--lm-only", action="store_true", help="score as a character LM (lm_context / lm_score)")
     args = parser.parse_args()
 
@@ -71,7 +113,10 @@ def main():
         onnx_dir.mkdir(exist_ok=True)
         with torch.no_grad():
             (export_lm if args.lm_only else export)(model, onnx_dir)
-    ctx, key = session(onnx_dir / f"{prefix}context.int8.onnx", args.threads), session(onnx_dir / f"{keystroke}.int8.onnx", args.threads)
+    ctx, key = (
+        session(onnx_dir / f"{prefix}context.int8.onnx", args.threads),
+        session(onnx_dir / f"{keystroke}.int8.onnx", args.threads),
+    )
     encoder = Encoder(vocab)
 
     empty = None
@@ -99,7 +144,7 @@ def main():
                 k, v = empty
             if not args.lm_only:
                 letters = np.array(letter_ids(case["input"])[:LETTERS_MAX], dtype=np.int64)
-                bodies = [encoder.chars(c) + [END] for c in case["candidates"]]
+                bodies = [[*encoder.chars(c), END] for c in case["candidates"]]
                 width = max(len(b) for b in bodies)
                 candidates = np.zeros((len(bodies), width), dtype=np.int64)
                 for i, b in enumerate(bodies):
@@ -114,9 +159,17 @@ def main():
                     candidates[i, : len(b)] = b
                 nodes, depths, visible, steps = tree_inputs(bodies)
                 if nodes:
-                    feed = {"past_k": k, "past_v": v, "first": first, "nodes": np.array(nodes, dtype=np.int64), "depths": np.array(depths, dtype=np.int64),
-                            "visible": np.array(visible, dtype=bool), "candidates": candidates, "steps": np.array(steps, dtype=np.int64).reshape(len(bodies), width - 1),
-                            "lengths": np.array([len(b) for b in bodies], dtype=np.int64)}
+                    feed = {
+                        "past_k": k,
+                        "past_v": v,
+                        "first": first,
+                        "nodes": np.array(nodes, dtype=np.int64),
+                        "depths": np.array(depths, dtype=np.int64),
+                        "visible": np.array(visible, dtype=bool),
+                        "candidates": candidates,
+                        "steps": np.array(steps, dtype=np.int64).reshape(len(bodies), width - 1),
+                        "lengths": np.array([len(b) for b in bodies], dtype=np.int64),
+                    }
                     scores = key.run(None, feed)[0]
                 else:
                     scores = first[candidates[:, 0]]
@@ -126,8 +179,14 @@ def main():
             pick = int(np.argmax(scores))
             n += 1
             hits += case["candidates"][pick] == case["gold"]
-            out.write(json.dumps({"id": case["id"], "pick": pick, "scores": [float(s) for s in scores], "ms": round(ms, 3)}) + "\n")
-    print(f"{hits}/{n} hits ({100 * hits / max(1, n):.1f}%), checkpoint step {ckpt.get('step')}, dev hits {ckpt.get('dev_hits')}", file=sys.stderr)
+            out.write(
+                json.dumps({"id": case["id"], "pick": pick, "scores": [float(s) for s in scores], "ms": round(ms, 3)})
+                + "\n"
+            )
+    print(
+        f"{hits}/{n} hits ({100 * hits / max(1, n):.1f}%), checkpoint step {ckpt.get('step')}, dev hits {ckpt.get('dev_hits')}",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

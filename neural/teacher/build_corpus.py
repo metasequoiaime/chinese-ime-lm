@@ -40,7 +40,8 @@ class Writer:
     """Applies the paragraph rules to units and writes what is left, until the source's budget is spent."""
 
     def __init__(self, path, budget, exclusion, seen, progress):
-        self.out = open(path, "w", encoding="utf-8")
+        # The writer owns the file for the whole source and `close` ends it, so there is no block for a `with` to wrap.
+        self.out = open(path, "w", encoding="utf-8")  # noqa: SIM115
         self.budget, self.exclusion, self.seen, self.progress = budget, exclusion, seen, progress
         self.chars = self.lines = 0
         self.dropped = {"spam_unit": 0, "repeat": 0, "traditional": 0, "eval_stretch": 0}
@@ -142,10 +143,14 @@ def main():
     parser.add_argument("--sentences-v1", default=str(ROOT / "eval/sentences-v1.tsv"))
     parser.add_argument("--words-v1", default=str(ROOT / "eval/quanpin-words-v1.tsv"))
     parser.add_argument("--open-models-pool", default=str(ROOT / "eval/open-models/pool.jsonl"))
-    parser.add_argument("--dev-pool", required=True, help="the dev pools, held out from the student as from the teacher")
+    parser.add_argument(
+        "--dev-pool", required=True, help="the dev pools, held out from the student as from the teacher"
+    )
     parser.add_argument("--c4-chars", type=int, default=300_000_000)
     parser.add_argument("--lccc-chars", type=int, default=300_000_000)
-    parser.add_argument("--fineweb", action="append", default=[], help="a FineWeb-2 cmn_Hani parquet file, in order (optional)")
+    parser.add_argument(
+        "--fineweb", action="append", default=[], help="a FineWeb-2 cmn_Hani parquet file, in order (optional)"
+    )
     parser.add_argument("--fineweb-chars", type=int, default=750_000_000)
     parser.add_argument("--out", required=True)
     parser.add_argument("--progress", help="a JSON file to keep up to date for the dashboard")
@@ -180,7 +185,12 @@ def main():
             update_progress(args.progress, "corpus", stage)
 
     seen = set()
-    report = {"inputs": {"c4": args.c4, "lccc": args.lccc}, "eval_counts": eval_counts, "budgets": {"c4": args.c4_chars, "lccc": args.lccc_chars}, "sources": {}}
+    report = {
+        "inputs": {"c4": args.c4, "lccc": args.lccc},
+        "eval_counts": eval_counts,
+        "budgets": {"c4": args.c4_chars, "lccc": args.lccc_chars},
+        "sources": {},
+    }
     plan = [("c4", c4_units(args.c4), args.c4_chars), ("lccc", lccc_units(args.lccc), args.lccc_chars)]
     if args.fineweb:
         report["inputs"]["fineweb"] = args.fineweb
@@ -194,20 +204,43 @@ def main():
                 break
         writer.close()
         written[source] = writer.chars
-        report["sources"][source] = {"chars": writer.chars, "lines": writer.lines, "dropped": writer.dropped, "budget_reached": writer.full}
+        report["sources"][source] = {
+            "chars": writer.chars,
+            "lines": writer.lines,
+            "dropped": writer.dropped,
+            "budget_reached": writer.full,
+        }
         print(f"{source}: {writer.chars:,} chars in {writer.lines:,} lines, dropped {writer.dropped}", file=sys.stderr)
     write_sources(out, report)
     report["seconds"] = round(time.time() - started)
     (out / "build.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if args.progress:
         total = sum(written.values())
-        update_progress(args.progress, "corpus", {"status": "done", "progress": 1.0, "detail": f"{total / 1e6:.0f}M 字", "eta_s": 0})
+        update_progress(
+            args.progress, "corpus", {"status": "done", "progress": 1.0, "detail": f"{total / 1e6:.0f}M 字", "eta_s": 0}
+        )
 
 
 SOURCES = {
-    "c4": {"name": "the Chinese portion of C4", "license": "ODC-BY", "url": "https://huggingface.co/datasets/allenai/c4", "share_alike": False},
-    "lccc": {"name": "LCCC", "license": "MIT", "url": "https://github.com/thu-coai/CDial-GPT", "share_alike": False, "split": "large"},
-    "fineweb": {"name": "FineWeb-2 (cmn_Hani)", "license": "ODC-BY", "url": "https://huggingface.co/datasets/HuggingFaceFW/fineweb-2", "share_alike": False},
+    "c4": {
+        "name": "the Chinese portion of C4",
+        "license": "ODC-BY",
+        "url": "https://huggingface.co/datasets/allenai/c4",
+        "share_alike": False,
+    },
+    "lccc": {
+        "name": "LCCC",
+        "license": "MIT",
+        "url": "https://github.com/thu-coai/CDial-GPT",
+        "share_alike": False,
+        "split": "large",
+    },
+    "fineweb": {
+        "name": "FineWeb-2 (cmn_Hani)",
+        "license": "ODC-BY",
+        "url": "https://huggingface.co/datasets/HuggingFaceFW/fineweb-2",
+        "share_alike": False,
+    },
 }
 
 
@@ -217,8 +250,16 @@ def write_sources(out, report):
         if source not in report["sources"]:
             continue
         made = report["sources"][source]
-        entry = {**record, "source": source, "lines": made["lines"], "chars": made["chars"], "builder": "neural/teacher/build_corpus.py"}
-        (out / f"{source}.txt.source.json").write_text(json.dumps(entry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        entry = {
+            **record,
+            "source": source,
+            "lines": made["lines"],
+            "chars": made["chars"],
+            "builder": "neural/teacher/build_corpus.py",
+        }
+        (out / f"{source}.txt.source.json").write_text(
+            json.dumps(entry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
 
 
 def update_progress(path, key, stage):

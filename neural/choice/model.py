@@ -52,7 +52,11 @@ class Block(nn.Module):
         self.qkv = nn.Linear(cfg.n_embd, 3 * cfg.n_embd)
         self.proj = nn.Linear(cfg.n_embd, cfg.n_embd)
         self.ln2 = nn.LayerNorm(cfg.n_embd)
-        self.mlp = nn.Sequential(nn.Linear(cfg.n_embd, 4 * cfg.n_embd), nn.GELU(approximate="tanh" if cfg.gelu_tanh else "none"), nn.Linear(4 * cfg.n_embd, cfg.n_embd))
+        self.mlp = nn.Sequential(
+            nn.Linear(cfg.n_embd, 4 * cfg.n_embd),
+            nn.GELU(approximate="tanh" if cfg.gelu_tanh else "none"),
+            nn.Linear(4 * cfg.n_embd, cfg.n_embd),
+        )
 
     def heads(self, t):
         b, n, c = t.shape
@@ -118,7 +122,11 @@ class ChoiceModel(nn.Module):
             nn.init.zeros_(module.bias)
 
     def non_embedding_parameters(self):
-        return sum(p.numel() for name, p in self.named_parameters() if not name.split(".")[0] in ("chars", "letters", "segments", "positions", "bigrams", "trigrams"))
+        return sum(
+            p.numel()
+            for name, p in self.named_parameters()
+            if name.split(".")[0] not in ("chars", "letters", "segments", "positions", "bigrams", "trigrams")
+        )
 
     def ngrams(self, chars, segments=None):
         """chars: [..., N] character ids of one segment, or of several with `segments` [..., N] saying which, so no n-gram crosses into another segment. Returns the hashed bigram and trigram embeddings ending at each position, [..., N, C]."""
@@ -183,7 +191,6 @@ class ChoiceModel(nn.Module):
             out = out + self.lm_scale * (dots * mask).sum(-1)
         return out
 
-
     def rows(self, chars, letters, segments, ends, hidden=False):
         """Training form of `score`: one row per candidate holding its own copy of the context and letters, `[context][letters][candidate][END]`, right-padded. chars / letters / segments: [R, N]; a position takes its embedding from `letters` where segments is 1 and from `chars` elsewhere. Attention is causal, so each row computes exactly what `encode_context` + `score` compute for that candidate. Returns [R] scores, and with `hidden` the final hidden states [R, N, C] too."""
         r, n = chars.shape
@@ -237,7 +244,6 @@ class ChoiceModel(nn.Module):
         keep = y != PAD
         return self.tied_loss(h[keep], y[keep], z)
 
-
     def lm_context(self, context):
         """The LM-only path (the decoder scored as a character LM, the way `reference/examples/pool.rs` scores the 2.0 models): context: [L] character ids opened with BOS (`END`). Returns past_k, past_v as `encode_context`, and the log-probabilities [V] of the character after the context, all computed when text is committed."""
         x = self.embed(context.unsqueeze(0), self.chars, "context", 0)
@@ -257,7 +263,9 @@ class ChoiceModel(nn.Module):
         b, n = candidates.shape
         y = self.embed(candidates, self.chars, "context", lc)
         for i, block in enumerate(self.blocks):
-            y, _, _ = block(y, past_k[i].unsqueeze(0).expand(b, -1, -1, -1), past_v[i].unsqueeze(0).expand(b, -1, -1, -1))
+            y, _, _ = block(
+                y, past_k[i].unsqueeze(0).expand(b, -1, -1, -1), past_v[i].unsqueeze(0).expand(b, -1, -1, -1)
+            )
         # Each candidate character after the first is predicted by the one before it.
         logp = F.log_softmax(self.ln_f(y[:, :-1]) @ self.chars.weight.t(), dim=-1)
         rest = logp.gather(-1, candidates[:, 1:].unsqueeze(-1)).squeeze(-1)
@@ -297,7 +305,22 @@ class ChoiceModel(nn.Module):
         total = first[candidates[:, 0]] + (rest * mask).sum(-1)
         return total / lengths.to(total.dtype)
 
-    def lm_score_cached(self, past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths):
+    def lm_score_cached(
+        self,
+        past_k,
+        past_v,
+        first,
+        cache_k,
+        cache_v,
+        cache_h,
+        cache_z,
+        nodes,
+        depths,
+        visible,
+        candidates,
+        steps,
+        lengths,
+    ):
         """`lm_score_tree` across keystrokes: prefixes run on earlier keystrokes since the last commit are passed back in and not run again, so while a long input grows only its new prefixes run. cache_k / cache_v: [layers, H, M, D] the cached prefixes' keys and values (M may be 0), cache_h: [M, C] their final hidden states, cache_z: [M] their log normalisers (zero when `self_normalized`). nodes / depths: [N] the prefixes not in the cache (N >= 1); visible: [N, M + N] which cached and new prefixes each new one sees (itself and its own prefixes); steps index the M + N prefixes, cached first. Returns the scores and the cache with the new prefixes appended, to pass back on the next keystroke. See `cache_inputs`."""
         assert not self.cfg.ngram_buckets, "n-grams would need each node's parent characters"
         lc = past_k.shape[2]
@@ -306,16 +329,31 @@ class ChoiceModel(nn.Module):
         bias = torch.zeros(seen.shape, dtype=x.dtype, device=x.device).masked_fill(~seen, float("-inf"))
         ks, vs = [], []
         for i, block in enumerate(self.blocks):
-            x, k, v = block.forward_one(x, torch.cat([past_k[i], cache_k[i]], dim=1).unsqueeze(0), torch.cat([past_v[i], cache_v[i]], dim=1).unsqueeze(0), bias)
+            x, k, v = block.forward_one(
+                x,
+                torch.cat([past_k[i], cache_k[i]], dim=1).unsqueeze(0),
+                torch.cat([past_v[i], cache_v[i]], dim=1).unsqueeze(0),
+                bias,
+            )
             ks.append(k[0])
             vs.append(v[0])
         h = self.ln_f(x[0])
-        z = torch.zeros_like(h[:, 0]) if self.cfg.self_normalized else torch.logsumexp(h @ self.chars.weight.t(), dim=-1)
+        z = (
+            torch.zeros_like(h[:, 0])
+            if self.cfg.self_normalized
+            else torch.logsumexp(h @ self.chars.weight.t(), dim=-1)
+        )
         h_all, z_all = torch.cat([cache_h, h]), torch.cat([cache_z, z])
         rest = (h_all[steps] * self.chars(candidates[:, 1:])).sum(-1) - z_all[steps]
         mask = torch.arange(1, candidates.shape[1], device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
         total = first[candidates[:, 0]] + (rest * mask).sum(-1)
-        return total / lengths.to(total.dtype), torch.cat([cache_k, torch.stack(ks)], dim=2), torch.cat([cache_v, torch.stack(vs)], dim=2), h_all, z_all
+        return (
+            total / lengths.to(total.dtype),
+            torch.cat([cache_k, torch.stack(ks)], dim=2),
+            torch.cat([cache_v, torch.stack(vs)], dim=2),
+            h_all,
+            z_all,
+        )
 
     def lm_step(self, cache_k, cache_v, cache_h, cache_z, nodes, positions, visible, candidates, steps, lengths):
         """The whole LM-only path as one graph, so one model file holds the weights once: committing text runs the context through it as a chain of nodes into an empty cache (`context_inputs`), and each keystroke runs only the candidate prefixes not cached yet (`step_inputs`), the context's last node predicting every candidate's first character. cache_k / cache_v: [layers, H, M, D], cache_h: [M, C], cache_z: [M] (zero when `self_normalized`), M may be 0; nodes / positions: [N], N may be 0; visible: [N, M + N] which cached and new nodes each new one sees; candidates: [B, Lb] padded; steps: [B, Lb] the node predicting each candidate character, indexing the M + N nodes; lengths: [B]. Returns each candidate's mean log-probability per character and the cache with the new nodes appended. Equal to `lm_context` + `lm_score` (with `self_normalized`, the first character too is read as a bare dot product)."""
@@ -328,12 +366,22 @@ class ChoiceModel(nn.Module):
             ks.append(k[0])
             vs.append(v[0])
         h = self.ln_f(x[0])
-        z = torch.zeros_like(h[:, 0]) if self.cfg.self_normalized else torch.logsumexp(h @ self.chars.weight.t(), dim=-1)
+        z = (
+            torch.zeros_like(h[:, 0])
+            if self.cfg.self_normalized
+            else torch.logsumexp(h @ self.chars.weight.t(), dim=-1)
+        )
         h_all, z_all = torch.cat([cache_h, h]), torch.cat([cache_z, z])
         logp = (h_all[steps] * self.chars(candidates)).sum(-1) - z_all[steps]
         mask = torch.arange(candidates.shape[1], device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
         total = (logp * mask).sum(-1)
-        return total / lengths.to(total.dtype), torch.cat([cache_k, torch.stack(ks)], dim=2), torch.cat([cache_v, torch.stack(vs)], dim=2), h_all, z_all
+        return (
+            total / lengths.to(total.dtype),
+            torch.cat([cache_k, torch.stack(ks)], dim=2),
+            torch.cat([cache_v, torch.stack(vs)], dim=2),
+            h_all,
+            z_all,
+        )
 
 
 def step_inputs(n_context, bodies, cached):
@@ -349,9 +397,12 @@ def step_inputs(n_context, bodies, cached):
     every = list(cached) + fresh
     nodes = [p[-1] for p in fresh]
     positions = [n_context + len(p) - 1 for p in fresh]
-    visible = [[True] * n_context + [len(q) <= len(p) and p[:len(q)] == q for q in every] for p in fresh]
+    visible = [[True] * n_context + [len(q) <= len(p) and p[: len(q)] == q for q in every] for p in fresh]
     width = max(map(len, bodies))
-    steps = [[(n_context - 1 if t == 0 else index[tuple(body[:t])]) if t < len(body) else 0 for t in range(width)] for body in bodies]
+    steps = [
+        [(n_context - 1 if t == 0 else index[tuple(body[:t])]) if t < len(body) else 0 for t in range(width)]
+        for body in bodies
+    ]
     return nodes, positions, visible, steps, every
 
 
@@ -374,9 +425,9 @@ def cache_inputs(bodies, cached):
     every = list(cached) + fresh
     nodes = [p[-1] for p in fresh]
     depths = [len(p) - 1 for p in fresh]
-    visible = [[len(q) <= len(p) and p[:len(q)] == q for q in every] for p in fresh]
+    visible = [[len(q) <= len(p) and p[: len(q)] == q for q in every] for p in fresh]
     width = max(map(len, bodies)) - 1
-    steps = [[index[tuple(body[:t + 1])] if t + 1 < len(body) else 0 for t in range(width)] for body in bodies]
+    steps = [[index[tuple(body[: t + 1])] if t + 1 < len(body) else 0 for t in range(width)] for body in bodies]
     return nodes, depths, visible, steps, every
 
 
@@ -389,15 +440,22 @@ def tree_inputs(bodies):
     prefixes = list(index)
     nodes = [p[-1] for p in prefixes]
     depths = [len(p) - 1 for p in prefixes]
-    visible = [[len(q) <= len(p) and p[:len(q)] == q for q in prefixes] for p in prefixes]
+    visible = [[len(q) <= len(p) and p[: len(q)] == q for q in prefixes] for p in prefixes]
     width = max(map(len, bodies)) - 1
-    steps = [[index[tuple(body[:t + 1])] if t + 1 < len(body) else 0 for t in range(width)] for body in bodies]
+    steps = [[index[tuple(body[: t + 1])] if t + 1 < len(body) else 0 for t in range(width)] for body in bodies]
     return nodes, depths, visible, steps
 
 
 def from_char_lm(state, config, max_positions=256):
     """A `ChoiceModel` holding a `neural/model.py` CharLM checkpoint (its `model` state and `config`): the same blocks, the token table as the character table (BOS is `END`, id 2, in both), its positions for the first `context` rows and its last position repeated after them. Segment and letter embeddings start at zero, so the context segment reads exactly as the CharLM did."""
-    cfg = ChoiceConfig(vocab=config["vocab"], n_layer=config["n_layer"], n_head=config["n_head"], n_embd=config["n_embd"], max_positions=max_positions, gelu_tanh=False)
+    cfg = ChoiceConfig(
+        vocab=config["vocab"],
+        n_layer=config["n_layer"],
+        n_head=config["n_head"],
+        n_embd=config["n_embd"],
+        max_positions=max_positions,
+        gelu_tanh=False,
+    )
     model = ChoiceModel(cfg)
     dst = model.state_dict()
     for key, value in state.items():
@@ -447,8 +505,37 @@ class LmCachedGraph(nn.Module):
         super().__init__()
         self.model = model
 
-    def forward(self, past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths):
-        return self.model.lm_score_cached(past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths)
+    def forward(
+        self,
+        past_k,
+        past_v,
+        first,
+        cache_k,
+        cache_v,
+        cache_h,
+        cache_z,
+        nodes,
+        depths,
+        visible,
+        candidates,
+        steps,
+        lengths,
+    ):
+        return self.model.lm_score_cached(
+            past_k,
+            past_v,
+            first,
+            cache_k,
+            cache_v,
+            cache_h,
+            cache_z,
+            nodes,
+            depths,
+            visible,
+            candidates,
+            steps,
+            lengths,
+        )
 
 
 class LmStepGraph(nn.Module):
@@ -457,7 +544,9 @@ class LmStepGraph(nn.Module):
         self.model = model
 
     def forward(self, cache_k, cache_v, cache_h, cache_z, nodes, positions, visible, candidates, steps, lengths):
-        return self.model.lm_step(cache_k, cache_v, cache_h, cache_z, nodes, positions, visible, candidates, steps, lengths)
+        return self.model.lm_step(
+            cache_k, cache_v, cache_h, cache_z, nodes, positions, visible, candidates, steps, lengths
+        )
 
 
 class ContextGraph(nn.Module):
