@@ -6,15 +6,16 @@ So here a document stays whole. Each output line is one unit the context could c
 
 - `c4`: a C4 document (ODC-BY) that `corpus/fetch.py` would keep (not traditional, prose), its paragraphs joined with nothing, because Enter is not text an input method commits (as in `build_cases.py`). A paragraph that is dropped (below) splits the document there, so no line joins text that was not adjacent.
 - `lccc`: one turn of an LCCC-large dialogue (MIT), the unit `build_cases.py` takes a context from; the other speaker's turns are not the user's text.
+- `fineweb`: a FineWeb-2 `cmn_Hani` document (ODC-BY), kept and split into paragraphs as C4's are. Optional (`--fineweb`); it widens the registers C4 and LCCC cover (official documents, knowledge and service text), which is where the eval set's weakest sources sit. Built after the other two, so their output does not change when it is added.
 
 Within a kept unit, a paragraph is dropped when it is a repeat of one already written (C4 pages share templates; LCCC repeats short turns), when it carries a traditional marker (as `segment` drops such runs), or when it shares a stretch of 8 Chinese characters with any gold or context of the eval sets or of the dev pools, the check `build_cases.py` uses. A unit with a gambling word (`lora.py`'s `SPAM`) is dropped whole. Whitespace runs become one space; nothing else is changed, so full-width punctuation stays full-width as MSIME commits it.
 
 C4 is read from shard 2 on: shards 0 and 1 hold the documents the distillation and dev cases were cut from. The two sources are budgeted separately (`--c4-chars`, `--lccc-chars`, counted in characters written).
 
 usage:
-  python neural/teacher/build_corpus.py --c4 <shard 2> --c4 <shard 3> ... --lccc data/raw/lccc_large.jsonl.gz \\
+  python neural/teacher/build_corpus.py --c4 <shard 2> --c4 <shard 3> ... --lccc data/raw/lccc_large.jsonl.gz [--fineweb <cmn_Hani/train/000_00000.parquet>] \\
     --eval-ctx <eval/sentences-ctx-v1/sampled.jsonl.gz> --dev-pool <data>/pools/dev.jsonl --out <data>/student/corpus
-Writes `c4.txt`, `lccc.txt` (one unit per line) and `build.json` (inputs, budgets, what was kept and dropped).
+Writes `c4.txt`, `lccc.txt`, with `--fineweb` also `fineweb.txt` (one unit per line) and `build.json` (inputs, budgets, what was kept and dropped).
 """
 
 import argparse
@@ -121,6 +122,18 @@ def lccc_units(path):
                     yield [text]
 
 
+def fineweb_units(paths):
+    import pyarrow.parquet as pq
+
+    for path in paths:
+        for batch in pq.ParquetFile(path).iter_batches(columns=["text"], batch_size=4096):
+            for text in batch.column(0).to_pylist():
+                if not text or is_traditional_document(text) or not is_prose(text):
+                    continue
+                paragraphs = [SPACE.sub(" ", line).strip() for line in text.split("\n")]
+                yield [p for p in paragraphs if p]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--c4", action="append", required=True, help="a c4-zh.tfrecord-*.json.gz shard, in order")
@@ -132,6 +145,8 @@ def main():
     parser.add_argument("--dev-pool", required=True, help="the dev pools, held out from the student as from the teacher")
     parser.add_argument("--c4-chars", type=int, default=300_000_000)
     parser.add_argument("--lccc-chars", type=int, default=300_000_000)
+    parser.add_argument("--fineweb", action="append", default=[], help="a FineWeb-2 cmn_Hani parquet file, in order (optional)")
+    parser.add_argument("--fineweb-chars", type=int, default=750_000_000)
     parser.add_argument("--out", required=True)
     parser.add_argument("--progress", help="a JSON file to keep up to date for the dashboard")
     args = parser.parse_args()
@@ -149,8 +164,8 @@ def main():
         exclusion.add(gold, context)
     print(f"{len(texts)} eval and dev cases, {len(exclusion.stretches)} stretches", file=sys.stderr)
 
-    budget = args.c4_chars + args.lccc_chars
-    written = {"c4": 0, "lccc": 0}
+    budget = args.c4_chars + args.lccc_chars + (args.fineweb_chars if args.fineweb else 0)
+    written = {"c4": 0, "lccc": 0, "fineweb": 0}
 
     def progress(writer, source=None):
         if source:
@@ -166,7 +181,12 @@ def main():
 
     seen = set()
     report = {"inputs": {"c4": args.c4, "lccc": args.lccc}, "eval_counts": eval_counts, "budgets": {"c4": args.c4_chars, "lccc": args.lccc_chars}, "sources": {}}
-    for source, units, limit in (("c4", c4_units(args.c4), args.c4_chars), ("lccc", lccc_units(args.lccc), args.lccc_chars)):
+    plan = [("c4", c4_units(args.c4), args.c4_chars), ("lccc", lccc_units(args.lccc), args.lccc_chars)]
+    if args.fineweb:
+        report["inputs"]["fineweb"] = args.fineweb
+        report["budgets"]["fineweb"] = args.fineweb_chars
+        plan.append(("fineweb", fineweb_units(args.fineweb), args.fineweb_chars))
+    for source, units, limit in plan:
         writer = Writer(out / f"{source}.txt", limit, exclusion, seen, lambda w, s=source: progress(w, s))
         for paragraphs in units:
             writer.unit(paragraphs)
@@ -187,12 +207,15 @@ def main():
 SOURCES = {
     "c4": {"name": "the Chinese portion of C4", "license": "ODC-BY", "url": "https://huggingface.co/datasets/allenai/c4", "share_alike": False},
     "lccc": {"name": "LCCC", "license": "MIT", "url": "https://github.com/thu-coai/CDial-GPT", "share_alike": False, "split": "large"},
+    "fineweb": {"name": "FineWeb-2 (cmn_Hani)", "license": "ODC-BY", "url": "https://huggingface.co/datasets/HuggingFaceFW/fineweb-2", "share_alike": False},
 }
 
 
 def write_sources(out, report):
     """The licence record `neural/export.py` requires beside every corpus file, in the shape `corpus/fetch.py` writes."""
     for source, record in SOURCES.items():
+        if source not in report["sources"]:
+            continue
         made = report["sources"][source]
         entry = {**record, "source": source, "lines": made["lines"], "chars": made["chars"], "builder": "neural/teacher/build_corpus.py"}
         (out / f"{source}.txt.source.json").write_text(json.dumps(entry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

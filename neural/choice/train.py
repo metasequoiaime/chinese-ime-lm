@@ -46,12 +46,15 @@ def learning_rate(step, total, peak, warmup):
     return 0.1 * peak + 0.45 * peak * (1 + math.cos(math.pi * progress))
 
 
-def lm_windows(tokens, batch, length, device, generator):
+def lm_windows(tokens, batch, length, device, generator, bos=False):
+    """Random windows of the packed corpus. With `bos` each window opens with BOS followed by text that starts anywhere in a document, as `neural/train.py`'s `context_batches` does and as the LM-only path reads at inference (`lm_context`: BOS, then the tail of the committed text)."""
     while True:
         starts = torch.randint(0, len(tokens) - length - 1, (batch,), generator=generator)
         rows = np.stack([tokens[s : s + length + 1].astype(np.int64) for s in starts.tolist()])
         rows = torch.from_numpy(rows)
-        x, y = rows[:, :-1], rows[:, 1:].clone()
+        x, y = rows[:, :-1].clone(), rows[:, 1:].clone()
+        if bos:
+            x[:, 0] = END
         # The corpus's document separator (BOS, id 2 in neural/train.py's vocabulary) is END here; it stays as input but is never a target.
         y[y == END] = PAD
         yield x.to(device), y.to(device)
@@ -174,6 +177,7 @@ def main():
     parser.add_argument("--init", help="checkpoint to start from (pools phase)")
     parser.add_argument("--steps", type=int, default=20000, help="lm phase")
     parser.add_argument("--window", type=int, default=128, help="lm phase window")
+    parser.add_argument("--bos-windows", action="store_true", help="open every LM window with BOS (see lm_windows)")
     parser.add_argument("--pools")
     parser.add_argument("--teacher", action="append", default=[], help="name=path[:weight[:temperature]], a scorer's output (id, scores) over some of --pools; repeat for several teachers")
     parser.add_argument("--dev", help="dev pools for picking the checkpoint")
@@ -227,8 +231,8 @@ def main():
         log.write(json.dumps({**row, "t": time.time()}) + "\n")
         log.flush()
 
-    lm_train = lm_windows(tokens[:split], args.lm_batch if args.phase == "pools" else args.batch, args.window, device, gen)
-    lm_val = lm_windows(tokens[split:], 64, args.window, device, torch.Generator().manual_seed(7))
+    lm_train = lm_windows(tokens[:split], args.lm_batch if args.phase == "pools" else args.batch, args.window, device, gen, args.bos_windows)
+    lm_val = lm_windows(tokens[split:], 64, args.window, device, torch.Generator().manual_seed(7), args.bos_windows)
 
     def lm_val_loss():
         model.eval()
