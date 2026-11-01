@@ -317,6 +317,49 @@ class ChoiceModel(nn.Module):
         total = first[candidates[:, 0]] + (rest * mask).sum(-1)
         return total / lengths.to(total.dtype), torch.cat([cache_k, torch.stack(ks)], dim=2), torch.cat([cache_v, torch.stack(vs)], dim=2), h_all, z_all
 
+    def lm_step(self, cache_k, cache_v, cache_h, cache_z, nodes, positions, visible, candidates, steps, lengths):
+        """The whole LM-only path as one graph, so one model file holds the weights once: committing text runs the context through it as a chain of nodes into an empty cache (`context_inputs`), and each keystroke runs only the candidate prefixes not cached yet (`step_inputs`), the context's last node predicting every candidate's first character. cache_k / cache_v: [layers, H, M, D], cache_h: [M, C], cache_z: [M] (zero when `self_normalized`), M may be 0; nodes / positions: [N], N may be 0; visible: [N, M + N] which cached and new nodes each new one sees; candidates: [B, Lb] padded; steps: [B, Lb] the node predicting each candidate character, indexing the M + N nodes; lengths: [B]. Returns each candidate's mean log-probability per character and the cache with the new nodes appended. Equal to `lm_context` + `lm_score` (with `self_normalized`, the first character too is read as a bare dot product)."""
+        assert not self.cfg.ngram_buckets, "n-grams would need each node's parent characters"
+        x = (self.chars(nodes) + self.segments.weight[SEGMENTS["context"]] + self.positions(positions)).unsqueeze(0)
+        bias = torch.zeros(visible.shape, dtype=x.dtype, device=x.device).masked_fill(~visible, float("-inf"))
+        ks, vs = [], []
+        for i, block in enumerate(self.blocks):
+            x, k, v = block.forward_one(x, cache_k[i : i + 1], cache_v[i : i + 1], bias)
+            ks.append(k[0])
+            vs.append(v[0])
+        h = self.ln_f(x[0])
+        z = torch.zeros_like(h[:, 0]) if self.cfg.self_normalized else torch.logsumexp(h @ self.chars.weight.t(), dim=-1)
+        h_all, z_all = torch.cat([cache_h, h]), torch.cat([cache_z, z])
+        logp = (h_all[steps] * self.chars(candidates)).sum(-1) - z_all[steps]
+        mask = torch.arange(candidates.shape[1], device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
+        total = (logp * mask).sum(-1)
+        return total / lengths.to(total.dtype), torch.cat([cache_k, torch.stack(ks)], dim=2), torch.cat([cache_v, torch.stack(vs)], dim=2), h_all, z_all
+
+
+def step_inputs(n_context, bodies, cached):
+    """The inputs of `lm_step` for one keystroke: n_context the context nodes at the head of the cache (BOS and the committed text, see `context_inputs`), bodies the candidates as lists of character ids, cached the candidate prefixes (tuples) already in the cache after the context, in cache order. Returns (nodes, positions, visible, steps, cached) as Python lists, cached extended with the new prefixes for the next keystroke; nodes may be empty, when every prefix is cached."""
+    index = {p: n_context + i for i, p in enumerate(cached)}
+    fresh = []
+    for body in bodies:
+        for t in range(1, len(body)):
+            prefix = tuple(body[:t])
+            if prefix not in index:
+                index[prefix] = n_context + len(cached) + len(fresh)
+                fresh.append(prefix)
+    every = list(cached) + fresh
+    nodes = [p[-1] for p in fresh]
+    positions = [n_context + len(p) - 1 for p in fresh]
+    visible = [[True] * n_context + [len(q) <= len(p) and p[:len(q)] == q for q in every] for p in fresh]
+    width = max(map(len, bodies))
+    steps = [[(n_context - 1 if t == 0 else index[tuple(body[:t])]) if t < len(body) else 0 for t in range(width)] for body in bodies]
+    return nodes, positions, visible, steps, every
+
+
+def context_inputs(context):
+    """The inputs of `lm_step` that encode a committed context (character ids opened with BOS) into an empty cache: (nodes, positions, visible, candidates, steps, lengths), the context as a chain of nodes each seeing those before it, and one placeholder candidate whose score is ignored."""
+    n = len(context)
+    return list(context), list(range(n)), [[j <= i for j in range(n)] for i in range(n)], [[context[0]]], [[0]], [1]
+
 
 def cache_inputs(bodies, cached):
     """The inputs of `lm_score_cached` for one keystroke: bodies as lists of character ids, cached the prefixes (tuples) already in the cache, in cache order. Returns (nodes, depths, visible, steps, cached) as Python lists, cached extended with the new prefixes for the next keystroke; nodes is empty when nothing new needs to run."""
@@ -406,6 +449,15 @@ class LmCachedGraph(nn.Module):
 
     def forward(self, past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths):
         return self.model.lm_score_cached(past_k, past_v, first, cache_k, cache_v, cache_h, cache_z, nodes, depths, visible, candidates, steps, lengths)
+
+
+class LmStepGraph(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, cache_k, cache_v, cache_h, cache_z, nodes, positions, visible, candidates, steps, lengths):
+        return self.model.lm_step(cache_k, cache_v, cache_h, cache_z, nodes, positions, visible, candidates, steps, lengths)
 
 
 class ContextGraph(nn.Module):
