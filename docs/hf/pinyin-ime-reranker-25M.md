@@ -27,7 +27,7 @@ Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metas
 
 This is the larger of the two. On the sentence evaluation set it picks every case a reranker can reach, three more than its 4.25M sibling — a difference that is not significant on that set (McNemar p = 0.250, see below). It is also **six times more expensive per decision** than the 4.25M, measured directly on both.
 
-| | **this model** | [pinyin-ime-reranker-4M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) |
+| | **this model** | [pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M) |
 |---|---|---|
 | Parameters | 24,863,104 | 4,250,112 |
 | File (int8) | 25.5 MB | **4.5 MB** |

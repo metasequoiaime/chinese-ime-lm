@@ -25,7 +25,7 @@ Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metas
 
 ## Which of the two
 
-| | **this model** | [pinyin-ime-reranker-25M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M) |
+| | **this model** | [pinyin-ime-reranker-25M](https://huggingface.co/msime/pinyin-ime-reranker-25M) |
 |---|---|---|
 | Parameters | 4,250,112 | 24,863,104 |
 | File (int8) | 4.5 MB | 25.5 MB |

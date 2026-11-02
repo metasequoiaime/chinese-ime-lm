@@ -17,6 +17,13 @@ Copyright 2026 chinese-ime-lm contributors
 - LCCC（MIT）
   https://github.com/thu-coai/CDial-GPT
 
+- FineWeb-2 中文（cmn_Hani）部分（ODC-BY）
+  https://huggingface.co/datasets/HuggingFaceFW/fineweb-2
+
+按键重排模型（`rerank-v1` 起，ORT 格式的 `lm_step.ort`）不是 safetensors，署名写在 ONNX 图的
+元数据 `attribution` 字段里（ORT 格式保留它），同一句话也写在随模型发布的 `model.json` 中。
+再分发时两处都必须保留。
+
 ————————————————————————————————————————
 
 评测数据

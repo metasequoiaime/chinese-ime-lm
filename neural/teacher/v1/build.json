@@ -1,0 +1,141 @@
+{
+  "seed": "teacher-20261030",
+  "quotas": {
+    "train": {
+      "c4": {
+        "none": 3000,
+        "context": 35000
+      },
+      "lccc": {
+        "none": 47000,
+        "context": 15000
+      }
+    },
+    "dev": {
+      "c4": {
+        "none": 100,
+        "context": 1050
+      },
+      "lccc": {
+        "none": 1400,
+        "context": 450
+      }
+    }
+  },
+  "window": 8,
+  "dev_share": 25,
+  "splits": {
+    "dev": {
+      "clauses": {
+        "c4/none": 100,
+        "c4/context": 1050,
+        "lccc/none": 1400,
+        "lccc/context": 450
+      },
+      "typed_cases": 11997,
+      "by_kind": {
+        "clause/full/context": 1500,
+        "clause/full/none": 1500,
+        "word/full/context": 2503,
+        "word/full/none": 496,
+        "word/initials/context": 2503,
+        "word/initials/none": 496,
+        "word/mixed/context": 2503,
+        "word/mixed/none": 496
+      },
+      "dropped": {
+        "c4": {
+          "gold": 22,
+          "gold_stretch": 4,
+          "context_stretch": 179,
+          "duplicate": 64,
+          "untypable": 1
+        },
+        "lccc": {
+          "gold": 5,
+          "gold_stretch": 0,
+          "context_stretch": 0,
+          "duplicate": 9,
+          "untypable": 6
+        }
+      }
+    },
+    "train": {
+      "clauses": {
+        "c4/none": 3000,
+        "c4/context": 35000,
+        "lccc/none": 47000,
+        "lccc/context": 15000
+      },
+      "typed_cases": 399664,
+      "by_kind": {
+        "clause/full/context": 50000,
+        "clause/full/none": 50000,
+        "word/full/context": 84705,
+        "word/full/none": 15183,
+        "word/initials/context": 84705,
+        "word/initials/none": 15183,
+        "word/mixed/context": 84705,
+        "word/mixed/none": 15183
+      },
+      "dropped": {
+        "c4": {
+          "gold": 4204,
+          "gold_stretch": 1019,
+          "context_stretch": 16091,
+          "duplicate": 3625,
+          "untypable": 21
+        },
+        "lccc": {
+          "gold": 844,
+          "gold_stretch": 77,
+          "context_stretch": 24,
+          "duplicate": 2047,
+          "untypable": 257
+        }
+      }
+    }
+  },
+  "inputs": {
+    "c4": [
+      {
+        "path": "~/worktrees/_lm-teacher-cache/corpora/c4-zh.tfrecord-00000-of-01024.json.gz",
+        "sha256": "b58e2bfa1b5319623877a479525affdab7e0e01c26216a7bc2f6c02ec2cca027"
+      },
+      {
+        "path": "~/worktrees/_lm-teacher-cache/corpora/c4-zh.tfrecord-00001-of-01024.json.gz",
+        "sha256": "112ba91bb1ff75d45d948245059d0879cf62d63d0a822cc7eacecc573cbaafc1"
+      }
+    ],
+    "c4_documents_kept": 71090,
+    "lccc": {
+      "path": "~/Workspace/oss/ime/chinese-ime-lm/data/raw/lccc_large.jsonl.gz",
+      "sha256": "0eaf3b39e1f54c414c3c75a8319f89c8a98b4bc6f91913b051a0b849e7d3326f",
+      "dialogues": 12007759,
+      "read": 600000
+    },
+    "eval": {
+      "~/worktrees/lm-teacher-pilot/eval/sentences-v1.tsv": {
+        "cases": 60,
+        "sha256": "f0c5916a555039b16d8da7337114b5514f6f4f6799fda3da1e006e50ac0b295c"
+      },
+      "~/worktrees/lm-teacher-pilot/eval/quanpin-words-v1.tsv": {
+        "cases": 25119,
+        "sha256": "6ca91fe9b6925a84467628fcd40f6502f6bda5558e115effc9e52718a42deaa7"
+      },
+      "~/worktrees/lm-teacher-pilot/eval/open-models/pool.jsonl": {
+        "cases": 52,
+        "sha256": "60826bd11bcedceaa7c5717fc37712eb8ca6e10988c8e4ab242b02d80027ee60"
+      },
+      "~/worktrees/lm-eval-large/eval/sentences-ctx-v1/sampled.jsonl.gz": {
+        "cases": 14868,
+        "sha256": "00687bff34192338ea27a9fadb4f621ddab17ab1665b50da56bcaf0e68eeadda"
+      }
+    }
+  },
+  "tools": {
+    "pypinyin": "0.55.0",
+    "jieba": "0.42.1",
+    "python": "3.12.12"
+  }
+}

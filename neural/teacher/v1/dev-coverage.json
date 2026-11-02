@@ -1,0 +1,85 @@
+{
+  "msime_commit": "c20b3f447654401b3cc4a012ca309b735f8105c2",
+  "convert_eval_sha256": "334f9cf7a978ec80a20e6a67b297125d7fc6c9b398e8157154c72ea42e49a838",
+  "resource_lock_sha256": "686a5ca5245c814412346e0cf8d300823ac2eb6aa8777f6f5cfa63bb272e309d",
+  "dictionary_source_commit": "09a69f20b4726f75d4aa318975e3e891c1135aaf",
+  "dictionary_artifacts": {
+    "msime-pinyin.db": "5973347e707b4654b1c97eae8d99dc113a0915c461cd4b14fe5f438741dc3725",
+    "msime-wubi.db": "37a5bc2e360b5ca53eb2449f593be5393d0aa732210b48e2272eb91131f8e66a",
+    "msime-english.db": "3a69b3ca5da4b463e229eebdcfb64f7859584d7c8a14100ff1ce484ef9be4b82",
+    "msime-scowl_Copyright.txt": "586063cc4345559d5347c6cdb73fbb4d1261118bb009a03530754df004419193",
+    "msime-bigram.bin": "59479c09c0d94de13ca27211c9cb2d377c210ddafd257d365da8898e6ff2a240",
+    "msime-trigram.bin": "a62ade20eaa02bb866638e039c75b917bea090bda77fe53ef8fbbe6b70cd43e5",
+    "msime-others.db": "a251a8846e1e36b64cfa753d4bb9b405a8d8d2b592399d234af1f882b7c20b98",
+    "msime-japanese.dat": "83e093c5697ee81e3ccde63856e9131446e373d452854b4012ad34eb6efbe469",
+    "msime-mozc_dictionary_oss_README.txt": "6b1de66bc6fa30e0b45dc45b8c8f6c57bd78aff923c261a3efffac8eb86f7bac",
+    "msime-mozc_LICENSE.txt": "44cdd923b91ea9199293abecc2762c70c87dbf1e581c027a94c416368d1a648c",
+    "msime-dictionary-manifest.json": "a4a570633166ba257110f86ddb29fff823ad6f969b6e90d9bec7ce4525abb776"
+  },
+  "verified": "verified evaluation resources: source_commit=09a69f20b4726f75d4aa318975e3e891c1135aaf generation=13111c5f550d28a2ccad6b49e005db43114cf5d44cde09f221cbb91bd5e4c45e",
+  "cases": 11997,
+  "pools": 7421,
+  "chunk": 3000,
+  "jobs": 4,
+  "typing_seconds_summed_over_processes": 124.1,
+  "wall_seconds": 35.2,
+  "out_sha256": "8c5722b693efc183d88994eb87ec59662a3f3c9f36796e71a5570b7e47e591d4",
+  "by_kind": {
+    "clause/full/context": {
+      "typed": 1500,
+      "anywhere": 1038,
+      "kept": 940,
+      "single": 0,
+      "engine_top1": 639
+    },
+    "clause/full/none": {
+      "typed": 1500,
+      "anywhere": 1009,
+      "kept": 902,
+      "single": 0,
+      "engine_top1": 659
+    },
+    "word/full/context": {
+      "typed": 2503,
+      "anywhere": 2329,
+      "kept": 2327,
+      "single": 0,
+      "engine_top1": 1953
+    },
+    "word/full/none": {
+      "typed": 496,
+      "anywhere": 456,
+      "kept": 456,
+      "single": 0,
+      "engine_top1": 383
+    },
+    "word/initials/context": {
+      "typed": 2503,
+      "anywhere": 1625,
+      "kept": 971,
+      "single": 17,
+      "engine_top1": 413
+    },
+    "word/initials/none": {
+      "typed": 496,
+      "anywhere": 332,
+      "kept": 237,
+      "single": 5,
+      "engine_top1": 118
+    },
+    "word/mixed/context": {
+      "typed": 2503,
+      "anywhere": 1635,
+      "kept": 1320,
+      "single": 182,
+      "engine_top1": 804
+    },
+    "word/mixed/none": {
+      "typed": 496,
+      "anywhere": 332,
+      "kept": 268,
+      "single": 49,
+      "engine_top1": 177
+    }
+  }
+}

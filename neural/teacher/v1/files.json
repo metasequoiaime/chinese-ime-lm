@@ -1,0 +1,45 @@
+{
+  "data_dir": "~/worktrees/_lm-teacher-data",
+  "files": {
+    "cases/train.jsonl": {
+      "sha256": "b174a29a337bc3d3b1c3d30cdc597680027cbc763dd81711bf4daad71262ccd9",
+      "bytes": 206291931,
+      "lines": 399664
+    },
+    "cases/dev.jsonl": {
+      "sha256": "fc1671df51c0ee088556db6ae95c2abdfeb6469fe7ece72dcc72cfd1eeb50360",
+      "bytes": 6059354,
+      "lines": 11997
+    },
+    "cases/train.tsv": {
+      "sha256": "5a6ca6eed1bc7164986f01e9b73fad8dbe228a14d068b8d7109f0b149268df9c",
+      "bytes": 128411320,
+      "lines": 399665
+    },
+    "cases/dev.tsv": {
+      "sha256": "5ef87248359a0632f26c99215162fade6a1535c1b64af4b6e28adb3b303dd0a2",
+      "bytes": 3755383,
+      "lines": 11998
+    },
+    "pools/train.jsonl": {
+      "sha256": "3a205687aae5802c1b6aee4835081c946e6ad8b316894b1f66276bcb2ba100c1",
+      "bytes": 177338102,
+      "lines": 244476
+    },
+    "pools/dev.jsonl": {
+      "sha256": "8c5722b693efc183d88994eb87ec59662a3f3c9f36796e71a5570b7e47e591d4",
+      "bytes": 5284353,
+      "lines": 7421
+    },
+    "baselines/ours-4m.jsonl": {
+      "sha256": "aceb5fa3499c51bb479ac703b47f3bb0ebe1b23248d786adeb8ccbf645453307",
+      "bytes": 1457677,
+      "lines": 7421
+    },
+    "baselines/ours-25m.jsonl": {
+      "sha256": "3e614c8b38a4eb7ac369a284f313d17654e2570b14732066566e1fe5ea6602d6",
+      "bytes": 1463407,
+      "lines": 7421
+    }
+  }
+}

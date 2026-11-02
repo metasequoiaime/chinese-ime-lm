@@ -92,13 +92,17 @@ class CharLM(nn.Module):
         if isinstance(module, nn.Linear) and module.bias is not None:
             nn.init.zeros_(module.bias)
 
-    def forward(self, idx, targets=None):
+    def hidden(self, idx):
+        """The final normalized hidden state at every position, before the output head."""
         t = idx.shape[1]
         pos = torch.arange(t, device=idx.device)
         x = self.drop(self.tok(idx) + self.pos(pos))
         for block in self.blocks:
             x = block(x)
-        logits = self.head(self.ln_f(x))
+        return self.ln_f(x)
+
+    def forward(self, idx, targets=None):
+        logits = self.head(self.hidden(idx))
         if targets is None:
             return logits, None
         loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.reshape(-1), ignore_index=PAD)

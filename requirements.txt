@@ -1,3 +1,4 @@
 regex
 kenlm
 opencc
+pyarrow

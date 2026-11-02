@@ -1,0 +1,86 @@
+{
+  "clause/full/context": {
+    "typed": 1739,
+    "anywhere": 1298,
+    "kept": 1196,
+    "single": 0,
+    "engine_top1": 838
+  },
+  "clause/full/none": {
+    "typed": 746,
+    "anywhere": 467,
+    "kept": 435,
+    "single": 0,
+    "engine_top1": 293
+  },
+  "clause/initials/context": {
+    "typed": 1739,
+    "anywhere": 97,
+    "kept": 0,
+    "single": 0,
+    "engine_top1": 0
+  },
+  "clause/initials/none": {
+    "typed": 746,
+    "anywhere": 27,
+    "kept": 0,
+    "single": 0,
+    "engine_top1": 0
+  },
+  "clause/mixed/context": {
+    "typed": 1739,
+    "anywhere": 98,
+    "kept": 0,
+    "single": 0,
+    "engine_top1": 0
+  },
+  "clause/mixed/none": {
+    "typed": 746,
+    "anywhere": 30,
+    "kept": 0,
+    "single": 0,
+    "engine_top1": 0
+  },
+  "word/full/context": {
+    "typed": 2263,
+    "anywhere": 2158,
+    "kept": 2156,
+    "single": 0,
+    "engine_top1": 1803
+  },
+  "word/full/none": {
+    "typed": 208,
+    "anywhere": 200,
+    "kept": 200,
+    "single": 0,
+    "engine_top1": 166
+  },
+  "word/initials/context": {
+    "typed": 2263,
+    "anywhere": 1483,
+    "kept": 934,
+    "single": 30,
+    "engine_top1": 369
+  },
+  "word/initials/none": {
+    "typed": 208,
+    "anywhere": 140,
+    "kept": 109,
+    "single": 3,
+    "engine_top1": 57
+  },
+  "word/mixed/context": {
+    "typed": 2263,
+    "anywhere": 1478,
+    "kept": 1182,
+    "single": 235,
+    "engine_top1": 684
+  },
+  "word/mixed/none": {
+    "typed": 208,
+    "anywhere": 136,
+    "kept": 105,
+    "single": 28,
+    "engine_top1": 76
+  }
+}
