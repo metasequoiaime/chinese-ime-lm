@@ -19,121 +19,121 @@ tags:
 
 # pinyin-ime-keystroke-reranker-8M
 
-A 7.96M-parameter character-level language model that ranks a Chinese pinyin input method's candidates on every keystroke, built for older phones. It ships as one ONNX Runtime graph in ORT format, 8.2 MB with uint8 weights, plus two small JSON files.
+一个 7.96M 参数的字级语言模型，在每次按键时给中文拼音输入法的候选排序，为老手机而做。发布形式是一张 ORT 格式的 ONNX Runtime 图，uint8 权重，8.2 MB，外加两个小 JSON 文件。
 
-**It does not decode pinyin.** It takes the candidate list your engine assembled and judges which one the preceding text supports. Feeding it a pinyin string will not give you Chinese text.
+**它不做拼音解码。** 它拿到的是你的引擎已经拼好的候选列表，判断上文支持其中哪一个。喂给它一串拼音，得不到中文。
 
-Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metasequoiaime/chinese-ime-lm). The same bytes are in the GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v1), where the files carry a `rerank-6x256.` prefix so that both models fit in one release.
+训练和测量都在 [metasequoiaime/chinese-ime-lm](https://github.com/metasequoiaime/chinese-ime-lm)。同一批字节也在 GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v1) 里，那里的文件带 `rerank-6x256.` 前缀，好让两个模型放进同一个 release。
 
-## Which of the two
+## 两个里选哪个
 
-The two models are tiers by device speed, not alternatives in quality. A host loads the larger one first, measures a page of heavy load, and switches to this one if that takes more than 10 ms. On the slowest phone measured it is what keeps a keystroke under that budget (see Latency below).
+两个模型是按设备快慢分的档，不是质量上的二选一。host 先加载大的那个，测一页重负载，超过 10 ms 就换成这个。在实测最慢的那台手机上，正是它让按键保持在这个预算之内（见下文「延迟」）。
 
-| | **this model** (`6x256`) | [pinyin-ime-keystroke-reranker-25M](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-25M) (`8x448`) |
+| | **本模型**（`6x256`） | [pinyin-ime-keystroke-reranker-25M](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-25M)（`8x448`） |
 |---|---|---|
-| Parameters | 7.96M | 24.9M |
-| File (uint8 weights) | **8.2 MB** | 30.8 MB |
-| ctx-v1, with context (5,468 cases) | 90.1% | **91.8%** |
-| ctx-v1, without context (849 cases) | 82.8% | **83.4%** |
-| Reading a candidate character | **one dot product** (self-normalised in training) | softmax over the whole vocabulary |
-| Meant for | older phones | desktops, recent phones |
+| 参数量 | 7.96M | 24.9M |
+| 文件（uint8 权重） | **8.2 MB** | 30.8 MB |
+| ctx-v1，有上文（5,468 条） | 90.1% | **91.8%** |
+| ctx-v1，无上文（849 条） | 82.8% | **83.4%** |
+| 读候选字的方式 | **一次点积**（训练时自归一化） | 对整个字表做 softmax |
+| 适用于 | 老手机 | 桌面、新手机 |
 
-For reference, the 4.25M sentence model ([pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M), GitHub release `model-v1`) scores 89.6% with context and 81.3% without on the same set, scored the same way.
+作为参照，4.25M 的整句模型（[pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M)，GitHub release `model-v1`）在同一套评测集上、按同样方式打分，有上文 89.6%，无上文 81.3%。
 
-**These files do not replace `sentence-model.safetensors`.** The sentence models are a self-describing safetensors file for the pure-Rust [`chinese-ime-lm`](https://crates.io/crates/chinese-ime-lm) crate; this is an ONNX Runtime graph with a different calling convention, described below.
+**这些文件不能替代 `sentence-model.safetensors`。** 整句模型是给纯 Rust 的 [`chinese-ime-lm`](https://crates.io/crates/chinese-ime-lm) crate 用的自描述 safetensors 文件；这里是一张 ONNX Runtime 图，调用方式不同，见下文。
 
-## Files
+## 文件
 
-| File | Bytes | What it is |
+| 文件 | 字节数 | 是什么 |
 |---|---|---|
-| `lm_step.ort` | 8,220,064 | The whole keystroke path as one graph, weights quantized dynamically to uint8, optimised ahead of time for a minimal ONNX Runtime build |
-| `model.json` | 679 | What a runtime needs besides the graph: cache shape, context window, BOS and UNK ids, whether candidate characters may be read without the softmax, and the corpus attribution |
-| `vocab.json` | 85,613 | The token list. Single characters are the model's characters; an id is the position in the list |
-| `required_operators_and_types.config` | 968 | The operators and types the graph uses, written by the export (only its comment line, which named a local build path, now reads `lm_step.ort`): the input to ONNX Runtime's `--include_ops_by_config` and `--enable_reduced_operator_type_support` |
+| `lm_step.ort` | 8,220,064 | 整条按键路径一张图，权重动态量化为 uint8，已为精简构建的 ONNX Runtime 预先优化 |
+| `model.json` | 679 | 运行时除了图之外还需要的东西：缓存形状、上文窗口、BOS 和 UNK 的 id、候选字能否跳过 softmax 读取，以及语料署名 |
+| `vocab.json` | 85,613 | token 列表。单个字符就是模型的字；id 是在列表里的位置 |
+| `required_operators_and_types.config` | 968 | 图用到的算子和类型，由导出写出（只有注释那一行原本写的是本地构建路径，现在改成了 `lm_step.ort`）：作为 ONNX Runtime `--include_ops_by_config` 和 `--enable_reduced_operator_type_support` 的输入 |
 | `LICENSE` | — | Apache-2.0 |
-| `NOTICE` | — | Corpus attribution, which must travel with the weights |
+| `NOTICE` | — | 语料署名，必须跟着权重走 |
 
-The three model files keep the names a host looks for: put them in one directory as they are.
+三个模型文件保持 host 要找的原名：原样放进同一个目录即可。
 
-## Use it
+## 使用
 
-The graph is `lm_step` in [`neural/choice/model.py`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/neural/choice/model.py), exported by [`neural/choice/export_step.py`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/neural/choice/export_step.py). It holds the weights once and is called in two ways:
+这张图是 [`neural/choice/model.py`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/neural/choice/model.py) 里的 `lm_step`，由 [`neural/choice/export_step.py`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/neural/choice/export_step.py) 导出。权重只存一份，有两种调用方式：
 
-- **When text is committed**, run the context through it into an empty cache. The context is character ids opened with BOS (`bos` in `model.json`), at most the last `context_chars` (64) characters; characters not in `vocab.json` map to `unk`. `context_inputs` builds the feed.
-- **On each keystroke**, run only the candidate prefixes that are not in the cache yet. Shared prefixes run once, a candidate's last character never runs, and the context's last node predicts every candidate's first character. `step_inputs` builds the feed and returns the extended prefix list for the next keystroke.
+- **文字上屏时**，把上文跑进一个空缓存。上文是以 BOS（`model.json` 里的 `bos`）开头的字 id 序列，最多取最后 `context_chars`（64）个字；不在 `vocab.json` 里的字映射到 `unk`。`context_inputs` 负责构造输入。
+- **每次按键时**，只跑缓存里还没有的候选前缀。共同前缀只跑一次，候选的最后一个字从不跑，上文的最后一个节点预测每个候选的第一个字。`step_inputs` 负责构造输入，并返回扩展后的前缀列表供下一次按键使用。
 
-| Input | Type | Shape |
+| 输入 | 类型 | 形状 |
 |---|---|---|
-| `cache_k`, `cache_v` | float32 | [layers, heads, M, head_dim], M may be 0 |
+| `cache_k`, `cache_v` | float32 | [layers, heads, M, head_dim]，M 可以为 0 |
 | `cache_h` | float32 | [M, width] |
 | `cache_z` | float32 | [M] |
-| `nodes`, `positions` | int64 | [N], N may be 0 when every prefix is cached |
-| `visible` | bool | [N, M + N], which cached and new nodes each new node sees |
-| `candidates` | int64 | [B, Lb], padded |
-| `steps` | int64 | [B, Lb], the node predicting each candidate character, indexing the M + N nodes |
+| `nodes`, `positions` | int64 | [N]，所有前缀都已缓存时 N 可以为 0 |
+| `visible` | bool | [N, M + N]，每个新节点能看到哪些已缓存节点和新节点 |
+| `candidates` | int64 | [B, Lb]，已补齐 |
+| `steps` | int64 | [B, Lb]，预测每个候选字的那个节点，索引范围是 M + N 个节点 |
 | `lengths` | int64 | [B] |
 
-Outputs: `scores` [B], each candidate's mean log-probability per character (this model is self-normalised, so `cache_z` is all zeros and the normaliser is taken as zero rather than computed), and `next_k`, `next_v`, `next_h`, `next_z`, the cache with the new nodes appended. Feed those back on the next keystroke.
+输出：`scores` [B]，每个候选按字平均的对数概率（本模型是自归一化的，所以 `cache_z` 全是零，归一化项直接取零，不做计算）；以及 `next_k`、`next_v`、`next_h`、`next_z`，即追加了新节点的缓存。下一次按键时把它们喂回去。
 
-Both models together use 27 operators, so ONNX Runtime can be built down to them from the `required_operators_and_types.config` files (statically linked, about 1.5 MB). `export_step.py --golden` types a pool's cases through the ORT file and writes every keystroke's candidates and scores to `golden.jsonl`, for a runtime's own tests to replay.
+两个模型合起来只用 27 个算子，所以可以按两个模型各自的 `required_operators_and_types.config` 把 ONNX Runtime 精简构建到只剩这些（静态链接约 1.5 MB）。`export_step.py --golden` 用 ORT 文件把一个候选池里的用例逐键打一遍，把每次按键的候选和分数写进 `golden.jsonl`，供运行时自己的测试回放。
 
-**The weights are uint8, not int8, on purpose.** ONNX Runtime picks its int8 kernels by CPU feature. With int8 weights, two Macs with and without I8MM picked different candidates on 42 of 6,317 cases; with uint8 weights the two give bit-identical scores.
+**权重用 uint8 而不是 int8，是有意的。** ONNX Runtime 按 CPU 特性选择 int8 内核。用 int8 权重时，有和没有 I8MM 的两台 Mac 在 6,317 条用例中有 42 条选了不同的候选；用 uint8 权重，两台给出的分数逐位相同。
 
-## Measurements
+## 测量
 
-[`eval/sentences-ctx-v1/`](https://github.com/metasequoiaime/chinese-ime-lm/tree/main/eval/sentences-ctx-v1) is 6,317 cases drawn from text outside the training corpora: clauses from government documents published 2026-09-04 to 10-29 and from the test splits of three crowd-sourced dialogue sets, plus a 2 to 4 character word from each clause typed as full pinyin, initials only, and a mix. The gold answer is what the original author wrote, the context is the text before the cursor in the same document, and the candidate pools were recorded from a real input method. A case counts as right when the scorer picks the gold answer out of the same pool. Sources, licences, sampling rules and the overlap check against training corpora are in that directory's README; the comparison against other scorers on the same pools is in [`docs/measurements.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/measurements.md).
+[`eval/sentences-ctx-v1/`](https://github.com/metasequoiaime/chinese-ime-lm/tree/main/eval/sentences-ctx-v1) 是 6,317 条取自训练语料之外文本的用例：2026-09-04 到 10-29 发布的政府文件中的分句，三个众包对话集测试划分里的分句，再加上从每个分句中取一个 2 到 4 字的词，分别以全拼、只打声母和混打三种方式输入。金标准是原作者写下的文字，上文是同一文档里光标之前的文本，候选池录自一个真实的输入法。打分器从同一个池里选中金标准就算对。来源、许可、抽样规则以及与训练语料的重叠检查见该目录的 README；同一批候选池上与其他打分器的比较见 [`docs/measurements.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/measurements.md)。
 
-| | with context (5,468) | without context (849) |
+| | 有上文（5,468） | 无上文（849） |
 |---|---|---|
 | pinyin-ime-keystroke-reranker-25M | **91.8%** | **83.4%** |
-| **this model** | 90.1% | 82.8% |
-| pinyin-ime-reranker-4M (`model-v1`) | 89.6% | 81.3% |
+| **本模型** | 90.1% | 82.8% |
+| pinyin-ime-reranker-4M（`model-v1`） | 89.6% | 81.3% |
 
-### Latency
+### 延迟
 
-Measured by typing key by key in MSIME's real runtime (`rerank_latency`, 643 cases from sentences-v2 and typing-chat-v1, about 8,100 keystrokes, two rounds). Whole-keystroke p95:
+在 MSIME 的真实运行时里逐键输入测得（`rerank_latency`，643 条用例取自 sentences-v2 和 typing-chat-v1，约 8,100 次按键，两轮）。整次按键的 p95：
 
-| Device | Model used | Keystroke p95 | `model-v1` 4.25M on the same device |
+| 设备 | 使用的模型 | 按键 p95 | 同一设备上的 `model-v1` 4.25M |
 |---|---|---|---|
-| Apple M1 Max / M4 Pro (2 threads) | 8x448 | about 4 ms | about 6 ms |
-| iPhone 17 (2 threads) | 8x448 | 3.8–4.1 ms | 4.8–5.4 ms |
-| iPhone XR (2 threads) | 6x256 | 4.4–4.9 ms | 11.1–11.9 ms |
-| Pixel 3 XL (4 threads) | 6x256 | 9.3 ms | 38–40 ms |
+| Apple M1 Max / M4 Pro（2 线程） | 8x448 | 约 4 ms | 约 6 ms |
+| iPhone 17（2 线程） | 8x448 | 3.8–4.1 ms | 4.8–5.4 ms |
+| iPhone XR（2 线程） | 6x256 | 4.4–4.9 ms | 11.1–11.9 ms |
+| Pixel 3 XL（4 线程） | 6x256 | 9.3 ms | 38–40 ms |
 
-**Report percentiles, not means.** Most keystrokes cost little, so a mean spreads the cost of the expensive ones across the cheap ones.
+**报分位数，不报均值。** 大多数按键开销很小，均值把贵的那些摊到了便宜的上面。
 
-## Shape
+## 结构
 
-From `model.json`:
+取自 `model.json`：
 
 | | |
 |---|---|
-| Layers / width / heads | 6 / 256 / 4 (head dimension 64) |
-| Positions | 256 |
-| Context window | 64 characters |
-| Vocabulary | 12,288 characters |
-| Activation | GELU, tanh approximation |
-| Candidate characters read | as one dot product: trained self-normalised, so the vocabulary softmax is skipped |
-| Parameters | 7.96M |
-| Precision | uint8 weights, dynamic quantization |
+| 层数 / 宽度 / 头数 | 6 / 256 / 4（每头维度 64） |
+| 位置数 | 256 |
+| 上文窗口 | 64 字 |
+| 字表 | 12,288 字 |
+| 激活函数 | GELU，tanh 近似 |
+| 候选字的读取方式 | 一次点积：训练时自归一化，所以跳过整个字表的 softmax |
+| 参数量 | 7.96M |
+| 精度 | uint8 权重，动态量化 |
 
-## Corpus, licence and attribution
+## 语料、许可与署名
 
-The **weights are Apache-2.0**, which is not the licence of the training code (that repository is GPL-3.0, and its `reference/` directory is Apache-2.0).
+**权重是 Apache-2.0**，和训练代码的许可不同（那个仓库是 GPL-3.0，其中 `reference/` 目录是 Apache-2.0）。
 
-`LICENSE` and `NOTICE` are in this repository rather than only named in this metadata, because Apache-2.0 asks a redistributor to pass both along and a label on a web page is not a copy of either.
+`LICENSE` 和 `NOTICE` 放在这个仓库里，而不只是在元数据里写个名字，因为 Apache-2.0 要求再分发者把两者一并交出去，网页上的一个标签不是它们的副本。
 
-Trained on the Chinese portion of [C4](https://huggingface.co/datasets/allenai/c4) (ODC-BY), the Chinese (`cmn_Hani`) portion of [FineWeb-2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) (ODC-BY) and [LCCC](https://huggingface.co/datasets/silver/lccc) (MIT). **None carries a share-alike obligation**, so adopting this model does not bring one onto you.
+训练语料是 [C4](https://huggingface.co/datasets/allenai/c4) 的中文部分（ODC-BY）、[FineWeb-2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) 的中文（`cmn_Hani`）部分（ODC-BY）和 [LCCC](https://huggingface.co/datasets/silver/lccc)（MIT）。**三者都没有相同方式共享（share-alike）的义务**，所以采用这个模型不会把这种义务带到你身上。
 
-The corpora do require attribution to travel with anything trained on them. It is written into the graph's metadata (`attribution`, `license`), which the ORT format keeps, and the same sentence is in `model.json`:
+这些语料都要求署名跟着用它们训练出来的东西走。署名写在图的元数据里（`attribution`、`license`），ORT 格式会保留它，`model.json` 里也有同一句话：
 
 ```
 Trained on the Chinese portion of C4 (ODC-BY, https://huggingface.co/datasets/allenai/c4), FineWeb-2 (cmn_Hani) (ODC-BY, https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) and LCCC (MIT, https://github.com/thu-coai/CDial-GPT).
 ```
 
-**Preserve both when redistributing.** The attribution is derived from the corpus the run actually used, not declared: the export builds it from the records written beside each fetched corpus and refuses if any source is share-alike.
+**再分发时两处都请保留。** 署名是从这次训练实际用到的语料推出来的，不是手写声明的：导出时根据每份下载的语料旁边写下的记录生成它，只要有任何来源是相同方式共享的就拒绝导出。
 
-## Integrity
+## 完整性
 
 ```
 lm_step.ort                            8,220,064 bytes
@@ -149,4 +149,4 @@ required_operators_and_types.config          968 bytes
 sha256  e6369a634e626c1b76a8f2f9aa2d89d3c84abf9026204a82118c969f1e24500b
 ```
 
-These files are loaded by a process that sees every keystroke. **Verify the digests before shipping them.** See [`SECURITY.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/SECURITY.md).
+加载这些文件的进程能看到每一次按键。**发布之前先校验摘要。** 见 [`SECURITY.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/SECURITY.md)。
