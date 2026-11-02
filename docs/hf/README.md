@@ -4,10 +4,10 @@
 
 | 本地文件 | Hugging Face 仓库 | 仓库内的权重 |
 |---|---|---|
-| [`pinyin-ime-reranker-4M.md`](pinyin-ime-reranker-4M.md) | [`metasequoiaime/pinyin-ime-reranker-4M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) | `sentence-model.safetensors`，4.25M，由 `dist/sentence-model.safetensors` 上传 |
-| [`pinyin-ime-reranker-25M.md`](pinyin-ime-reranker-25M.md) | [`metasequoiaime/pinyin-ime-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M) | `sentence-model.safetensors`，24.9M，由 `dist/sentence-model-desktop.safetensors` 上传 |
-| [`pinyin-ime-keystroke-reranker-25M.md`](pinyin-ime-keystroke-reranker-25M.md) | [`metasequoiaime/pinyin-ime-keystroke-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-keystroke-reranker-25M) | `lm_step.ort`，8x448、24.9M，由 release `rerank-v1` 的 `rerank-8x448.*` 上传 |
-| [`pinyin-ime-keystroke-reranker-8M.md`](pinyin-ime-keystroke-reranker-8M.md) | [`metasequoiaime/pinyin-ime-keystroke-reranker-8M`](https://huggingface.co/metasequoiaime/pinyin-ime-keystroke-reranker-8M) | `lm_step.ort`，6x256、7.96M，由 release `rerank-v1` 的 `rerank-6x256.*` 上传 |
+| [`pinyin-ime-reranker-4M.md`](pinyin-ime-reranker-4M.md) | [`msime/pinyin-ime-reranker-4M`](https://huggingface.co/msime/pinyin-ime-reranker-4M) | `sentence-model.safetensors`，4.25M，由 `dist/sentence-model.safetensors` 上传 |
+| [`pinyin-ime-reranker-25M.md`](pinyin-ime-reranker-25M.md) | [`msime/pinyin-ime-reranker-25M`](https://huggingface.co/msime/pinyin-ime-reranker-25M) | `sentence-model.safetensors`，24.9M，由 `dist/sentence-model-desktop.safetensors` 上传 |
+| [`pinyin-ime-keystroke-reranker-25M.md`](pinyin-ime-keystroke-reranker-25M.md) | [`msime/pinyin-ime-keystroke-reranker-25M`](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-25M) | `lm_step.ort`，8x448、24.9M，由 release `rerank-v1` 的 `rerank-8x448.*` 上传 |
+| [`pinyin-ime-keystroke-reranker-8M.md`](pinyin-ime-keystroke-reranker-8M.md) | [`msime/pinyin-ime-keystroke-reranker-8M`](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-8M) | `lm_step.ort`，6x256、7.96M，由 release `rerank-v1` 的 `rerank-6x256.*` 上传 |
 
 前两个是整句重排模型（safetensors，`model-v1`），后两个是按键重排模型（ORT 格式，`rerank-v1`），两类文件格式和调用方式都不同，见下面各自一节。
 
@@ -31,7 +31,7 @@
 卡里的 `sha256` 和字节数标定的是某一份具体文件。重新导出权重就必须一并更新，否则那两行会变成谎话。校验线上那份是否就是这一份：
 
 ```sh
-curl -s https://huggingface.co/api/models/metasequoiaime/pinyin-ime-reranker-4M/tree/main \
+curl -s https://huggingface.co/api/models/msime/pinyin-ime-reranker-4M/tree/main \
   | python3 -c "import json,sys; print([(e['path'], e.get('size'), (e.get('lfs') or {}).get('oid')) for e in json.load(sys.stdin)])"
 ```
 
@@ -44,7 +44,7 @@ curl -s https://huggingface.co/api/models/metasequoiaime/pinyin-ime-reranker-4M/
 ```json
 {
   "name": "sentence-model.safetensors",
-  "url": "https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M/resolve/main/sentence-model.safetensors",
+  "url": "https://huggingface.co/msime/pinyin-ime-reranker-4M/resolve/main/sentence-model.safetensors",
   "sha256": "86ac529510cb3b4968a5e6ade83ec8080f5b34a0a681e75c362accbbd387d1c1",
   "size": 4486280
 }
@@ -53,7 +53,7 @@ curl -s https://huggingface.co/api/models/metasequoiaime/pinyin-ime-reranker-4M/
 ```json
 {
   "name": "sentence-model.safetensors",
-  "url": "https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M/resolve/main/sentence-model.safetensors",
+  "url": "https://huggingface.co/msime/pinyin-ime-reranker-25M/resolve/main/sentence-model.safetensors",
   "sha256": "0a6ecba69bf1d39c7eb49549c716477dd6c03fdf05757773e1f50435262fb469",
   "size": 25480184
 }
@@ -81,5 +81,5 @@ GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/re
 卡里的数字来自 `rerank-v1` 的 release 说明和 `model.json`，`sha256` 和字节数标定的是 release 里那几份文件。上传前先按 release 说明的「校验」核对下载下来的文件，上传后用上面的 tree 接口核线上的 `size` 和 LFS `oid`（`model.json`、`vocab.json`、`.config` 是小文件，不走 LFS，只核 `size`，再下载下来比摘要）。重新导出模型就要发新的 release，并一并更新这两张卡。
 
 ```sh
-hf upload metasequoiaime/pinyin-ime-keystroke-reranker-25M rerank-8x448.ort lm_step.ort
+hf upload msime/pinyin-ime-keystroke-reranker-25M rerank-8x448.ort lm_step.ort
 ```

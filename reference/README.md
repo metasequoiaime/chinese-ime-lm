@@ -10,7 +10,7 @@ This crate is the reference implementation in [metasequoiaime/chinese-ime-lm](ht
 
 The weights are published separately on Hugging Face. Both files are named `sentence-model.safetensors`.
 
-| | [pinyin-ime-reranker-4M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) | [pinyin-ime-reranker-25M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M) |
+| | [pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M) | [pinyin-ime-reranker-25M](https://huggingface.co/msime/pinyin-ime-reranker-25M) |
 |---|---|---|
 | File (int8) | 4.5 MB | 25.5 MB |
 | Cost per candidate-character | 0.33 ms | 2.0 ms |

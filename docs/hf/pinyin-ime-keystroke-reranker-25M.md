@@ -29,7 +29,7 @@ Trained and measured in [metasequoiaime/chinese-ime-lm](https://github.com/metas
 
 The two models are tiers by device speed, not alternatives in quality. A host loads this one first, measures a page of heavy load, and switches to the smaller one if that takes more than 10 ms.
 
-| | **this model** (`8x448`) | [pinyin-ime-keystroke-reranker-8M](https://huggingface.co/metasequoiaime/pinyin-ime-keystroke-reranker-8M) (`6x256`) |
+| | **this model** (`8x448`) | [pinyin-ime-keystroke-reranker-8M](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-8M) (`6x256`) |
 |---|---|---|
 | Parameters | 24.9M | 7.96M |
 | File (uint8 weights) | 30.8 MB | 8.2 MB |
@@ -38,7 +38,7 @@ The two models are tiers by device speed, not alternatives in quality. A host lo
 | Reading a candidate character | softmax over the whole vocabulary | one dot product (self-normalised in training) |
 | Meant for | desktops, recent phones | older phones |
 
-For reference, the 4.25M sentence model ([pinyin-ime-reranker-4M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M), GitHub release `model-v1`) scores 89.6% with context and 81.3% without on the same set, scored the same way.
+For reference, the 4.25M sentence model ([pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M), GitHub release `model-v1`) scores 89.6% with context and 81.3% without on the same set, scored the same way.
 
 **These files do not replace `sentence-model.safetensors`.** The sentence models are a self-describing safetensors file for the pure-Rust [`chinese-ime-lm`](https://crates.io/crates/chinese-ime-lm) crate; this is an ONNX Runtime graph with a different calling convention, described below.
 

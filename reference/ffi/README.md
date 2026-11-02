@@ -62,7 +62,7 @@ Every fallible call returns a `cimelm_status`. On anything but `CIMELM_STATUS_OK
 
 ## Models
 
-The weights are published on Hugging Face as [pinyin-ime-reranker-4M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M) and [pinyin-ime-reranker-25M](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M). Take the 4M model for anything that runs on a keystroke. A downloaded model is untrusted input; [`SECURITY.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/SECURITY.md) describes how to check one before loading it.
+The weights are published on Hugging Face as [pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M) and [pinyin-ime-reranker-25M](https://huggingface.co/msime/pinyin-ime-reranker-25M). Take the 4M model for anything that runs on a keystroke. A downloaded model is untrusted input; [`SECURITY.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/SECURITY.md) describes how to check one before loading it.
 
 ## Licence
 

@@ -18,7 +18,7 @@
 
 - librime 1.17.0 或更新。插件用的是 librime 的 C++ 内部接口，必须对照将要加载它的那个 librime 版本编译。
 - 编译时需要 Rust 工具链（1.75 或更新），由 CMake 调用 cargo 编译 `reference/ffi`。没有 Rust 工具链时，可以把 `CIMELM_FFI_LIBRARY` 和 `CIMELM_FFI_INCLUDE_DIR` 指向预先编好的 `chinese-ime-lm-ffi` 静态库和头文件。
-- 模型文件 `sentence-model.safetensors`。推荐用 4M 模型（[GitHub release `model-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1) 或 [Hugging Face](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M)），sha256 为 `86ac529510cb3b4968a5e6ade83ec8080f5b34a0a681e75c362accbbd387d1c1`。
+- 模型文件 `sentence-model.safetensors`。推荐用 4M 模型（[GitHub release `model-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1) 或 [Hugging Face](https://huggingface.co/msime/pinyin-ime-reranker-4M)），sha256 为 `86ac529510cb3b4968a5e6ade83ec8080f5b34a0a681e75c362accbbd387d1c1`。
 
 ## 编译
 
