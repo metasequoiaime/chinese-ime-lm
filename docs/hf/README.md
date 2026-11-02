@@ -80,6 +80,8 @@ GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/re
 
 卡里的数字来自 `rerank-v1` 的 release 说明和 `model.json`，`sha256` 和字节数标定的是 release 里那几份文件。上传前先按 release 说明的「校验」核对下载下来的文件，上传后用上面的 tree 接口核线上的 `size` 和 LFS `oid`（`model.json`、`vocab.json`、`.config` 是小文件，不走 LFS，只核 `size`，再下载下来比摘要）。重新导出模型就要发新的 release，并一并更新这两张卡。
 
+**准确率要在 release 里那几份文件本身上量**，不能拿导出之前的检查点、另一种量化的图或另一次训练的结果顶替。最初的说明和卡就错在这里：两个按键模型的数字量的是导出前另做 int8 量化的两张图（91.8% / 83.4%、90.1% / 82.8%），发布的 uint8 `lm_step.ort` 是 91.9% / 82.7%、90.4% / 83.0%；`model-v1` 那一行写的 89.6% / 81.3% 其实是另一个 6x256 训练中间版本的成绩，`model-v1` 自己是 79.5% / 76.1%。对照模型的数字直接取 `eval/sentences-ctx-v1/results.json` 里那个打分器的条目，口径相同（同一个池、挑按字平均对数概率最高的那个、上文按 `rerank_context` 截、每条用例从空缓存开始）。量 ORT 文件时每条用例都要从空缓存开始：MSIME 的 `OnnxScorer` 在上文不变时沿用上一次的缓存，uint8 动态量化让一起计算的节点影响分数，连着跑整个池时，接在同上文用例后面的那些会有零点几个点的出入。
+
 ```sh
 hf upload msime/pinyin-ime-keystroke-reranker-25M rerank-8x448.ort lm_step.ort
 ```

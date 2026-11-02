@@ -33,12 +33,12 @@ tags:
 |---|---|---|
 | 参数量 | 24.9M | 7.96M |
 | 文件（uint8 权重） | 30.8 MB | 8.2 MB |
-| ctx-v1，有上文（5,468 条） | **91.8%** | 90.1% |
-| ctx-v1，无上文（849 条） | **83.4%** | 82.8% |
+| ctx-v1，有上文（5,468 条） | **91.9%** | 90.4% |
+| ctx-v1，无上文（849 条） | 82.7% | **83.0%** |
 | 读候选字的方式 | 对整个字表做 softmax | 一次点积（训练时自归一化） |
 | 适用于 | 桌面、新手机 | 老手机 |
 
-作为参照，4.25M 的整句模型（[pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M)，GitHub release `model-v1`）在同一套评测集上、按同样方式打分，有上文 89.6%，无上文 81.3%。
+作为参照，4.25M 的整句模型（[pinyin-ime-reranker-4M](https://huggingface.co/msime/pinyin-ime-reranker-4M)，GitHub release `model-v1`）在同一套评测集、同一个候选池上，按同样方式打分，有上文 79.5%，无上文 76.1%。
 
 **这些文件不能替代 `sentence-model.safetensors`。** 整句模型是给纯 Rust 的 [`chinese-ime-lm`](https://crates.io/crates/chinese-ime-lm) crate 用的自描述 safetensors 文件；这里是一张 ONNX Runtime 图，调用方式不同，见下文。
 
@@ -85,9 +85,11 @@ tags:
 
 | | 有上文（5,468） | 无上文（849） |
 |---|---|---|
-| **本模型** | **91.8%** | **83.4%** |
-| pinyin-ime-keystroke-reranker-8M | 90.1% | 82.8% |
-| pinyin-ime-reranker-4M（`model-v1`） | 89.6% | 81.3% |
+| **本模型** | **91.9%** | 82.7% |
+| pinyin-ime-keystroke-reranker-8M | 90.4% | **83.0%** |
+| pinyin-ime-reranker-4M（`model-v1`） | 79.5% | 76.1% |
+
+三行是同一个口径：在同一个候选池里挑按字平均对数概率最高的那个，上文按 MSIME 交给重排器的样子截短（`rerank_context`），每条用例都从空缓存开始，不经过输入法里决定要不要重排的那些规则。两个按键模型量的就是这里发布的 `lm_step.ort` 本身；`model-v1` 那一行就是 [`results.json`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/eval/sentences-ctx-v1/results.json) 里的 `ours-4m`。无上文那一列两个按键模型差 3 条，分不出高低。
 
 ### 延迟
 
