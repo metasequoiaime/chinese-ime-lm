@@ -76,7 +76,7 @@ GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/re
 | `rerank-<尺寸>.vocab.json` | `vocab.json` |
 | `rerank-<尺寸>.required_operators_and_types.config` | `required_operators_and_types.config` |
 
-每个仓库共七个文件：上面四个，加 `README.md`（`docs/hf/pinyin-ime-keystroke-reranker-*.md`）、`LICENSE`（同样是 **`reference/LICENSE`**，理由同上）和 `NOTICE`。`NOTICE` 里已经写了按键模型的署名在 ONNX 图元数据和 `model.json` 里。`required_operators_and_types.config` 是导出时与 `lm_step.ort` 同一次写出的那份，不要用别的导出重新生成——它决定精简构建的 ONNX Runtime 里留下哪些算子和类型，与图不配套会在加载时缺内核。
+每个仓库共七个文件：上面四个，加 `README.md`（`docs/hf/pinyin-ime-keystroke-reranker-*.md`）、`LICENSE`（同样是 **`reference/LICENSE`**，理由同上）和 `NOTICE`。`NOTICE` 里已经写了按键模型的署名在 ONNX 图元数据和 `model.json` 里。`required_operators_and_types.config` 是导出时与 `lm_step.ort` 同一次写出的那份，不要用别的导出重新生成——它决定精简构建的 ONNX Runtime 里留下哪些算子和类型，与图不配套会在加载时缺内核。唯一改动的是开头的注释：ONNX Runtime 在那里写下生成它的模型的绝对路径，会带出导出机器上的用户目录，发布前把 `# - <绝对路径>` 那行换成 `# - lm_step.ort`。解析器跳过 `#` 开头的行，算子行一个字节不动；改完用 ONNX Runtime 自己的 `tools/python/util/reduced_build_config_parser.py` 解析新旧两份，算子集合和类型表应当相同。
 
 卡里的数字来自 `rerank-v1` 的 release 说明和 `model.json`，`sha256` 和字节数标定的是 release 里那几份文件。上传前先按 release 说明的「校验」核对下载下来的文件，上传后用上面的 tree 接口核线上的 `size` 和 LFS `oid`（`model.json`、`vocab.json`、`.config` 是小文件，不走 LFS，只核 `size`，再下载下来比摘要）。重新导出模型就要发新的 release，并一并更新这两张卡。
 

@@ -49,7 +49,7 @@ For reference, the 4.25M sentence model ([pinyin-ime-reranker-4M](https://huggin
 | `lm_step.ort` | 8,220,064 | The whole keystroke path as one graph, weights quantized dynamically to uint8, optimised ahead of time for a minimal ONNX Runtime build |
 | `model.json` | 679 | What a runtime needs besides the graph: cache shape, context window, BOS and UNK ids, whether candidate characters may be read without the softmax, and the corpus attribution |
 | `vocab.json` | 85,613 | The token list. Single characters are the model's characters; an id is the position in the list |
-| `required_operators_and_types.config` | 1,038 | The operators and types the graph uses, written by the export: the input to ONNX Runtime's `--include_ops_by_config` and `--enable_reduced_operator_type_support` |
+| `required_operators_and_types.config` | 968 | The operators and types the graph uses, written by the export (only its comment line, which named a local build path, now reads `lm_step.ort`): the input to ONNX Runtime's `--include_ops_by_config` and `--enable_reduced_operator_type_support` |
 | `LICENSE` | — | Apache-2.0 |
 | `NOTICE` | — | Corpus attribution, which must travel with the weights |
 
@@ -145,8 +145,8 @@ sha256  eb7ccb2fd2153906ce131891aeaa04cc1092aeb9a22eeb9543aa206443ee7ba5
 vocab.json                                85,613 bytes
 sha256  d7fb2e70de9f0c2c65b822a8fbf604655bfef6d0dcd8f1975d73f1cd5ea7f038
 
-required_operators_and_types.config        1,038 bytes
-sha256  d82c5883b49b362a6ff36253f6a9b6cfff0478fe731026ea727bfe4c624db074
+required_operators_and_types.config          968 bytes
+sha256  e6369a634e626c1b76a8f2f9aa2d89d3c84abf9026204a82118c969f1e24500b
 ```
 
 These files are loaded by a process that sees every keystroke. **Verify the digests before shipping them.** See [`SECURITY.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/SECURITY.md).
