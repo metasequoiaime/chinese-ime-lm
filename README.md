@@ -26,6 +26,8 @@
 
 **当前状态：神经模型两条都在用，n-gram 一条从未出过这个仓库。** 权重以 Apache-2.0 发布在 Hugging Face —— [`pinyin-ime-reranker-4M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-4M)（4.5 MB，按键路径用这个）和 [`pinyin-ime-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-reranker-25M)（25.5 MB，整句集上比小的多对 3 条，差距不显著），同一批文件也在 [`model-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/model-v1) release 里，[MSIME](https://github.com/metasequoiaime/msime) 的 `host-api` 通过资源锁装载它们：小的跑按键路径，大的在输入停顿时接手。
 
+按键重排模型是另一种格式：ONNX Runtime 的 ORT 文件，整个按键路径一张图（`lm_step`），上屏时把上文编码进缓存，之后每次按键只算缓存里还没有的候选前缀。两个尺寸按设备快慢分档，同样以 Apache-2.0 发布在 Hugging Face —— [`pinyin-ime-keystroke-reranker-25M`](https://huggingface.co/metasequoiaime/pinyin-ime-keystroke-reranker-25M)（8x448，30.8 MB，桌面和新手机，ctx-v1 有上文 91.8%、无上文 83.4%）和 [`pinyin-ime-keystroke-reranker-8M`](https://huggingface.co/metasequoiaime/pinyin-ime-keystroke-reranker-8M)（6x256，8.2 MB，老手机，90.1% / 82.8%），同一批文件也在 [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v1) release 里。
+
 n-gram 一侧从未有产物进入过任何产品，而神经一侧按音节直接解码（`reference/examples/decode.rs`）的表现仍然比它本想改进的引擎还差——重排有用，直接解码没到。采用之前先把话说在前面。
 
 ### 直接使用
