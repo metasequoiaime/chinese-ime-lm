@@ -16,7 +16,7 @@
 
 ### 新增
 
-- 聊天上文的训练题与按键模型的新一轮训练（`docs/choice-model.md`「聊天上文」一节）：`neural/teacher/build_chat_cases.py` 从 LCCC 造「同一个人前几条消息当上文」的题，`neural/teacher/gen_chat.py` 用 DeepSeek 写单人连发的合成聊天，`neural/teacher/build_synth_cases.py` 把它们做成可分批的训练题，`neural/choice/interpolate.py` 把继续训练后的权重与起点按比例插值。新的 8×448 与 6×256 在 MSIME 引擎的带上文单人聊天上从 80.6% / 83.3% 提到 83.3% / 86.7%，ctx-v1 与发布版持平，按键延迟不变。
+- 聊天上文的训练题与按键模型的新一轮训练（`docs/choice-model.md`「聊天上文」一节）：`neural/teacher/build_chat_cases.py` 从 LCCC 造「同一个人前几条消息当上文」的题，`neural/teacher/gen_chat.py` 用 DeepSeek 写单人连发的合成聊天，`neural/teacher/build_synth_cases.py` 把它们做成可分批的训练题，`neural/choice/interpolate.py` 把继续训练后的权重与起点按比例插值。新的 8×448 与 6×256 在 MSIME 引擎的带上文单人聊天上从 80.6% / 83.3% 提到 83.3% / 85.5%，ctx-v1 有上文 91.4% / 90.1%（发布版 91.9% / 90.4%），按键延迟不变。`neural/choice/score_ort.py` 在导出的 `lm_step.ort` 本身上量候选池命中。
 
 - `neural/choice/model.py` 的 `lm_rows` 对自归一化模型改用按键图实际打的原始 logit，`train.py` 在池阶段对自归一化模型也约束 logZ，让 6×256 在池上训练时和上线时打的是同一个分。此前池阶段对它做 softmax 归一化，训的和跑的不是同一个量。
 
