@@ -274,15 +274,20 @@ class ChoiceModel(nn.Module):
         return total / lengths.to(total.dtype)
 
     def lm_rows(self, chars, starts, lengths):
-        """`lm_context` + `lm_score` in one differentiable pass, for training on pools: chars: [R, W] one row per candidate, a BOS-opened context followed by the candidate, padded; starts: [R] where the candidate begins; lengths: [R]. Returns each candidate's mean log-probability per character [R]. Only the positions that predict a candidate character go through the character table."""
+        """`lm_context` + `lm_score` in one differentiable pass, for training on pools: chars: [R, W] one row per candidate, a BOS-opened context followed by the candidate, padded; starts: [R] where the candidate begins; lengths: [R]. Returns each candidate's mean log-probability per character [R] (for a self-normalized model, its mean raw logit, as the keystroke graph scores it). Only the positions that predict a candidate character go through the character table."""
         h = self.embed(chars, self.chars, "context", 0)
         for block in self.blocks:
             h, _, _ = block(h, self.empty(chars.shape[0], h.device), self.empty(chars.shape[0], h.device))
         pos = torch.arange(chars.shape[1], device=chars.device).unsqueeze(0)
         predicts = (pos >= starts.unsqueeze(1) - 1) & (pos < (starts + lengths - 1).unsqueeze(1))
         rows, cols = predicts.nonzero(as_tuple=True)
-        logp = F.log_softmax((self.ln_f(h[rows, cols]) @ self.chars.weight.t()).float(), dim=-1)
-        picked = logp.gather(-1, chars[rows, cols + 1].unsqueeze(-1)).squeeze(-1)
+        hidden = self.ln_f(h[rows, cols])
+        if self.cfg.self_normalized:
+            # What the keystroke graph scores for a self-normalized model (`lm_score_tree`): the raw logit, its log-normaliser taken to be zero.
+            picked = (hidden * self.chars(chars[rows, cols + 1])).sum(-1).float()
+        else:
+            logp = F.log_softmax((hidden @ self.chars.weight.t()).float(), dim=-1)
+            picked = logp.gather(-1, chars[rows, cols + 1].unsqueeze(-1)).squeeze(-1)
         total = torch.zeros(chars.shape[0], device=chars.device).index_add(0, rows, picked)
         return total / lengths.to(total.dtype)
 

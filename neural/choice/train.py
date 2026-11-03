@@ -214,10 +214,13 @@ def report(path, key, step, steps, elapsed, detail):
     except (FileNotFoundError, ValueError):
         data = {}
     per = elapsed / max(1, step)
+    # A stage may carry a fixed explanation (`detail_prefix`) written by hand; keep it in front of the live detail.
+    prefix = (data.get(key) or {}).get("detail_prefix", "")
     data[key] = {
         "status": "running",
+        **({"detail_prefix": prefix} if prefix else {}),
         "progress": step / steps,
-        "detail": detail,
+        "detail": prefix + detail,
         "eta_s": (steps - step) * per,
         "live": {"last_it": step, "total": steps, "sec_per_it": per, "log_at": time.time()},
     }
@@ -459,7 +462,8 @@ def main():
             cursor = 0
         cases = [pools[i] for i in order[cursor : cursor + args.batch]]
         cursor += args.batch
-        z = args.z if cfg.lm_term else 0.0
+        # A self-normalized model is scored without its normaliser, so the corpus windows keep pulling logZ to zero while the pools move it.
+        z = args.z if (cfg.lm_term or cfg.self_normalized) else 0.0
         if args.lm_only:
             chars, starts, lengths, spans = batch_lm_rows(encoder, cases, device)
             scores = model.lm_rows(chars, starts, lengths) * lengths
