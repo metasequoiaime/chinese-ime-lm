@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from export_step import NAMES, context_feed, keystroke_feed  # noqa: E402
+from export_step import NAMES, context_feed, keystroke_feed
 
 CONTEXT_STEP = 16
 CANDIDATE_ROOM = 16
