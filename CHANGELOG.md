@@ -16,6 +16,10 @@
 
 ### 新增
 
+- 聊天上文的训练题与按键模型的新一轮训练（`docs/choice-model.md`「聊天上文」一节）：`neural/teacher/build_chat_cases.py` 从 LCCC 造「同一个人前几条消息当上文」的题，`neural/teacher/gen_chat.py` 用 DeepSeek 写单人连发的合成聊天，`neural/teacher/build_synth_cases.py` 把它们做成可分批的训练题，`neural/choice/interpolate.py` 把继续训练后的权重与起点按比例插值。新的 8×448 与 6×256 在 MSIME 引擎的带上文单人聊天上从 80.6% / 83.3% 提到 83.3% / 86.7%，ctx-v1 与发布版持平，按键延迟不变。
+
+- `neural/choice/model.py` 的 `lm_rows` 对自归一化模型改用按键图实际打的原始 logit，`train.py` 在池阶段对自归一化模型也约束 logZ，让 6×256 在池上训练时和上线时打的是同一个分。此前池阶段对它做 softmax 归一化，训的和跑的不是同一个量。
+
 - `eval/open-models/`：「与开源通用模型比较」那张表的候选池（52 条，由 2026-09-19 的 MSIME 引擎重新录出，前三行逐条复现）、每个打分器的适配器（本项目 `reference/examples/pool.rs`、通用模型 `mlx_lm_pool.py`、青简 `qingjian_pool.rs`、知意 `zhiyi_onnx_pool.py`）、汇总脚本，以及机器可读的结果 `results.json` / `results.csv`。表里加上青简的含章·通变、含章·知微和知意输入法的知意（1.4V2-Long-L12 的两种权重与 ML-pumpkin-1026），命中 49 到 51 条，与本项目两个模型之间都不显著。别的项目的权重和代码都不进仓库，来源与哈希记在 `models.json`。
 
 - `integrations/rime/`：Rime（librime ≥ 1.17.0）插件 `ime_lm_filter`，经 C ABI 调用重排模型，只在首选是 Rime 造的句子、且至少两个候选覆盖整个分段时才可能改动首选；首选是覆盖整个分段的词典词时一律不动。librime 默认只造 1 个句子，插件要配合调高 `translator/max_sentences` 才有候选可比。附带在 Arch Linux 的 librime 上复现评测的 Docker 环境与驱动程序；在 Rime 上的实测数字尚未取得。
