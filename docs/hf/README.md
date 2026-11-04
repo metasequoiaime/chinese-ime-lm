@@ -6,10 +6,10 @@
 |---|---|---|
 | [`pinyin-ime-reranker-4M.md`](pinyin-ime-reranker-4M.md) | [`msime/pinyin-ime-reranker-4M`](https://huggingface.co/msime/pinyin-ime-reranker-4M) | `sentence-model.safetensors`，4.25M，由 `dist/sentence-model.safetensors` 上传 |
 | [`pinyin-ime-reranker-25M.md`](pinyin-ime-reranker-25M.md) | [`msime/pinyin-ime-reranker-25M`](https://huggingface.co/msime/pinyin-ime-reranker-25M) | `sentence-model.safetensors`，24.9M，由 `dist/sentence-model-desktop.safetensors` 上传 |
-| [`pinyin-ime-keystroke-reranker-25M.md`](pinyin-ime-keystroke-reranker-25M.md) | [`msime/pinyin-ime-keystroke-reranker-25M`](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-25M) | `lm_step.ort`，8x448、24.9M，由 release `rerank-v1` 的 `rerank-8x448.*` 上传 |
-| [`pinyin-ime-keystroke-reranker-8M.md`](pinyin-ime-keystroke-reranker-8M.md) | [`msime/pinyin-ime-keystroke-reranker-8M`](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-8M) | `lm_step.ort`，6x256、7.96M，由 release `rerank-v1` 的 `rerank-6x256.*` 上传 |
+| [`pinyin-ime-keystroke-reranker-25M.md`](pinyin-ime-keystroke-reranker-25M.md) | [`msime/pinyin-ime-keystroke-reranker-25M`](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-25M) | `lm_step.ort`，8x448、24.9M，由 release `rerank-v2` 的 `rerank-8x448.*` 上传 |
+| [`pinyin-ime-keystroke-reranker-8M.md`](pinyin-ime-keystroke-reranker-8M.md) | [`msime/pinyin-ime-keystroke-reranker-8M`](https://huggingface.co/msime/pinyin-ime-keystroke-reranker-8M) | `lm_step.ort`，6x256、7.96M，由 release `rerank-v2` 的 `rerank-6x256.*` 上传 |
 
-前两个是整句重排模型（safetensors，`model-v1`），后两个是按键重排模型（ORT 格式，`rerank-v1`），两类文件格式和调用方式都不同，见下面各自一节。
+前两个是整句重排模型（safetensors，`model-v1`），后两个是按键重排模型（ORT 格式，`rerank-v2`），两类文件格式和调用方式都不同，见下面各自一节。
 
 ## 整句重排模型（`model-v1`）
 
@@ -65,9 +65,9 @@ curl -s https://huggingface.co/api/models/msime/pinyin-ime-reranker-4M/tree/main
 
 这两条的 `sha256` 和 `size` 是从**线上**那份核出来的，不是从本地 `dist/` 抄的：LFS 的 `oid` 与本地摘要逐个相符之后才写在这里。重新导出权重就必须重新核，`url` 不变不代表内容不变。
 
-## 按键重排模型（`rerank-v1`）
+## 按键重排模型（`rerank-v2`）
 
-GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v1) 把两个模型放在一起，所以文件带 `rerank-<尺寸>.` 前缀。分成两个 HF 仓库之后不需要前缀，上传时落成 host 要找的原名，和 `export_step.py` 写出的名字一致：
+GitHub release [`rerank-v2`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v2) 把两个模型放在一起（第一版 [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v1) 也是这样），所以文件带 `rerank-<尺寸>.` 前缀。分成两个 HF 仓库之后不需要前缀，上传时落成 host 要找的原名，和 `export_step.py` 写出的名字一致：
 
 | release 资产 | HF 仓库内 |
 |---|---|
@@ -78,7 +78,7 @@ GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/re
 
 每个仓库共七个文件：上面四个，加 `README.md`（`docs/hf/pinyin-ime-keystroke-reranker-*.md`）、`LICENSE`（同样是 **`reference/LICENSE`**，理由同上）和 `NOTICE`。`NOTICE` 里已经写了按键模型的署名在 ONNX 图元数据和 `model.json` 里。`required_operators_and_types.config` 是导出时与 `lm_step.ort` 同一次写出的那份，不要用别的导出重新生成——它决定精简构建的 ONNX Runtime 里留下哪些算子和类型，与图不配套会在加载时缺内核。唯一改动的是开头的注释：ONNX Runtime 在那里写下生成它的模型的绝对路径，会带出导出机器上的用户目录，发布前把 `# - <绝对路径>` 那行换成 `# - lm_step.ort`。解析器跳过 `#` 开头的行，算子行一个字节不动；改完用 ONNX Runtime 自己的 `tools/python/util/reduced_build_config_parser.py` 解析新旧两份，算子集合和类型表应当相同。
 
-卡里的数字来自 `rerank-v1` 的 release 说明和 `model.json`，`sha256` 和字节数标定的是 release 里那几份文件。上传前先按 release 说明的「校验」核对下载下来的文件，上传后用上面的 tree 接口核线上的 `size` 和 LFS `oid`（`model.json`、`vocab.json`、`.config` 是小文件，不走 LFS，只核 `size`，再下载下来比摘要）。重新导出模型就要发新的 release，并一并更新这两张卡。
+卡里的数字来自 `rerank-v2` 的 release 说明和 `model.json`（v1 的数字作对照行保留），`sha256` 和字节数标定的是 release 里那几份文件。上传前先按 release 说明的「校验」核对下载下来的文件，上传后用上面的 tree 接口核线上的 `size` 和 LFS `oid`（`model.json`、`vocab.json`、`.config` 是小文件，不走 LFS，只核 `size`，再下载下来比摘要）。重新导出模型就要发新的 release，并一并更新这两张卡。
 
 **准确率要在 release 里那几份文件本身上量**，不能拿导出之前的检查点、另一种量化的图或另一次训练的结果顶替。最初的说明和卡就错在这里：两个按键模型的数字量的是导出前另做 int8 量化的两张图（91.8% / 83.4%、90.1% / 82.8%），发布的 uint8 `lm_step.ort` 是 91.9% / 82.7%、90.4% / 83.0%；`model-v1` 那一行写的 89.6% / 81.3% 其实是另一个 6x256 训练中间版本的成绩，`model-v1` 自己是 79.5% / 76.1%。对照模型的数字直接取 `eval/sentences-ctx-v1/results.json` 里那个打分器的条目，口径相同（同一个池、挑按字平均对数概率最高的那个、上文按 `rerank_context` 截、每条用例从空缓存开始）。量 ORT 文件时每条用例都要从空缓存开始：MSIME 的 `OnnxScorer` 在上文不变时沿用上一次的缓存，uint8 动态量化让一起计算的节点影响分数，连着跑整个池时，接在同上文用例后面的那些会有零点几个点的出入。
 

@@ -24,6 +24,9 @@ Copyright 2026 chinese-ime-lm contributors
 元数据 `attribution` 字段里（ORT 格式保留它），同一句话也写在随模型发布的 `model.json` 中。
 再分发时两处都必须保留。
 
+按键重排模型从 `rerank-v2` 起另用了合成数据：DeepSeek deepseek-v4-pro 为本项目生成的单人连发聊天（neural/teacher/gen_chat.py）。DeepSeek 使用条款把生成内容归用户，并允许用来训练其他模型，没有相同方式共享的义务。这部分在署名里标明是合成的。
+  https://cdn.deepseek.com/policies/en-US/deepseek-terms-of-use.html
+
 ————————————————————————————————————————
 
 评测数据

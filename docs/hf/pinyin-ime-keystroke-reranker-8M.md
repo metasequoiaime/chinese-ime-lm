@@ -23,7 +23,23 @@ tags:
 
 **它不做拼音解码。** 它拿到的是你的引擎已经拼好的候选列表，判断上文支持其中哪一个。喂给它一串拼音，得不到中文。
 
-训练和测量都在 [metasequoiaime/chinese-ime-lm](https://github.com/metasequoiaime/chinese-ime-lm)。同一批字节也在 GitHub release [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v1) 里，那里的文件带 `rerank-6x256.` 前缀，好让两个模型放进同一个 release。
+训练和测量都在 [metasequoiaime/chinese-ime-lm](https://github.com/metasequoiaime/chinese-ime-lm)。这里是第二版，同一批字节也在 GitHub release [`rerank-v2`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v2) 里，那里的文件带 `rerank-6x256.` 前缀，好让两个模型放进同一个 release。第一版仍在 [`rerank-v1`](https://github.com/metasequoiaime/chinese-ime-lm/releases/tag/rerank-v1)。
+
+## 这一版（`rerank-v2`）
+
+第二版专门针对聊天。输入法在聊天里看到的上文，是同一个人前面发出的几条消息，中间隔着换行；v1 训练时没见过这种上文，所以上文是「妈」时，它仍把「你和爸」打成「喝吧」。
+
+v2 从 v1 接着训练，训练题是 1,352 段合成的单人连发聊天（DeepSeek `deepseek-v4-pro` 为本项目生成），每条消息以同一段里在它之前的消息为上文，共 39,410 个候选池，由 9B 老师打分。只在聊天上继续训会让通用评测掉分，所以训练完再和 v1 做权重插值，本模型取新权重的五成：取七成时 ctx-v1 有上文差 3 条够不到 90% 的底线。结构、文件格式和用法都与 v1 相同，`vocab.json` 和 `required_operators_and_types.config` 逐字节不变，可以原样替换。完整过程见仓库里 [`docs/choice-model.md`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/docs/choice-model.md) 的「聊天上文」一节。
+
+| | v1 | **v2（本仓库）** |
+|---|---|---|
+| MSIME 带上文的单人聊天（330 段） | 83.3% | **85.5%** |
+| MSIME 无上文的聊天（330 段） | 82.7% | **84.8%** |
+| MSIME sentences 四套（1,580 句） | **84.5%** | 83.8% |
+| ctx-v1 有上文（5,468 条） | **90.4%** | 90.1% |
+| ctx-v1 无上文（849 条） | 83.0% | 83.0% |
+
+MSIME 的三行在同一套引擎和资源里测，开拼音纠错，整句池 32 条，按第一次按空格上屏是否正确计。和 v1 逐条配对比较，带上文的聊天多对 9 段、少对 2 段（p = 0.07）；sentences 四套多对 16 句、少对 27 句（p = 0.13），降了 0.7 个点，不显著，但方向是降。在 macOS 上真实的输入法里打 220 段聊天，v1 是 85.0%，v2 是 87.3%。ctx-v1 两行见下文「测量」：有上文低了 0.3 个点，仍在 90% 以上。
 
 ## 两个里选哪个
 
@@ -33,7 +49,7 @@ tags:
 |---|---|---|
 | 参数量 | 7.96M | 24.9M |
 | 文件（uint8 权重） | **8.2 MB** | 30.8 MB |
-| ctx-v1，有上文（5,468 条） | 90.4% | **91.9%** |
+| ctx-v1，有上文（5,468 条） | 90.1% | **91.4%** |
 | ctx-v1，无上文（849 条） | **83.0%** | 82.7% |
 | 读候选字的方式 | **一次点积**（训练时自归一化） | 对整个字表做 softmax |
 | 适用于 | 老手机 | 桌面、新手机 |
@@ -46,8 +62,8 @@ tags:
 
 | 文件 | 字节数 | 是什么 |
 |---|---|---|
-| `lm_step.ort` | 8,220,064 | 整条按键路径一张图，权重动态量化为 uint8，已为精简构建的 ONNX Runtime 预先优化 |
-| `model.json` | 679 | 运行时除了图之外还需要的东西：缓存形状、上文窗口、BOS 和 UNK 的 id、候选字能否跳过 softmax 读取，以及语料署名 |
+| `lm_step.ort` | 8,220,336 | 整条按键路径一张图，权重动态量化为 uint8，已为精简构建的 ONNX Runtime 预先优化 |
+| `model.json` | 951 | 运行时除了图之外还需要的东西：缓存形状、上文窗口、BOS 和 UNK 的 id、候选字能否跳过 softmax 读取，以及语料署名 |
 | `vocab.json` | 85,613 | token 列表。单个字符就是模型的字；id 是在列表里的位置 |
 | `required_operators_and_types.config` | 968 | 图用到的算子和类型，由导出写出（只有注释那一行原本写的是本地构建路径，现在改成了 `lm_step.ort`）：作为 ONNX Runtime `--include_ops_by_config` 和 `--enable_reduced_operator_type_support` 的输入 |
 | `LICENSE` | — | Apache-2.0 |
@@ -85,11 +101,12 @@ tags:
 
 | | 有上文（5,468） | 无上文（849） |
 |---|---|---|
-| pinyin-ime-keystroke-reranker-25M | **91.9%** | 82.7% |
-| **本模型** | 90.4% | **83.0%** |
+| pinyin-ime-keystroke-reranker-25M | **91.4%**（4,997） | 82.7%（702） |
+| **本模型** | 90.1%（4,929） | **83.0%**（705） |
+| 本模型 v1（`rerank-v1`） | 90.4% | 83.0% |
 | pinyin-ime-reranker-4M（`model-v1`） | 79.5% | 76.1% |
 
-三行是同一个口径：在同一个候选池里挑按字平均对数概率最高的那个，上文按 MSIME 交给重排器的样子截短（`rerank_context`），每条用例都从空缓存开始，不经过输入法里决定要不要重排的那些规则。两个按键模型量的就是这里发布的 `lm_step.ort` 本身；`model-v1` 那一行就是 [`results.json`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/eval/sentences-ctx-v1/results.json) 里的 `ours-4m`。无上文那一列两个按键模型差 3 条，分不出高低。
+各行是同一个口径：在同一个候选池里挑按字平均对数概率最高的那个，上文按 MSIME 交给重排器的样子截短（`rerank_context`），每条用例都从空缓存开始，不经过输入法里决定要不要重排的那些规则。按键模型量的就是发布的 `lm_step.ort` 本身（`neural/choice/score_ort.py`），括号里是答对的条数；v1 那一行是 `rerank-v1` 里那份文件的成绩；`model-v1` 那一行就是 [`results.json`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/eval/sentences-ctx-v1/results.json) 里的 `ours-4m`。无上文那一列两个按键模型差 3 条，分不出高低。
 
 ### 延迟
 
@@ -101,6 +118,8 @@ tags:
 | iPhone 17（2 线程） | 8x448 | 3.8–4.1 ms | 4.8–5.4 ms |
 | iPhone XR（2 线程） | 6x256 | 4.4–4.9 ms | 11.1–11.9 ms |
 | Pixel 3 XL（4 线程） | 6x256 | 9.3 ms | 38–40 ms |
+
+上表是 v1 时测的。v2 结构没变，延迟也不变：在 M4 Pro 上用 `rerank_latency` 逐键成对测量（单人聊天 test 集，开纠错，4,902 次按键，每个模型两遍），本模型整句池 32 条时，带模型的按键 p95 v1 是 3.29–3.37 ms，v2 是 3.33 ms。那次量的是取新权重七成的中间版，结构和权重布局与这里发布的相同。
 
 **报分位数，不报均值。** 大多数按键开销很小，均值把贵的那些摊到了便宜的上面。
 
@@ -125,12 +144,12 @@ tags:
 
 `LICENSE` 和 `NOTICE` 放在这个仓库里，而不只是在元数据里写个名字，因为 Apache-2.0 要求再分发者把两者一并交出去，网页上的一个标签不是它们的副本。
 
-训练语料是 [C4](https://huggingface.co/datasets/allenai/c4) 的中文部分（ODC-BY）、[FineWeb-2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) 的中文（`cmn_Hani`）部分（ODC-BY）和 [LCCC](https://huggingface.co/datasets/silver/lccc)（MIT）。**三者都没有相同方式共享（share-alike）的义务**，所以采用这个模型不会把这种义务带到你身上。
+训练语料是 [C4](https://huggingface.co/datasets/allenai/c4) 的中文部分（ODC-BY）、[FineWeb-2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) 的中文（`cmn_Hani`）部分（ODC-BY）和 [LCCC](https://huggingface.co/datasets/silver/lccc)（MIT），v2 另加了 DeepSeek `deepseek-v4-pro` 为本项目写的合成单人聊天（由 [`neural/teacher/gen_chat.py`](https://github.com/metasequoiaime/chinese-ime-lm/blob/main/neural/teacher/gen_chat.py) 生成）。[DeepSeek 使用条款](https://cdn.deepseek.com/policies/en-US/deepseek-terms-of-use.html)把生成内容归用户，并允许用来训练其他模型。**这四类来源都没有相同方式共享（share-alike）的义务**，所以采用这个模型不会把这种义务带到你身上。
 
-这些语料都要求署名跟着用它们训练出来的东西走。署名写在图的元数据里（`attribution`、`license`），ORT 格式会保留它，`model.json` 里也有同一句话：
+这些语料都要求署名跟着用它们训练出来的东西走。署名写在图的元数据里（`attribution`、`license`），ORT 格式会保留它，`model.json` 里也有同一句话，其中合成数据标明了是合成的：
 
 ```
-Trained on the Chinese portion of C4 (ODC-BY, https://huggingface.co/datasets/allenai/c4), FineWeb-2 (cmn_Hani) (ODC-BY, https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) and LCCC (MIT, https://github.com/thu-coai/CDial-GPT).
+Trained on the Chinese portion of C4 (ODC-BY, https://huggingface.co/datasets/allenai/c4), FineWeb-2 (cmn_Hani) (ODC-BY, https://huggingface.co/datasets/HuggingFaceFW/fineweb-2), LCCC (MIT, https://github.com/thu-coai/CDial-GPT) and synthetic one-sided chat messages written by DeepSeek deepseek-v4-pro for this project (neural/teacher/gen_chat.py) (DeepSeek Terms of Use, outputs assigned to the user and usable to train other models, https://cdn.deepseek.com/policies/en-US/deepseek-terms-of-use.html).
 ```
 
 **再分发时两处都请保留。** 署名是从这次训练实际用到的语料推出来的，不是手写声明的：导出时根据每份下载的语料旁边写下的记录生成它，只要有任何来源是相同方式共享的就拒绝导出。
@@ -138,11 +157,11 @@ Trained on the Chinese portion of C4 (ODC-BY, https://huggingface.co/datasets/al
 ## 完整性
 
 ```
-lm_step.ort                            8,220,064 bytes
-sha256  ceeb3a8def8ed00277063146121fe1ce152eba34006c23844a1c0c0ed188bad4
+lm_step.ort                            8,220,336 bytes
+sha256  e036febfb8f7bdf941f1637be127ff539ea95b937a4c2a27f4c6ab897138fc6c
 
-model.json                                   679 bytes
-sha256  eb7ccb2fd2153906ce131891aeaa04cc1092aeb9a22eeb9543aa206443ee7ba5
+model.json                                   951 bytes
+sha256  33e2b903a0d576730488864a007e67d518d8c7123572e6f4f77a80487fb5eda5
 
 vocab.json                                85,613 bytes
 sha256  d7fb2e70de9f0c2c65b822a8fbf604655bfef6d0dcd8f1975d73f1cd5ea7f038
